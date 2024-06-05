@@ -1,0 +1,15 @@
+mod shard;
+pub(crate) mod transaction;
+pub(crate) mod block;
+pub(crate) mod blockchain;
+mod certificate_authority;
+pub(crate) mod node;
+pub(crate) mod quantum_entropy;
+mod state_channel;
+mod validation;
+mod wallet;
+mod sharding;
+mod governance;
+mod storage;
+mod state;
+mod quantum_voting;

@@ -1,0 +1,7 @@
+[node]
+id = "node-1"
+address = "127.0.0.1"
+supports_quantum = true
+
+[feature_flags]
+# Add feature flags as needed

@@ -1,0 +1,8 @@
+.aider*
+target/
+.idea/
+.vscode/
+clean_tags.py
+.plandex/
+.github/
+Cargo.lock
