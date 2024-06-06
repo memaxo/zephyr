@@ -65,7 +65,8 @@ impl RewardDistributor {
 
     fn get_block_validator_address(&self, block_header: &QUPBlockHeader) -> Vec<u8> {
         // Retrieve the validator address from the block header or other relevant data
-        // ...
+        // Retrieve the validator address from the block header or other relevant data
+        block_header.validator_address.clone()
     }
 
     fn distribute_validator_reward(
@@ -75,7 +76,14 @@ impl RewardDistributor {
         reward: u64,
     ) {
         // Distribute the reward to the validator's account in the state
-        // ...
+        let validator_account = state.get_account_mut(validator_address);
+        if let Some(account) = validator_account {
+            account.balance += reward;
+        } else {
+            // Handle the case where the validator account does not exist
+            // For simplicity, let's assume we create a new account with the reward
+            state.create_account(validator_address.to_vec(), reward);
+        }
     }
 
     fn calculate_delegator_rewards(
@@ -85,7 +93,17 @@ impl RewardDistributor {
     ) -> HashMap<Vec<u8>, u64> {
         let mut delegator_rewards = HashMap::new();
         // Calculate the reward for each delegator based on their stake and the total delegator reward
-        // ...
+        let total_stake: u64 = state
+            .delegators()
+            .map(|(_, stake)| stake)
+            .sum();
+
+        for (delegator_address, stake) in state.delegators() {
+            let reward = (stake as f64 / total_stake as f64 * total_delegator_reward as f64) as u64;
+            delegator_rewards.insert(delegator_address.clone(), reward);
+        }
+
+        delegator_rewards
         delegator_rewards
     }
 
@@ -95,6 +113,15 @@ impl RewardDistributor {
         delegator_rewards: &HashMap<Vec<u8>, u64>,
     ) {
         // Distribute the rewards to each delegator's account in the state
-        // ...
+        for (delegator_address, reward) in delegator_rewards {
+            let delegator_account = state.get_account_mut(delegator_address);
+            if let Some(account) = delegator_account {
+                account.balance += reward;
+            } else {
+                // Handle the case where the delegator account does not exist
+                // For simplicity, let's assume we create a new account with the reward
+                state.create_account(delegator_address.to_vec(), *reward);
+            }
+        }
     }
 }
