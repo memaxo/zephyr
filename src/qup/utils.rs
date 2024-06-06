@@ -98,13 +98,51 @@ pub fn solve_useful_work_problem(problem: &UsefulWorkProblem) -> UsefulWorkSolut
 }
 
 pub fn solve_knapsack_problem(problem: &KnapsackProblem) -> KnapsackSolution {
-    // Solve the knapsack problem using an appropriate algorithm
-    // ...
+    let n = problem.weights.len();
+    let capacity = problem.capacity as usize;
+    let mut dp = vec![vec![0; capacity + 1]; n + 1];
+
+    for i in 1..=n {
+        for w in 0..=capacity {
+            if problem.weights[i - 1] as usize <= w {
+                dp[i][w] = dp[i - 1][w].max(dp[i - 1][w - problem.weights[i - 1] as usize] + problem.values[i - 1]);
+            } else {
+                dp[i][w] = dp[i - 1][w];
+            }
+        }
+    }
+
+    let mut selected_items = vec![false; n];
+    let mut w = capacity;
+    for i in (1..=n).rev() {
+        if dp[i][w] != dp[i - 1][w] {
+            selected_items[i - 1] = true;
+            w -= problem.weights[i - 1] as usize;
+        }
+    }
+
+    KnapsackSolution { selected_items }
 }
 
 pub fn solve_vertex_cover_problem(problem: &VertexCoverProblem) -> VertexCoverSolution {
-    // Solve the vertex cover problem using an appropriate algorithm
-    // ...
+    let mut vertex_cover = Vec::new();
+    let mut visited = vec![false; problem.graph.len()];
+
+    for u in 0..problem.graph.len() {
+        if !visited[u] {
+            for &v in &problem.graph[u] {
+                if !visited[v] {
+                    visited[u] = true;
+                    visited[v] = true;
+                    vertex_cover.push(u);
+                    vertex_cover.push(v);
+                    break;
+                }
+            }
+        }
+    }
+
+    VertexCoverSolution { vertex_cover }
 }
 
 fn get_public_key_from_address(address: &[u8]) -> Vec<u8> {
