@@ -136,14 +136,16 @@ impl QUPConsensus {
         &self,
         transactions: Vec<Transaction>,
     ) -> Result<QUPBlock, ConsensusError> {
-        // Generate useful work problem
-        let useful_work_problem = self.generate_useful_work_problem();
+        use rayon::prelude::*;
 
-        // Solve useful work problem
-        let useful_work_solution = self.solve_useful_work_problem(&useful_work_problem);
+        // Generate useful work problem and history proof in parallel
+        let (useful_work_problem, history_proof) = rayon::join(
+            || self.generate_useful_work_problem(),
+            || self.generate_history_proof(),
+        );
 
-        // Generate history proof
-        let history_proof = self.generate_history_proof();
+        // Solve useful work problem in parallel
+        let useful_work_solution = rayon::spawn(|| self.solve_useful_work_problem(&useful_work_problem)).join().unwrap();
 
         // Create a new block with the given transactions, useful work problem, solution, and history proof
         let mut block = QUPBlock::new(
