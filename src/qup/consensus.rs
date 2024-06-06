@@ -32,10 +32,18 @@ impl QUPConsensus {
     }
 
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
+        use rayon::prelude::*;
+
         match message {
-            ConsensusMessage::Propose(block) => self.process_propose(block),
-            ConsensusMessage::Vote(vote) => self.process_vote(vote),
-            ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
+            ConsensusMessage::Propose(block) => {
+                // Adaptive consensus mechanism
+                if self.state.get_network_load() > self.config.consensus_config.load_threshold {
+                    // Use a more efficient consensus algorithm under high load
+                    self.process_propose_efficient(block)
+                } else {
+                    self.process_propose(block)
+                }
+            }
             ConsensusMessage::Vote(vote) => self.process_vote(vote),
             ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
         }
