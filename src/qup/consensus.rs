@@ -31,6 +31,7 @@ impl QUPConsensus {
         blockchain: Arc<Blockchain>,
     ) -> Self {
         let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
+        let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
         QUPConsensus {
             config,
             state,
@@ -39,7 +40,6 @@ impl QUPConsensus {
             communication_protocol,
             blockchain,
         }
-    }
 
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
         // Validate the block
@@ -397,13 +397,6 @@ impl QUPConsensus {
         Ok(())
     }
 }
-        let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
-        QUPConsensus {
-            config,
-            state,
-            key_pair,
-            hdc_model,
-            communication_protocol,
         }
     }
 
