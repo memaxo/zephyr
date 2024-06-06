@@ -47,10 +47,20 @@ pub fn verify_vote_signature(vote: &QUPVote) -> bool {
 }
 
 pub fn generate_random_useful_work_problem() -> UsefulWorkProblem {
-    let problem_type = rand::thread_rng().gen_range(0..2);
+    let problem_type = rand::thread_rng().gen_range(0..12);
     match problem_type {
         0 => UsefulWorkProblem::Knapsack(generate_random_knapsack_problem()),
         1 => UsefulWorkProblem::VertexCover(generate_random_vertex_cover_problem()),
+        2 => UsefulWorkProblem::TravelingSalesman(generate_random_traveling_salesman_problem()),
+        3 => UsefulWorkProblem::JobScheduling(generate_random_job_scheduling_problem()),
+        4 => UsefulWorkProblem::BinPacking(generate_random_bin_packing_problem()),
+        5 => UsefulWorkProblem::MaximumFlow(generate_random_maximum_flow_problem()),
+        6 => UsefulWorkProblem::ShortestPath(generate_random_shortest_path_problem()),
+        7 => UsefulWorkProblem::MinimumSpanningTree(generate_random_minimum_spanning_tree_problem()),
+        8 => UsefulWorkProblem::ResourceAllocation(generate_random_resource_allocation_problem()),
+        9 => UsefulWorkProblem::VehicleRouting(generate_random_vehicle_routing_problem()),
+        10 => UsefulWorkProblem::PortfolioOptimization(generate_random_portfolio_optimization_problem()),
+        11 => UsefulWorkProblem::MarketEquilibrium(generate_random_market_equilibrium_problem()),
         _ => panic!("Invalid useful work problem type"),
     }
 }
@@ -86,7 +96,134 @@ pub fn generate_random_vertex_cover_problem() -> VertexCoverProblem {
     VertexCoverProblem { graph }
 }
 
-pub fn solve_useful_work_problem(problem: &UsefulWorkProblem) -> UsefulWorkSolution {
+pub fn generate_random_traveling_salesman_problem() -> TravelingSalesmanProblem {
+    let mut rng = rand::thread_rng();
+    let num_cities = rng.gen_range(5..20);
+    let distances = (0..num_cities)
+        .map(|_| (0..num_cities).map(|_| rng.gen_range(1..100)).collect())
+        .collect();
+
+    TravelingSalesmanProblem { distances }
+}
+
+pub fn generate_random_job_scheduling_problem() -> JobSchedulingProblem {
+    let mut rng = rand::thread_rng();
+    let num_jobs = rng.gen_range(5..20);
+    let jobs = (0..num_jobs)
+        .map(|id| Job {
+            id,
+            processing_time: rng.gen_range(1..100),
+            deadline: rng.gen_range(1..100),
+            weight: rng.gen_range(1..10),
+        })
+        .collect();
+
+    JobSchedulingProblem { jobs }
+}
+
+pub fn generate_random_bin_packing_problem() -> BinPackingProblem {
+    let mut rng = rand::thread_rng();
+    let bin_capacity = rng.gen_range(50..100);
+    let num_items = rng.gen_range(5..20);
+    let item_sizes = (0..num_items).map(|_| rng.gen_range(1..50)).collect();
+
+    BinPackingProblem {
+        bin_capacity,
+        item_sizes,
+    }
+}
+
+pub fn generate_random_maximum_flow_problem() -> MaximumFlowProblem {
+    let mut rng = rand::thread_rng();
+    let num_nodes = rng.gen_range(5..20);
+    let capacity_matrix = (0..num_nodes)
+        .map(|_| (0..num_nodes).map(|_| rng.gen_range(0..100)).collect())
+        .collect();
+    let source = 0;
+    let sink = num_nodes - 1;
+
+    MaximumFlowProblem {
+        capacity_matrix,
+        source,
+        sink,
+    }
+}
+
+pub fn generate_random_shortest_path_problem() -> ShortestPathProblem {
+    let mut rng = rand::thread_rng();
+    let num_nodes = rng.gen_range(5..20);
+    let graph = (0..num_nodes)
+        .map(|_| (0..num_nodes).map(|_| rng.gen_range(1..100)).collect())
+        .collect();
+    let start_node = 0;
+    let end_node = num_nodes - 1;
+
+    ShortestPathProblem {
+        graph,
+        start_node,
+        end_node,
+    }
+}
+
+pub fn generate_random_minimum_spanning_tree_problem() -> MinimumSpanningTreeProblem {
+    let mut rng = rand::thread_rng();
+    let num_nodes = rng.gen_range(5..20);
+    let graph = (0..num_nodes)
+        .map(|_| (0..num_nodes).map(|_| rng.gen_range(1..100)).collect())
+        .collect();
+
+    MinimumSpanningTreeProblem { graph }
+}
+
+pub fn generate_random_resource_allocation_problem() -> ResourceAllocationProblem {
+    let mut rng = rand::thread_rng();
+    let num_resources = rng.gen_range(5..20);
+    let resources = (0..num_resources).map(|_| rng.gen_range(1..100)).collect();
+    let demands = (0..num_resources).map(|_| rng.gen_range(1..100)).collect();
+
+    ResourceAllocationProblem { resources, demands }
+}
+
+pub fn generate_random_vehicle_routing_problem() -> VehicleRoutingProblem {
+    let mut rng = rand::thread_rng();
+    let num_locations = rng.gen_range(5..20);
+    let distances = (0..num_locations)
+        .map(|_| (0..num_locations).map(|_| rng.gen_range(1..100)).collect())
+        .collect();
+    let vehicle_count = rng.gen_range(1..5);
+    let depot = 0;
+
+    VehicleRoutingProblem {
+        distances,
+        vehicle_count,
+        depot,
+    }
+}
+
+pub fn generate_random_portfolio_optimization_problem() -> PortfolioOptimizationProblem {
+    let mut rng = rand::thread_rng();
+    let num_assets = rng.gen_range(5..20);
+    let expected_returns = (0..num_assets).map(|_| rng.gen_range(0.0..1.0)).collect();
+    let covariances = (0..num_assets)
+        .map(|_| (0..num_assets).map(|_| rng.gen_range(0.0..1.0)).collect())
+        .collect();
+    let risk_tolerance = rng.gen_range(0.0..1.0);
+
+    PortfolioOptimizationProblem {
+        expected_returns,
+        covariances,
+        risk_tolerance,
+    }
+}
+
+pub fn generate_random_market_equilibrium_problem() -> MarketEquilibriumProblem {
+    let mut rng = rand::thread_rng();
+    let num_goods = rng.gen_range(5..20);
+    let supply = (0..num_goods).map(|_| rng.gen_range(0.0..1.0)).collect();
+    let demand = (0..num_goods).map(|_| rng.gen_range(0.0..1.0)).collect();
+
+    MarketEquilibriumProblem { supply, demand }
+}
     match problem {
         UsefulWorkProblem::Knapsack(knapsack_problem) => {
             UsefulWorkSolution::Knapsack(solve_knapsack_problem(knapsack_problem))
