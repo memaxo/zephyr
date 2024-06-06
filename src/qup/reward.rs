@@ -39,8 +39,22 @@ impl RewardDistributor {
         let validator_address = self.get_block_validator_address(block_header);
         self.distribute_validator_reward(state, &validator_address, validator_reward);
 
-        let delegator_rewards = self.calculate_delegator_rewards(state, delegator_reward);
-        self.distribute_delegator_rewards(state, &delegator_rewards);
+        let total_stake: u64 = state
+            .delegators()
+            .map(|(_, stake)| stake)
+            .sum();
+
+        for (delegator_address, stake) in state.delegators() {
+            let reward = (stake as f64 / total_stake as f64 * delegator_reward as f64) as u64;
+            let delegator_account = state.get_account_mut(&delegator_address);
+            if let Some(account) = delegator_account {
+                account.balance += reward;
+            } else {
+                // Handle the case where the delegator account does not exist
+                // For simplicity, let's assume we create a new account with the reward
+                state.create_account(delegator_address.to_vec(), reward);
+            }
+        }
     }
 
     fn calculate_total_reward(&self, block_header: &QUPBlockHeader) -> u64 {
