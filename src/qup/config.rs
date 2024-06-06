@@ -38,8 +38,19 @@ impl QUPConfig {
 }
 
 pub struct UsefulWorkConfig {
-    // Configuration parameters for useful work generation and verification
-    // ...
+    pub problem_difficulty: u64,
+    pub solution_accuracy_threshold: f64,
+    pub max_attempts: u32,
+}
+
+impl UsefulWorkConfig {
+    pub fn new(problem_difficulty: u64, solution_accuracy_threshold: f64, max_attempts: u32) -> Self {
+        UsefulWorkConfig {
+            problem_difficulty,
+            solution_accuracy_threshold,
+            max_attempts,
+        }
+    }
 }
 
 pub enum RewardScheme {
