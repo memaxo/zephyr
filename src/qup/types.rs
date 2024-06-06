@@ -9,6 +9,14 @@ pub enum UsefulWorkProblem {
     VertexCover(VertexCoverProblem),
     TravelingSalesman(TravelingSalesmanProblem),
     JobScheduling(JobSchedulingProblem),
+    BinPacking(BinPackingProblem),
+    MaximumFlow(MaximumFlowProblem),
+    ShortestPath(ShortestPathProblem),
+    MinimumSpanningTree(MinimumSpanningTreeProblem),
+    ResourceAllocation(ResourceAllocationProblem),
+    VehicleRouting(VehicleRoutingProblem),
+    PortfolioOptimization(PortfolioOptimizationProblem),
+    MarketEquilibrium(MarketEquilibriumProblem),
     // Add more useful work problem types as needed
 }
 
@@ -30,6 +38,14 @@ pub enum UsefulWorkSolution {
     VertexCover(VertexCoverSolution),
     TravelingSalesman(TravelingSalesmanSolution),
     JobScheduling(JobSchedulingSolution),
+    BinPacking(BinPackingSolution),
+    MaximumFlow(MaximumFlowSolution),
+    ShortestPath(ShortestPathSolution),
+    MinimumSpanningTree(MinimumSpanningTreeSolution),
+    ResourceAllocation(ResourceAllocationSolution),
+    VehicleRouting(VehicleRoutingSolution),
+    PortfolioOptimization(PortfolioOptimizationSolution),
+    MarketEquilibrium(MarketEquilibriumSolution),
     // Add more useful work solution types as needed
 }
 
@@ -95,6 +111,97 @@ pub struct Job {
     pub processing_time: u64,
     pub deadline: u64,
     pub weight: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BinPackingProblem {
+    pub bin_capacity: u64,
+    pub item_sizes: Vec<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BinPackingSolution {
+    pub bin_assignments: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MaximumFlowProblem {
+    pub capacity_matrix: Vec<Vec<u64>>,
+    pub source: usize,
+    pub sink: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MaximumFlowSolution {
+    pub flow_matrix: Vec<Vec<u64>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShortestPathProblem {
+    pub graph: Vec<Vec<u64>>,
+    pub start_node: usize,
+    pub end_node: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShortestPathSolution {
+    pub path: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MinimumSpanningTreeProblem {
+    pub graph: Vec<Vec<u64>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MinimumSpanningTreeSolution {
+    pub mst_edges: Vec<(usize, usize)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResourceAllocationProblem {
+    pub resources: Vec<u64>,
+    pub demands: Vec<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResourceAllocationSolution {
+    pub allocation: Vec<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VehicleRoutingProblem {
+    pub distances: Vec<Vec<u64>>,
+    pub vehicle_count: usize,
+    pub depot: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VehicleRoutingSolution {
+    pub routes: Vec<Vec<usize>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PortfolioOptimizationProblem {
+    pub expected_returns: Vec<f64>,
+    pub covariances: Vec<Vec<f64>>,
+    pub risk_tolerance: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PortfolioOptimizationSolution {
+    pub asset_allocations: Vec<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarketEquilibriumProblem {
+    pub supply: Vec<f64>,
+    pub demand: Vec<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarketEquilibriumSolution {
+    pub prices: Vec<f64>,
 }
 
 // Add more types and structs specific to the QUP module as needed
