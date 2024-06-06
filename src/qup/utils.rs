@@ -363,3 +363,29 @@ fn get_public_key_from_address(address: &[u8]) -> Vec<u8> {
 }
 
 // Add more utility functions as needed
+
+pub fn generate_proof_of_solution(solution: &UsefulWorkSolution) -> Vec<u8> {
+    // Placeholder for generating a cryptographic proof of the solution
+    // This should be replaced with the actual logic for generating the proof
+    vec![]
+}
+
+pub fn verify_proof_of_solution(solution: &UsefulWorkSolution, proof: &[u8]) -> bool {
+    // Placeholder for verifying the cryptographic proof of the solution
+    // This should be replaced with the actual logic for verifying the proof
+    true
+}
+
+pub fn verify_vote_signature(vote: &QUPVote) -> bool {
+    let message = vote.block_hash;
+    let public_key = get_public_key_from_address(&vote.voter);
+    if !Signature::verify(&message, &vote.signature, &public_key) {
+        return false;
+    }
+
+    // Additional checks to ensure fairness and verifiability
+    // For example, checking if the voter is eligible to vote
+    // This is a placeholder implementation and should be replaced with the actual logic
+    let is_eligible_voter = true; // Replace with actual eligibility check
+    is_eligible_voter
+}
