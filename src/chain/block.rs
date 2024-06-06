@@ -42,6 +42,13 @@ pub enum BlockError {
     MaxMiningAttemptsReached,
 }
 
+impl Block {
+    fn update_qup_state(&self, qup_state: &mut QUPState) -> Result<(), BlockError> {
+        // Implement the logic to update QUP-specific state
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     pub timestamp: u64,
@@ -56,6 +63,8 @@ pub struct Block {
     pub state_root: String,
     pub validator_signature: Option<PostQuantumSignature>,
     pub useful_work: Option<UsefulWork>,
+    pub qup_block_header: QUPBlockHeader,
+    pub qup_specific_data: QUPSpecificData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,10 +148,19 @@ impl Block {
             BlockError::PostQuantumSignatureError(format!("Failed to sign block: {}", e))
         })?;
         self.validator_signature = Some(signature);
+        // Verify history proof if present
+        if let Some(proof) = &self.qup_block_header.history_proof {
+            qup_state.verify_history_proof(proof).map_err(|e| {
+                BlockError::HistoryProofVerificationError(format!(
+                    "Failed to verify history proof: {}",
+                    e
+                ))
+            })?;
+        }
         Ok(())
     }
 
-    pub fn verify_signature(&self, qup_crypto: &QUPCrypto) -> Result<(), BlockError> {
+    pub fn verify_signature(&self, qup_crypto: &QUPCrypto, qup_state: &QUPState) -> Result<(), BlockError> {
         if let Some(signature) = &self.validator_signature {
             let hash = self.calculate_hash();
             qup_crypto.verify_block_signature(&hash, signature).map_err(|e| {
@@ -168,9 +186,9 @@ impl Block {
         }
     }
 
-    pub fn validate(&self, qup_consensus: &QUPConsensus) -> Result<(), BlockError> {
+    pub fn validate(&self, qup_consensus: &QUPConsensus, qup_state: &QUPState) -> Result<(), BlockError> {
         self.verify_transactions(qup_consensus.secure_vault())?;
-        self.verify_signature(qup_consensus.qup_crypto())?;
+        self.verify_signature(qup_consensus.qup_crypto(), qup_state)?;
         if let Some(useful_work) = &self.useful_work {
             qup_consensus.verify_useful_work(useful_work).map_err(|e| {
                 BlockError::InvalidUsefulWork(format!("Failed to verify useful work: {}", e))
@@ -284,10 +302,12 @@ impl Block {
         blockchain: &mut Blockchain,
         secure_vault: &SecureVault,
         state: &mut State,
+        qup_state: &QUPState,
     ) -> Result<(), BlockError> {
         self.verify_transactions(secure_vault)?;
         if blockchain.validate_chain() {
             self.update_state(state)?;
+            self.update_qup_state(qup_state)?;
             self.execute_smart_contracts(blockchain, state)?;
             blockchain.add_block(self.clone());
             info!("Block added to the blockchain");
