@@ -57,8 +57,7 @@ impl Network {
             max_peers: config.max_peers,
             max_inbound_peers: config.max_inbound_peers,
             peer_channel: (peer_tx, peer_rx),
-            network_error_handler,
-            Message::QUPMessage(qup_message) => self.handle_qup_message(peer_addr, qup_message).await,
+            network_error_handler
         }
     }
 
