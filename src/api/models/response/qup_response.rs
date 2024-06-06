@@ -7,7 +7,7 @@ pub struct GetValidatorsResponse {
 
 #[derive(Serialize, Debug)]
 pub struct GetConsensusStateResponse {
-    pub qup_state: QUPState,
+    pub chain_state: ChainState,
 }
 
 #[derive(Serialize, Debug)]
@@ -24,7 +24,7 @@ pub struct ValidatorInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct QUPState {
+pub struct ChainState {
     pub current_epoch: u64,
     pub validators: Vec<String>, // List of validator public keys
     pub total_stake: u64,

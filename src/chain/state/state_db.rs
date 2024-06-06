@@ -1,6 +1,6 @@
 use crate::chain::state::account::Account;
 use crate::chain::state::merkle_trie::MerkleTrie;
-use crate::qup::state::QUPState;
+use crate::chain::state::ChainState;
 use bincode::serialize;
 use lru_cache::LruCache;
 use rocksdb::{Options, DB};
@@ -10,12 +10,12 @@ use std::path::Path;
 pub struct StateDB {
     db: DB,
     account_trie: MerkleTrie,
-    qup_state: QUPState,
+    chain_state: ChainState,
     account_cache: LruCache<String, Account>,
 }
 
 impl StateDB {
-    pub fn new<P: AsRef<Path>>(path: P, qup_state: QUPState) -> Self {
+    pub fn new<P: AsRef<Path>>(path: P, chain_state: ChainState) -> Self {
         let mut options = Options::default();
         options.create_if_missing(true);
         let db = DB::open(&options, path).expect("Failed to open database");
@@ -23,7 +23,7 @@ impl StateDB {
         StateDB {
             db,
             account_trie: MerkleTrie::new(),
-            qup_state,
+            chain_state,
             account_cache,
         }
     }
@@ -33,7 +33,7 @@ impl StateDB {
             return Some(account.clone());
         }
 
-        if let Some(account) = self.qup_state.get_account(address) {
+        if let Some(account) = self.chain_state.get_account(address) {
             self.account_cache.put(address.to_string(), account.clone());
             return Some(account);
         }
@@ -51,7 +51,7 @@ impl StateDB {
         self.db
             .put(account.address.as_bytes(), &account_data)
             .expect("Failed to set account");
-        self.qup_state.set_account(account);
+        self.chain_state.set_account(account);
         self.account_cache
             .put(account.address.clone(), account.clone());
         self.update_account_trie(account);
@@ -61,7 +61,7 @@ impl StateDB {
         self.db
             .delete(address.as_bytes())
             .expect("Failed to remove account");
-        self.qup_state.remove_account(address);
+        self.chain_state.remove_account(address);
         self.account_cache.pop(address);
         self.account_trie
             .remove(address.as_bytes())
@@ -72,7 +72,7 @@ impl StateDB {
         if self.account_cache.contains(address) {
             return true;
         }
-        if self.qup_state.account_exists(address) {
+        if self.chain_state.account_exists(address) {
             return true;
         }
         self.db.get(address.as_bytes()).ok().is_some()

@@ -1,22 +1,22 @@
 use crate::chain::state::account::Account;
 use crate::chain::state::state_db::StateDB;
-use crate::qup::state::QUPState;
-use crate::qup::validator::QUPValidator;
+use crate::chain::state::ChainState;
+use crate::chain::validator::ChainValidator;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 pub struct StateManager {
     state_db: Arc<RwLock<StateDB>>,
     account_cache: RwLock<HashMap<String, Account>>,
-    qup_state: Arc<RwLock<QUPState>>,
+    chain_state: Arc<RwLock<ChainState>>,
 }
 
 impl StateManager {
-    pub fn new(state_db: StateDB, qup_state: Arc<RwLock<QUPState>>) -> Self {
+    pub fn new(state_db: StateDB, chain_state: Arc<RwLock<ChainState>>) -> Self {
         StateManager {
             state_db: Arc::new(RwLock::new(state_db)),
             account_cache: RwLock::new(HashMap::new()),
-            qup_state,
+            chain_state,
         }
     }
 
@@ -83,21 +83,21 @@ impl StateManager {
             .verify_state_proof(address, account, proof)
     }
 
-    pub fn get_qup_state(&self) -> Arc<RwLock<QUPState>> {
-        self.qup_state.clone()
+    pub fn get_chain_state(&self) -> Arc<RwLock<ChainState>> {
+        self.chain_state.clone()
     }
 
-    pub fn update_qup_state(&self, new_state: QUPState) {
-        let mut state = self.qup_state.write().unwrap();
+    pub fn update_chain_state(&self, new_state: ChainState) {
+        let mut state = self.chain_state.write().unwrap();
         *state = new_state;
     }
 
-    pub fn get_validator_state(&self, validator_id: &str) -> Option<QUPValidator> {
-        self.qup_state.read().unwrap().get_validator(validator_id)
+    pub fn get_validator_state(&self, validator_id: &str) -> Option<ChainValidator> {
+        self.chain_state.read().unwrap().get_validator(validator_id)
     }
 
-    pub fn update_validator_state(&self, validator: QUPValidator) {
-        self.qup_state.write().unwrap().update_validator(validator);
+    pub fn update_validator_state(&self, validator: ChainValidator) {
+        self.chain_state.write().unwrap().update_validator(validator);
     }
 
     pub fn commit(&self) {

@@ -1,11 +1,11 @@
 use actix_web::{web, HttpResponse, Responder};
 use serde::Serialize;
 
-use crate::qup::consensus::QUPConsensus;
-use crate::qup::validator::QUPValidator;
+use crate::chain::consensus::ChainConsensus;
+use crate::chain::validator::ChainValidator;
 
 pub async fn get_consensus_state(qup_consensus: web::Data<QUPConsensus>) -> impl Responder {
-    let state = QUPState {
+    let state = ChainState {
         current_epoch: qup_consensus.current_epoch(),
         validators: qup_consensus
             .validators()
@@ -41,7 +41,7 @@ pub async fn get_consensus_parameters(qup_consensus: web::Data<QUPConsensus>) ->
 }
 
 #[derive(Serialize)]
-struct QUPState {
+struct ChainState {
     current_epoch: u64,
     validators: Vec<String>, // list of validator public keys
                              // Add other relevant QUP state fields
@@ -56,7 +56,7 @@ struct ValidatorInfo {
 }
 
 impl ValidatorInfo {
-    fn from_validator(validator: &QUPValidator) -> Self {
+    fn from_validator(validator: &ChainValidator) -> Self {
         Self {
             public_key: validator.public_key().to_string(),
             stake: validator.stake(),
@@ -67,7 +67,7 @@ impl ValidatorInfo {
 }
 
 #[derive(Serialize)]
-struct QUPParameters {
+struct ChainParameters {
     epoch_length: u64,
     minimum_stake: u64,
     voting_threshold: u64,
