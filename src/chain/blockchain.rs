@@ -238,13 +238,6 @@ impl Blockchain {
         let chain = self.chain.read();
         chain.len() as u64
     }
-}
-
-Here's the updated blockchain.rs file with the suggested improvements:
-rustCopy codeuse chrono::{DateTime, Duration, Utc};
-use log::{debug, info};
-use parking_lot::RwLock;
-use rayon::prelude::*;
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use thiserror::Error;
