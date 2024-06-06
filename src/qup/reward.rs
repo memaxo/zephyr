@@ -104,7 +104,6 @@ impl RewardDistributor {
         }
 
         delegator_rewards
-        delegator_rewards
     }
 
     fn distribute_delegator_rewards(
