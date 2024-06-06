@@ -27,11 +27,13 @@ pub enum StateTransitionError {
 
 pub struct StateTransition {
     state_manager: Arc<StateManager>,
+    qup_state: Arc<QUPState>,
+    qup_crypto: Arc<QUPCrypto>,
 }
 
 impl StateTransition {
-    pub fn new(state_manager: Arc<StateManager>) -> Self {
-        StateTransition { state_manager }
+    pub fn new(state_manager: Arc<StateManager>, qup_state: Arc<QUPState>, qup_crypto: Arc<QUPCrypto>) -> Self {
+        StateTransition { state_manager, qup_state, qup_crypto }
     }
 
     pub fn apply(&self, transaction: &Transaction) -> Result<(), StateTransitionError> {
@@ -66,6 +68,34 @@ impl StateTransition {
             .update_accounts(&[&sender_account, &receiver_account])
             .map_err(|_| StateTransitionError::InconsistentStateError)?;
 
+        // Apply QUP-specific state changes
+        self.apply_qup_state_changes(transaction)?;
+        // Revert QUP-specific state changes
+        self.revert_qup_state_changes(transaction)?;
+        // Validate QUP-specific state changes
+        self.validate_qup_state_changes(block)?;
+        // Revert QUP-specific state changes
+        self.revert_qup_block_state_changes(block)?;
+        Ok(())
+    }
+
+    fn revert_qup_block_state_changes(&self, block: &Block) -> Result<(), StateTransitionError> {
+        // Implement the logic to revert QUP-specific state changes for a block
+        Ok(())
+    }
+
+    fn validate_qup_state_changes(&self, block: &Block) -> Result<(), StateTransitionError> {
+        // Implement the logic to validate QUP-specific state changes
+        Ok(())
+    }
+
+    fn revert_qup_state_changes(&self, transaction: &Transaction) -> Result<(), StateTransitionError> {
+        // Implement the logic to revert QUP-specific state changes
+        Ok(())
+    }
+
+    fn apply_qup_state_changes(&self, transaction: &Transaction) -> Result<(), StateTransitionError> {
+        // Implement the logic to apply QUP-specific state changes
         Ok(())
     }
 
