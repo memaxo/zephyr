@@ -85,13 +85,18 @@ impl QUPState {
             let sender_balance = sender.balance - transaction.amount - transaction.fee;
             let recipient_balance = recipient.balance + transaction.amount;
 
+            let sender_hash = accelerated_hash(&sender.address.to_bytes());
+            let recipient_hash = accelerated_hash(&recipient.address.to_bytes());
+
             self.update_account(Account {
                 address: sender.address,
                 balance: sender_balance,
+                hash: sender_hash,
             }).unwrap();
             self.update_account(Account {
                 address: recipient.address,
                 balance: recipient_balance,
+                hash: recipient_hash,
             }).unwrap();
         });
 
