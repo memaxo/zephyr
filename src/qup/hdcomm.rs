@@ -10,6 +10,61 @@ use std::sync::Arc;
 pub struct HDCommunication {
     pub config: Arc<QUPConfig>,
     pub hdc_model: HDCModel,
+    }
+
+    pub fn shard_block(&self, block: &QUPBlock, shard_count: usize) -> Vec<QUPBlock> {
+        let mut shards = Vec::new();
+        let transactions_per_shard = (block.transactions.len() + shard_count - 1) / shard_count;
+
+        for i in 0..shard_count {
+            let shard_transactions = block.transactions[i * transactions_per_shard..]
+                .iter()
+                .take(transactions_per_shard)
+                .cloned()
+                .collect();
+
+            let shard = QUPBlock {
+                height: block.height,
+                timestamp: block.timestamp,
+                prev_block_hash: block.prev_block_hash.clone(),
+                transactions: shard_transactions,
+                hdc_encoded_block: Vec::new(),
+            };
+
+            shards.push(shard);
+        }
+
+        shards
+    }
+
+    pub fn create_state_channel(&self, initial_state: &QUPState) -> StateChannel {
+        StateChannel {
+            state: initial_state.clone(),
+            updates: Vec::new(),
+        }
+    }
+
+    pub fn off_chain_computation(&self, data: &[f64]) -> Vec<f64> {
+        // Placeholder for off-chain computation logic
+        // This could involve sending the data to an off-chain service and receiving the result
+        data.to_vec()
+    }
+}
+
+pub struct StateChannel {
+    pub state: QUPState,
+    pub updates: Vec<QUPState>,
+}
+
+impl StateChannel {
+    pub fn update_state(&mut self, new_state: QUPState) {
+        self.updates.push(new_state);
+        self.state = new_state;
+    }
+
+    pub fn finalize(self) -> QUPState {
+        self.state
+    }
 }
 
 impl HDCommunication {
