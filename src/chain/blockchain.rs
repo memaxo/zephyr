@@ -51,6 +51,7 @@ pub struct Blockchain {
     qup_config: Arc<QUPConfig>,
     qup_consensus: Arc<QUPConsensus>,
     qup_state: Arc<QUPState>,
+    qup_consensus: Arc<QUPConsensus>,
 }
 
 impl Blockchain {
@@ -76,6 +77,7 @@ impl Blockchain {
             qup_config,
             qup_consensus,
             qup_state,
+            qup_consensus,
         }
     }
 
@@ -120,6 +122,7 @@ impl Blockchain {
         let mut chain = self.chain.write();
         chain.push(Arc::new(block.clone()));
 
+        self.qup_consensus.validate_block(&block)?;
         self.storage.save_block(&block).await?;
         self.state_transition.apply_block(&block)?;
 
@@ -217,6 +220,7 @@ impl Blockchain {
         self.secure_storage
             .save_validator_key(&validator_id, &public_key)
             .await?;
+        self.qup_consensus.register_validator(validator).await?;
         self.qup_state.register_validator(validator).await?;
         debug!("Validator registered: {}", validator_id);
         Ok(())
