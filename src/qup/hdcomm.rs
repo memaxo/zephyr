@@ -73,8 +73,8 @@ impl HDCommunication {
     }
 
     pub fn optimize_block(&self, block: &QUPBlock) -> QUPBlock {
-        let encoded_block = &block.hdc_encoded_block;
-        let optimized_encoded_block = self.hdc_model.optimize(encoded_block);
+        let encoded_block = self.encode_block(block);
+        let optimized_encoded_block = self.hdc_model.optimize(&encoded_block);
 
         self.decode_block(&optimized_encoded_block)
     }
