@@ -54,8 +54,60 @@ impl UsefulWorkConfig {
 }
 
 pub enum RewardScheme {
-    // Different reward schemes for distributing rewards to validators and delegators
-    // ...
+    FixedReward(u64),
+    ProportionalReward {
+        base_reward: u64,
+        difficulty_factor: u64,
+    },
+    PerformanceBasedReward {
+        base_reward: u64,
+        performance_factor: f64,
+    },
+}
+
+impl RewardScheme {
+    pub fn calculate_rewards(&self, block: &QUPBlock) -> Result<HashMap<Address, u64>, Error> {
+        match self {
+            RewardScheme::FixedReward(amount) => {
+                // Distribute a fixed reward to validators and delegators
+                let mut rewards = HashMap::new();
+                let total_stake = block.total_stake();
+                for (address, stake) in block.stakes() {
+                    let reward = amount * stake / total_stake;
+                    rewards.insert(address, reward);
+                }
+                Ok(rewards)
+            }
+            RewardScheme::ProportionalReward {
+                base_reward,
+                difficulty_factor,
+            } => {
+                // Distribute rewards proportionally based on block difficulty
+                let mut rewards = HashMap::new();
+                let total_stake = block.total_stake();
+                let total_reward = base_reward + (block.difficulty() * difficulty_factor);
+                for (address, stake) in block.stakes() {
+                    let reward = total_reward * stake / total_stake;
+                    rewards.insert(address, reward);
+                }
+                Ok(rewards)
+            }
+            RewardScheme::PerformanceBasedReward {
+                base_reward,
+                performance_factor,
+            } => {
+                // Distribute rewards based on validator performance
+                let mut rewards = HashMap::new();
+                let total_stake = block.total_stake();
+                let total_reward = base_reward + (block.performance() * performance_factor) as u64;
+                for (address, stake) in block.stakes() {
+                    let reward = total_reward * stake / total_stake;
+                    rewards.insert(address, reward);
+                }
+                Ok(rewards)
+            }
+        }
+    }
 }
 use crate::consensus::ConsensusConfig;
 use crate::network::NetworkConfig;
