@@ -31,7 +31,6 @@ impl QUPConsensus {
         blockchain: Arc<Blockchain>,
     ) -> Self {
         let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
-        let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
         QUPConsensus {
             config,
             state,
@@ -39,7 +38,6 @@ impl QUPConsensus {
             hdc_model,
             communication_protocol,
             blockchain,
-        }
 
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
         // Validate the block
@@ -64,14 +62,11 @@ impl QUPConsensus {
         self.state.add_proposed_block(block)?;
 
         Ok(())
-    }
 
     pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
         match message {
             QUPMessage::QUPBlock(block) => self.process_qup_block(block),
             QUPMessage::QUPTransaction(tx) => self.process_qup_transaction(tx),
-        }
-    }
 
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         self.communication_protocol.receive_message(message.clone())?;
@@ -88,8 +83,6 @@ impl QUPConsensus {
             }
             ConsensusMessage::Vote(vote) => self.process_vote(vote),
             ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
-        }
-    }
 
     fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
         // Validate the block
@@ -117,7 +110,6 @@ impl QUPConsensus {
         }
 
         Ok(())
-    }
 
     pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
         // Verify the vote signature
