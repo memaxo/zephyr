@@ -92,6 +92,36 @@ pub fn generate_random_useful_work_problem() -> UsefulWorkProblem {
         UsefulWorkProblem::MarketEquilibrium(market_equilibrium_problem) => {
             UsefulWorkSolution::MarketEquilibrium(solve_market_equilibrium_problem(market_equilibrium_problem))
         }
+        UsefulWorkProblem::TravelingSalesman(traveling_salesman_problem) => {
+            UsefulWorkSolution::TravelingSalesman(solve_traveling_salesman_problem(traveling_salesman_problem))
+        }
+        UsefulWorkProblem::JobScheduling(job_scheduling_problem) => {
+            UsefulWorkSolution::JobScheduling(solve_job_scheduling_problem(job_scheduling_problem))
+        }
+        UsefulWorkProblem::BinPacking(bin_packing_problem) => {
+            UsefulWorkSolution::BinPacking(solve_bin_packing_problem(bin_packing_problem))
+        }
+        UsefulWorkProblem::MaximumFlow(maximum_flow_problem) => {
+            UsefulWorkSolution::MaximumFlow(solve_maximum_flow_problem(maximum_flow_problem))
+        }
+        UsefulWorkProblem::ShortestPath(shortest_path_problem) => {
+            UsefulWorkSolution::ShortestPath(solve_shortest_path_problem(shortest_path_problem))
+        }
+        UsefulWorkProblem::MinimumSpanningTree(minimum_spanning_tree_problem) => {
+            UsefulWorkSolution::MinimumSpanningTree(solve_minimum_spanning_tree_problem(minimum_spanning_tree_problem))
+        }
+        UsefulWorkProblem::ResourceAllocation(resource_allocation_problem) => {
+            UsefulWorkSolution::ResourceAllocation(solve_resource_allocation_problem(resource_allocation_problem))
+        }
+        UsefulWorkProblem::VehicleRouting(vehicle_routing_problem) => {
+            UsefulWorkSolution::VehicleRouting(solve_vehicle_routing_problem(vehicle_routing_problem))
+        }
+        UsefulWorkProblem::PortfolioOptimization(portfolio_optimization_problem) => {
+            UsefulWorkSolution::PortfolioOptimization(solve_portfolio_optimization_problem(portfolio_optimization_problem))
+        }
+        UsefulWorkProblem::MarketEquilibrium(market_equilibrium_problem) => {
+            UsefulWorkSolution::MarketEquilibrium(solve_market_equilibrium_problem(market_equilibrium_problem))
+        }
     }
 }
 
