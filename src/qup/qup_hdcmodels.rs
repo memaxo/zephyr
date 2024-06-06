@@ -69,6 +69,13 @@ impl QUPHDCModels {
 
     pub fn optimize_block(&self, block: &QUPBlock) -> QUPBlock {
         // Encode the block
+        let encoded_block = self.encode_block(block);
+
+        // Optimize the encoded block using the HDC model
+        let optimized_encoded_block = self.hdc_model.optimize(&encoded_block);
+
+        // Decode the optimized block back into a QUPBlock
+        self.decode_block(&optimized_encoded_block)
         // Encode the block
         let encoded_block = self.encode_block(block);
 
