@@ -31,7 +31,30 @@ impl QUPConsensus {
         }
     }
 
-    pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
+    fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block
+        if !self.validate_block(&block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Evaluate the block using the HDC model
+        let block_vector = self.hdc_model.encode_block(&block);
+        let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+        // Check if the block meets the similarity threshold
+        if similarity < self.config.similarity_threshold {
+            return Err(ConsensusError::InsufficientSimilarity);
+        }
+
+        // Broadcast the block to other validators
+        let message = NetworkMessage::BlockProposal(block.clone());
+        self.config.network.broadcast(message)?;
+
+        // Add the block to the local pool of proposed blocks
+        self.state.add_proposed_block(block)?;
+
+        Ok(())
+    }
         use rayon::prelude::*;
 
         match message {
@@ -49,7 +72,33 @@ impl QUPConsensus {
         }
     }
 
-    fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+    fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block
+        if !self.validate_block(&block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Evaluate the block using the HDC model
+        let block_vector = self.hdc_model.encode_block(&block);
+        let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+        // Check if the block meets the similarity threshold
+        if similarity < self.config.similarity_threshold {
+            return Err(ConsensusError::InsufficientSimilarity);
+        }
+
+        // Use a more efficient consensus algorithm under high load
+        // For example, we can use a simplified voting mechanism
+        let vote = self.cast_vote(block.hash())?;
+        self.state.add_vote(vote.clone())?;
+
+        // Check if the block has reached quorum
+        if self.state.has_quorum(&block.hash())? {
+            self.commit_block(block)?;
+        }
+
+        Ok(())
+    }
         // Validate the block
         if !self.validate_block(&block)? {
             return Err(ConsensusError::InvalidBlock);
