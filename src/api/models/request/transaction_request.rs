@@ -30,7 +30,8 @@ pub struct Transaction {
     pub amount: f64,
     pub block_number: u64,
     pub timestamp: u64,
-    // Add other transaction fields as needed
+    pub useful_work_solution: Option<UsefulWorkSolution>,
+    pub history_proof: Option<HistoryProof>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

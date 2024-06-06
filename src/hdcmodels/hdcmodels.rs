@@ -304,7 +304,6 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn to_string(&self) -> String {
-        // Placeholder for transaction string representation
-        "Placeholder transaction string".to_string()
+        serde_json::to_string(self).unwrap_or_else(|_| "Invalid transaction".to_string())
     }
 }

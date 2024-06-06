@@ -66,7 +66,7 @@ pub struct UsefulWork {
 
 impl Block {
     fn calculate_merkle_root(&self) -> Result<String, BlockError> {
-        let tx_hashes: Vec<_> = parallel_map(&self.transactions, |tx| tx.calculate_hash());
+        let tx_hashes: Vec<_> = parallel_map(&self.transactions, |tx| tx.calculate_hash_with_qup());
 
         MerkleTree::new(&tx_hashes)
             .map(|tree| tree.root_hash())
@@ -145,14 +145,22 @@ impl Block {
     pub fn verify_signature(&self, qup_crypto: &QUPCrypto) -> Result<(), BlockError> {
         if let Some(signature) = &self.validator_signature {
             let hash = self.calculate_hash();
-            qup_crypto
-                .verify_block_signature(&hash, signature)
-                .map_err(|e| {
-                    BlockError::PostQuantumSignatureError(format!(
-                        "Failed to verify block signature: {}",
+            qup_crypto.verify_block_signature(&hash, signature).map_err(|e| {
+                BlockError::PostQuantumSignatureError(format!(
+                    "Failed to verify block signature: {}",
+                    e
+                ))
+            })?;
+            
+            // Verify history proof if present
+            if let Some(proof) = &self.history_proof {
+                qup_state.verify_history_proof(proof).map_err(|e| {
+                    BlockError::HistoryProofVerificationError(format!(
+                        "Failed to verify history proof: {}",
                         e
                     ))
-                })
+                })?;
+            }
         } else {
             Err(BlockError::PostQuantumSignatureError(
                 "Block signature not found".to_string(),
