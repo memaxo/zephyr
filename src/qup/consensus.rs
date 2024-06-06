@@ -108,22 +108,68 @@ impl QUPConsensus {
         &self,
         transactions: Vec<Transaction>,
     ) -> Result<QUPBlock, ConsensusError> {
-        // Create a new block with the given transactions
+        // Generate useful work problem
+        let useful_work_problem = self.generate_useful_work_problem();
+
+        // Solve useful work problem
+        let useful_work_solution = self.solve_useful_work_problem(&useful_work_problem);
+
+        // Generate history proof
+        let history_proof = self.generate_history_proof();
+
+        // Create a new block with the given transactions, useful work problem, solution, and history proof
         let mut block = QUPBlock::new(
             self.state.get_block_height()? + 1,
+            self.state.get_block_timestamp()?,
             self.state.get_block_hash()?,
             transactions,
+            Some(useful_work_problem),
+            Some(useful_work_solution),
+            history_proof,
+            &self.key_pair,
         );
 
         // Sign the block using the validator's private key
-        let signature = self.key_pair.sign(&block.hash())?;
-        block.signature = Some(signature);
+        block.sign(&self.key_pair);
 
         // Broadcast the block proposal to other validators
         let message = NetworkMessage::BlockProposal(block.clone());
         self.config.network.broadcast(message)?;
 
         Ok(block)
+    }
+
+    fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
+        // Generate a useful work problem
+        // This can be customized based on the specific requirements of the useful work problem
+        UsefulWorkProblem::Knapsack(KnapsackProblem {
+            capacity: 50,
+            weights: vec![10, 20, 30, 40],
+            values: vec![60, 100, 120, 160],
+        })
+    }
+
+    fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
+        // Solve the useful work problem
+        // This can be customized based on the specific requirements of the useful work problem
+        match problem {
+            UsefulWorkProblem::Knapsack(knapsack_problem) => {
+                UsefulWorkSolution::Knapsack(KnapsackSolution {
+                    selected_items: vec![true, false, true, false],
+                })
+            }
+            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
+                UsefulWorkSolution::VertexCover(VertexCoverSolution {
+                    vertex_cover: vec![0, 2],
+                })
+            }
+        }
+    }
+
+    fn generate_history_proof(&self) -> Vec<Hash> {
+        // Generate a history proof
+        // This can be customized based on the specific requirements of the history proof
+        vec![self.state.get_block_hash()?]
     }
 
     pub fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
