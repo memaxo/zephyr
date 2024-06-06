@@ -67,6 +67,22 @@ impl StateChannel {
     }
 }
 
+pub struct StateChannel {
+    pub state: QUPState,
+    pub updates: Vec<QUPState>,
+}
+
+impl StateChannel {
+    pub fn update_state(&mut self, new_state: QUPState) {
+        self.updates.push(new_state);
+        self.state = new_state;
+    }
+
+    pub fn finalize(self) -> QUPState {
+        self.state
+    }
+}
+
 impl HDCommunication {
     pub fn new(config: Arc<QUPConfig>, hdc_model: HDCModel) -> Self {
         HDCommunication { config, hdc_model }
