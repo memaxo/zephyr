@@ -4,6 +4,7 @@ use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
 use crate::network::NetworkMessage;
 use crate::qup::block::QUPBlock;
+use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{verify_signature, QUPKeyPair};
 use crate::qup::state::QUPState;
@@ -14,6 +15,7 @@ pub struct QUPConsensus {
     pub state: Arc<QUPState>,
     pub key_pair: QUPKeyPair,
     pub hdc_model: HDCModel,
+    pub communication_protocol: CommunicationProtocol,
 
 impl QUPConsensus {
     pub fn new(
@@ -21,18 +23,21 @@ impl QUPConsensus {
         state: Arc<QUPState>,
         key_pair: QUPKeyPair,
         hdc_model: HDCModel,
+        node_type: NodeType,
     ) -> Self {
+        let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
         QUPConsensus {
             config,
             state,
             key_pair,
             hdc_model,
+            communication_protocol,
         }
     }
 
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
-        use rayon::prelude::*;
+        self.communication_protocol.receive_message(message.clone())?;
 
         match message {
             ConsensusMessage::Propose(block) => {
@@ -92,7 +97,7 @@ impl QUPConsensus {
 
         // Broadcast the block to other validators
         let message = NetworkMessage::BlockProposal(block.clone());
-        self.config.network.broadcast(message)?;
+        self.communication_protocol.send_message(message)?;
 
         // Add the block to the local pool of proposed blocks
         self.state.add_proposed_block(block)?;
@@ -130,7 +135,7 @@ impl QUPConsensus {
 
         // Broadcast the optimized block to other nodes
         let message = NetworkMessage::BlockCommit(optimized_block);
-        self.config.network.broadcast(message)?;
+        self.communication_protocol.send_message(message)?;
 
         Ok(())
     }
@@ -144,7 +149,7 @@ impl QUPConsensus {
 
         // Broadcast the vote to other validators
         let message = NetworkMessage::Vote(vote.clone());
-        self.config.network.broadcast(message)?;
+        self.communication_protocol.send_message(message)?;
 
         Ok(vote)
     }
@@ -198,7 +203,7 @@ impl QUPConsensus {
 
         // Broadcast the block proposal to other validators
         let message = NetworkMessage::BlockProposal(block.clone());
-        self.config.network.broadcast(message)?;
+        self.communication_protocol.send_message(message)?;
 
         Ok(block)
     }
