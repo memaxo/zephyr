@@ -1,4 +1,4 @@
-use crate::chain::transaction::Transaction;
+use crate::chain::transaction::{Transaction, QUPTransaction};
 use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
@@ -64,6 +64,13 @@ impl QUPConsensus {
         self.state.add_proposed_block(block)?;
 
         Ok(())
+    }
+
+    pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
+        match message {
+            QUPMessage::QUPBlock(block) => self.process_qup_block(block),
+            QUPMessage::QUPTransaction(tx) => self.process_qup_transaction(tx),
+        }
     }
 
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
