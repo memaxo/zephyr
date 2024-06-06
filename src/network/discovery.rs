@@ -1,4 +1,5 @@
 use crate::error_handling::network_error::NetworkError;
+use crate::qup::qup_message::QUPMessage;
 use crate::network::p2p::peer::Peer;
 use crate::network::protocol::ProtocolMessage;
 use crate::quantum_voting::quantum_communication::{
@@ -101,7 +102,11 @@ impl Discovery {
                 SwarmEvent::Behaviour(KademliaEvent::UnroutablePeer { peer_id }) => {
                     self.remove_peer(peer_id).await;
                 }
-                _ => {}
+                SwarmEvent::Behaviour(KademliaEvent::InboundRequest { request }) => {
+                    if let Some(qup_message) = request.as_qup_message() {
+                        self.handle_qup_message(qup_message).await;
+                    }
+                }
             }
 
             // Perform periodic peer discovery

@@ -12,6 +12,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
+use crate::qup::crypto::QUPCrypto;
 use thiserror::Error;
 
 const TARGET_BLOCK_TIME: u64 = 600; // Target block time in seconds (10 minutes)
