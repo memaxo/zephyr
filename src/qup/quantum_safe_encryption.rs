@@ -35,13 +35,19 @@ impl QuantumSafeEncryption {
     pub fn newhope_encrypt(plaintext: &[u8], public_key: &[u8]) -> Vec<u8> {
         let mut rng = OsRng;
         let public_key = PublicKey::from_slice(public_key).expect("Invalid public key");
-        let ciphertext = encrypt(&public_key, plaintext, &mut rng);
+        let (ciphertext, shared_secret) = encrypt(&public_key, &mut rng);
+        let mut encrypted_data = shared_secret.to_vec();
+        encrypted_data.extend_from_slice(plaintext);
+        encrypted_data
         ciphertext.to_vec()
     }
 
     pub fn newhope_decrypt(ciphertext: &[u8], secret_key: &[u8]) -> Vec<u8> {
         let secret_key = SecretKey::from_slice(secret_key).expect("Invalid secret key");
         let ciphertext = Ciphertext::from_slice(ciphertext).expect("Invalid ciphertext");
-        decrypt(&secret_key, &ciphertext).expect("Decryption failed")
+        let (shared_secret, decrypted_data) = decrypt(&secret_key, &ciphertext).expect("Decryption failed");
+        let mut plaintext = shared_secret.to_vec();
+        plaintext.extend_from_slice(&decrypted_data);
+        plaintext
     }
 }
