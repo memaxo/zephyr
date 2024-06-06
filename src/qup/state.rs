@@ -105,15 +105,18 @@ impl QUPState {
             delegator.stake = account.balance;
         }
 
-        // Update the latest block hash and height
-        self.latest_block_hash = block.hash();
-        self.latest_block_height = block.height;
+        // Optimize the block using HDC techniques
+        let optimized_block = self.hdc_models.optimize_block(block);
+
+        // Update the latest block hash and height with the optimized block
+        self.latest_block_hash = optimized_block.hash();
+        self.latest_block_height = optimized_block.height;
 
         // Update the total stake
         self.total_stake = self.validators.values().map(|v| v.stake).sum();
 
-        // Update the HDC model with the new block
-        self.update_hdc_model(block);
+        // Update the HDC model with the optimized block
+        self.update_hdc_model(&optimized_block);
 
         Ok(())
     }
