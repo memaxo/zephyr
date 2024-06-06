@@ -180,11 +180,24 @@ impl QUPConsensus {
     fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
         // Generate a useful work problem
         // This can be customized based on the specific requirements of the useful work problem
-        UsefulWorkProblem::Knapsack(KnapsackProblem {
-            capacity: 50,
-            weights: vec![10, 20, 30, 40],
-            values: vec![60, 100, 120, 160],
-        })
+        // Randomly choose a problem type to generate
+        let problem_type = rand::random::<u8>() % 2;
+
+        match problem_type {
+            0 => UsefulWorkProblem::Knapsack(KnapsackProblem {
+                capacity: 50,
+                weights: vec![10, 20, 30, 40],
+                values: vec![60, 100, 120, 160],
+            }),
+            1 => UsefulWorkProblem::VertexCover(VertexCoverProblem {
+                graph: vec![
+                    vec![1, 2], // Edges for vertex 0
+                    vec![0, 2], // Edges for vertex 1
+                    vec![0, 1], // Edges for vertex 2
+                ],
+            }),
+            _ => unreachable!(),
+        }
     }
 
     fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
@@ -192,14 +205,34 @@ impl QUPConsensus {
         // This can be customized based on the specific requirements of the useful work problem
         match problem {
             UsefulWorkProblem::Knapsack(knapsack_problem) => {
-                UsefulWorkSolution::Knapsack(KnapsackSolution {
-                    selected_items: vec![true, false, true, false],
-                })
+                // Implement a simple greedy algorithm to solve the knapsack problem
+                let mut total_weight = 0;
+                let mut selected_items = vec![false; knapsack_problem.weights.len()];
+
+                for (i, &weight) in knapsack_problem.weights.iter().enumerate() {
+                    if total_weight + weight <= knapsack_problem.capacity {
+                        total_weight += weight;
+                        selected_items[i] = true;
+                    }
+                }
+
+                UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
             }
             UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-                UsefulWorkSolution::VertexCover(VertexCoverSolution {
-                    vertex_cover: vec![0, 2],
-                })
+                // Implement a simple greedy algorithm to solve the vertex cover problem
+                let mut vertex_cover = Vec::new();
+                let mut covered_edges = vec![false; vertex_cover_problem.graph.len()];
+
+                for (vertex, edges) in vertex_cover_problem.graph.iter().enumerate() {
+                    if !covered_edges[vertex] {
+                        vertex_cover.push(vertex);
+                        for &edge in edges {
+                            covered_edges[edge] = true;
+                        }
+                    }
+                }
+
+                UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
             }
         }
     }
