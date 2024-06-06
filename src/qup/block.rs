@@ -3,6 +3,7 @@ use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{hash, QUPSignature};
 use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
+use crate::qup::types::{UsefulWorkProblem, UsefulWorkSolution};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -12,8 +13,10 @@ pub struct QUPBlock {
     pub timestamp: u64,
     pub prev_block_hash: Hash,
     pub transactions: Vec<Transaction>,
+    pub useful_work_problem: Option<UsefulWorkProblem>,
+    pub useful_work_solution: Option<UsefulWorkSolution>,
+    pub history_proof: Vec<Hash>,
     pub validator_signature: QUPSignature,
-    pub hdc_encoded_block: Vec<f64>,
 }
 
 impl QUPBlock {
@@ -22,6 +25,9 @@ impl QUPBlock {
         timestamp: u64,
         prev_block_hash: Hash,
         transactions: Vec<Transaction>,
+        useful_work_problem: Option<UsefulWorkProblem>,
+        useful_work_solution: Option<UsefulWorkSolution>,
+        history_proof: Vec<Hash>,
         validator: &QUPValidator,
     ) -> Self {
         let mut block = QUPBlock {
@@ -29,8 +35,10 @@ impl QUPBlock {
             timestamp,
             prev_block_hash,
             transactions,
+            useful_work_problem,
+            useful_work_solution,
+            history_proof,
             validator_signature: QUPSignature::default(),
-            hdc_encoded_block: Vec::new(),
         };
         block.sign(validator);
         block
@@ -44,6 +52,18 @@ impl QUPBlock {
 
         for tx in &self.transactions {
             hasher.update(&tx.hash());
+        }
+
+        if let Some(problem) = &self.useful_work_problem {
+            hasher.update(&bincode::serialize(problem).unwrap());
+        }
+
+        if let Some(solution) = &self.useful_work_solution {
+            hasher.update(&bincode::serialize(solution).unwrap());
+        }
+
+        for proof in &self.history_proof {
+            hasher.update(proof);
         }
 
         hasher.finalize()
