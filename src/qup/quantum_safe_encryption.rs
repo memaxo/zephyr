@@ -39,7 +39,6 @@ impl QuantumSafeEncryption {
         let mut encrypted_data = shared_secret.to_vec();
         encrypted_data.extend_from_slice(plaintext);
         encrypted_data
-        ciphertext.to_vec()
     }
 
     pub fn newhope_decrypt(ciphertext: &[u8], secret_key: &[u8]) -> Vec<u8> {
