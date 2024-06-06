@@ -8,7 +8,7 @@ use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey, Veri
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
-use thiserror::Error;
+use anyhow::{Context, Result};
 use zeroize::Zeroize;
 
 use crate::chain::crypto::{
@@ -19,31 +19,6 @@ use crate::logging::LoggingError;
 use crate::qup::state::QUPState;
 use crate::zkp_crate::{generate_proof, verify_proof, ZKProofError};
 
-#[derive(Debug, Error)]
-pub enum TransactionError {
-    #[error("Encryption error: {0}")]
-    EncryptionError(String),
-    #[error("Decryption error: {0}")]
-    DecryptionError(String),
-    #[error("Serialization error: {0}")]
-    SerializationError(#[from] serde_json::Error),
-    #[error("Secp256k1 error: {0}")]
-    Secp256k1Error(#[from] secp256k1::Error),
-    #[error("Zero-knowledge proof error: {0}")]
-    ZKProofError(String),
-    #[error("Post-quantum signature error: {0}")]
-    PostQuantumSignatureError(String),
-    #[error("Key management error: {0}")]
-    KeyManagementError(#[from] KeyManagementError),
-    #[error("Logging error: {0}")]
-    LoggingError(#[from] LoggingError),
-    #[error("State update error: {0}")]
-    StateUpdateError(String),
-    #[error("Invalid transaction: {0}")]
-    InvalidTransaction(String),
-    #[error("QUP state update error: {0}")]
-    QUPStateUpdateError(String),
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transaction {
@@ -73,29 +48,29 @@ pub struct UsefulWorkSolution {
 
 impl Transaction {
     /// Encrypts transaction details.
-    pub fn encrypt_details(&mut self, key: &[u8]) -> Result<(), TransactionError> {
-        let key = Aes256Gcm::new_from_slice(key).map_err(|_| {
-            TransactionError::EncryptionError("Invalid key length for encryption".to_string())
-        })?;
+    pub fn encrypt_details(&mut self, key: &[u8]) -> Result<()> {
+        let key = Aes256Gcm::new_from_slice(key)
+            .context("Invalid key length for encryption")?;
         let nonce = Nonce::from_slice(b"unique nonce");
-        let plaintext = serde_json::to_vec(&self).map_err(TransactionError::SerializationError)?;
+        let plaintext = serde_json::to_vec(&self)
+            .context("Failed to serialize transaction details")?;
         let ciphertext = key
             .encrypt(nonce, plaintext.as_ref())
-            .map_err(|e| TransactionError::EncryptionError(format!("Encryption failed: {}", e)))?;
+            .context("Encryption failed")?;
         self.encrypted_details = ciphertext;
         Ok(())
     }
 
     /// Decrypts transaction details.
-    pub fn decrypt_details(&self, key: &[u8]) -> Result<Self, TransactionError> {
-        let key = Aes256Gcm::new_from_slice(key).map_err(|_| {
-            TransactionError::DecryptionError("Invalid key length for decryption".to_string())
-        })?;
+    pub fn decrypt_details(&self, key: &[u8]) -> Result<Self> {
+        let key = Aes256Gcm::new_from_slice(key)
+            .context("Invalid key length for decryption")?;
         let nonce = Nonce::from_slice(b"unique nonce");
         let decrypted_details = key
             .decrypt(nonce, &self.encrypted_details)
-            .map_err(|e| TransactionError::DecryptionError(format!("Decryption failed: {}", e)))?;
-        serde_json::from_slice(&decrypted_details).map_err(TransactionError::SerializationError)
+            .context("Decryption failed")?;
+        serde_json::from_slice(&decrypted_details)
+            .context("Failed to deserialize transaction details")
     }
 
     /// Batch verifies transaction signatures using the provided public keys.
@@ -104,7 +79,7 @@ impl Transaction {
         transactions: &[Transaction],
         public_keys: &[PublicKey],
         qup_crypto: &QUPCrypto,
-    ) -> Result<bool, TransactionError> {
+    ) -> Result<bool> {
         let mut valid = true;
         for (tx, pubkey) in transactions.iter().zip(public_keys) {
             if let Err(e) = tx.verify_signature(pubkey, qup_crypto) {
@@ -120,12 +95,16 @@ impl Transaction {
         &mut self,
         key_manager: &KeyManager,
         qup_crypto: &QUPCrypto,
-    ) -> Result<(), TransactionError> {
+    ) -> Result<()> {
         info!("Signing transaction: {} -> {}", self.sender, self.receiver);
-        let private_key = key_manager.get_private_key(&self.sender)?;
+        let private_key = key_manager
+            .get_private_key(&self.sender)
+            .context("Failed to get private key for sender")?;
         self.sign(&private_key)?;
 
-        let post_quantum_keypair = key_manager.get_post_quantum_keypair(&self.sender)?;
+        let post_quantum_keypair = key_manager
+            .get_post_quantum_keypair(&self.sender)
+            .context("Failed to get post-quantum keypair for sender")?;
         self.sign_with_post_quantum_key(&post_quantum_keypair, qup_crypto)?;
 
         let proof_bytes = generate_proof(
@@ -134,12 +113,7 @@ impl Transaction {
             self.amount,
             &self.encrypted_details,
         )
-        .map_err(|e| {
-            TransactionError::ZKProofError(format!(
-                "Failed to generate zero-knowledge proof: {}",
-                e
-            ))
-        })?;
+        .context("Failed to generate zero-knowledge proof")?;
         self.proof = Proof {
             proof_hash: hex::encode(proof_bytes),
         };
@@ -151,18 +125,17 @@ impl Transaction {
         &self,
         public_key: &PublicKey,
         qup_crypto: &QUPCrypto,
-    ) -> Result<(), TransactionError> {
+    ) -> Result<()> {
         qup_crypto
             .verify_signature(public_key, &self.signature, &self.calculate_hash())
-            .map_err(TransactionError::Secp256k1Error)
+            .context("Failed to verify transaction signature")
     }
 
     /// Signs the transaction with the sender's private key.
-    pub fn sign(&mut self, private_key: &SecretKey) -> Result<(), TransactionError> {
+    pub fn sign(&mut self, private_key: &SecretKey) -> Result<()> {
         let secp = Secp256k1::signing_only();
-        let message = Message::from_slice(&self.calculate_hash()).map_err(|_| {
-            TransactionError::Secp256k1Error("Failed to create message from hash".to_string())
-        })?;
+        let message = Message::from_slice(&self.calculate_hash())
+            .context("Failed to create message from hash")?;
         let (sig, _) = secp.sign_ecdsa(&message, private_key);
         self.signature = sig.serialize_compact().to_vec();
         Ok(())
@@ -173,7 +146,7 @@ impl Transaction {
         &mut self,
         post_quantum_keypair: &PostQuantumKeyPair,
         qup_crypto: &QUPCrypto,
-    ) -> Result<(), TransactionError> {
+    ) -> Result<()> {
         info!(
             "Signing transaction with post-quantum key: {} -> {}",
             self.sender, self.receiver
@@ -181,12 +154,7 @@ impl Transaction {
         let message = self.calculate_hash();
         let signature = qup_crypto
             .sign_with_post_quantum_key(post_quantum_keypair, &message)
-            .map_err(|e| {
-                TransactionError::PostQuantumSignatureError(format!(
-                    "Failed to sign with post-quantum key: {}",
-                    e
-                ))
-            })?;
+            .context("Failed to sign with post-quantum key")?;
         self.post_quantum_signature = Some(signature);
         Ok(())
     }
@@ -196,49 +164,33 @@ impl Transaction {
         &self,
         post_quantum_public_key: &PostQuantumPublicKey,
         qup_crypto: &QUPCrypto,
-    ) -> Result<(), TransactionError> {
+    ) -> Result<()> {
         if let Some(signature) = &self.post_quantum_signature {
             let message = self.calculate_hash();
             qup_crypto
                 .verify_post_quantum_signature(post_quantum_public_key, &message, signature)
-                .map_err(|e| {
-                    TransactionError::PostQuantumSignatureError(format!(
-                        "Post-quantum signature verification failed: {}",
-                        e
-                    ))
-                })
+                .context("Post-quantum signature verification failed")
         } else {
-            Err(TransactionError::PostQuantumSignatureError(
-                "Post-quantum signature not found".to_string(),
-            ))
+            anyhow::bail!("Post-quantum signature not found")
         }
     }
 
     /// Applies the transaction to the given state.
-    pub fn apply_to_state(&self, state: &mut Arc<RwLock<State>>) -> Result<(), TransactionError> {
+    pub fn apply_to_state(&self, state: &mut Arc<RwLock<State>>) -> Result<()> {
         let mut state_lock = state.write().unwrap();
 
         // Validate the transaction
         self.validate(&state_lock)?;
 
         // Update the sender's account
-        let sender_account = state_lock.get_account_mut(&self.sender).ok_or_else(|| {
-            TransactionError::InvalidTransaction(format!(
-                "Sender account not found: {}",
-                self.sender
-            ))
-        })?;
+        let sender_account = state_lock
+            .get_account_mut(&self.sender)
+            .context(format!("Sender account not found: {}", self.sender))?;
         if sender_account.balance < self.amount {
-            return Err(TransactionError::InvalidTransaction(format!(
-                "Insufficient balance for sender: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Insufficient balance for sender: {}", self.sender));
         }
         if sender_account.nonce != self.nonce {
-            return Err(TransactionError::InvalidTransaction(format!(
-                "Invalid nonce for sender: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Invalid nonce for sender: {}", self.sender));
         }
         sender_account.balance -= self.amount;
         sender_account.nonce += 1;
@@ -253,42 +205,28 @@ impl Transaction {
     }
 
     /// Validates the transaction against the current state.
-    pub fn validate(&self, state: &State) -> Result<(), TransactionError> {
+    pub fn validate(&self, state: &State) -> Result<()> {
         // Check if the sender account exists
         if !state.account_exists(&self.sender) {
-            return Err(TransactionError::InvalidTransaction(format!(
-                "Sender account not found: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Sender account not found: {}", self.sender));
         }
 
         // Check if the transaction amount is positive
         if self.amount <= 0.0 {
-            return Err(TransactionError::InvalidTransaction(
-                "Transaction amount must be positive".to_string(),
-            ));
+            anyhow::bail!("Transaction amount must be positive");
         }
 
         // Check if the sender has sufficient balance
-        let sender_account = state.get_account(&self.sender).ok_or_else(|| {
-            TransactionError::InvalidTransaction(format!(
-                "Sender account not found: {}",
-                self.sender
-            ))
-        })?;
+        let sender_account = state
+            .get_account(&self.sender)
+            .context(format!("Sender account not found: {}", self.sender))?;
         if sender_account.balance < self.amount {
-            return Err(TransactionError::InvalidTransaction(format!(
-                "Insufficient balance for sender: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Insufficient balance for sender: {}", self.sender));
         }
 
         // Check if the nonce is valid
         if sender_account.nonce != self.nonce {
-            return Err(TransactionError::InvalidTransaction(format!(
-                "Invalid nonce for sender: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Invalid nonce for sender: {}", self.sender));
         }
 
         // Verify the transaction signature
@@ -305,9 +243,8 @@ impl Transaction {
             self.sp_key.expose_secret(),
         ]
         .concat();
-        verify_proof(&self.proof.proof_hash, &proof_data).map_err(|e| {
-            TransactionError::ZKProofError(format!("Failed to verify zero-knowledge proof: {}", e))
-        })?;
+        verify_proof(&self.proof.proof_hash, &proof_data)
+            .context("Failed to verify zero-knowledge proof")?;
 
         Ok(())
     }
@@ -316,7 +253,7 @@ impl Transaction {
     pub fn apply_to_qup_state(
         &self,
         qup_state: &mut Arc<RwLock<QUPState>>,
-    ) -> Result<(), TransactionError> {
+    ) -> Result<()> {
         let mut qup_state_lock = qup_state.write().unwrap();
 
         // Validate the transaction
@@ -325,17 +262,9 @@ impl Transaction {
         // Update the sender's account in the QUP state
         let sender_account = qup_state_lock
             .get_account_mut(&self.sender)
-            .ok_or_else(|| {
-                TransactionError::QUPStateUpdateError(format!(
-                    "Sender account not found: {}",
-                    self.sender
-                ))
-            })?;
+            .context(format!("Sender account not found: {}", self.sender))?;
         if sender_account.balance < self.amount {
-            return Err(TransactionError::QUPStateUpdateError(format!(
-                "Insufficient balance for sender: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Insufficient balance for sender: {}", self.sender));
         }
         sender_account.balance -= self.amount;
 
@@ -349,12 +278,7 @@ impl Transaction {
         if let Some(solution) = &self.useful_work_solution {
             let validator = qup_state_lock
                 .get_validator_mut(&self.sender)
-                .ok_or_else(|| {
-                    TransactionError::QUPStateUpdateError(format!(
-                        "Validator not found: {}",
-                        self.sender
-                    ))
-                })?;
+                .context(format!("Validator not found: {}", self.sender))?;
             validator.update_useful_work_score(solution);
         }
 
@@ -362,34 +286,23 @@ impl Transaction {
     }
 
     /// Validates the transaction against the current QUP state.
-    pub fn validate_for_qup(&self, qup_state: &QUPState) -> Result<(), TransactionError> {
+    pub fn validate_for_qup(&self, qup_state: &QUPState) -> Result<()> {
         // Check if the sender account exists in the QUP state
         if !qup_state.account_exists(&self.sender) {
-            return Err(TransactionError::QUPStateUpdateError(format!(
-                "Sender account not found: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Sender account not found: {}", self.sender));
         }
 
         // Check if the transaction amount is positive
         if self.amount <= 0.0 {
-            return Err(TransactionError::QUPStateUpdateError(
-                "Transaction amount must be positive".to_string(),
-            ));
+            anyhow::bail!("Transaction amount must be positive");
         }
 
         // Check if the sender has sufficient balance in the QUP state
-        let sender_account = qup_state.get_account(&self.sender).ok_or_else(|| {
-            TransactionError::QUPStateUpdateError(format!(
-                "Sender account not found: {}",
-                self.sender
-            ))
-        })?;
+        let sender_account = qup_state
+            .get_account(&self.sender)
+            .context(format!("Sender account not found: {}", self.sender))?;
         if sender_account.balance < self.amount {
-            return Err(TransactionError::QUPStateUpdateError(format!(
-                "Insufficient balance for sender: {}",
-                self.sender
-            )));
+            anyhow::bail!(format!("Insufficient balance for sender: {}", self.sender));
         }
 
         // Verify the transaction signature
@@ -406,18 +319,14 @@ impl Transaction {
             self.sp_key.expose_secret(),
         ]
         .concat();
-        verify_proof(&self.proof.proof_hash, &proof_data).map_err(|e| {
-            TransactionError::ZKProofError(format!("Failed to verify zero-knowledge proof: {}", e))
-        })?;
+        verify_proof(&self.proof.proof_hash, &proof_data)
+            .context("Failed to verify zero-knowledge proof")?;
 
         // Verify the useful work solution if present
         if let Some(solution) = &self.useful_work_solution {
-            qup_state.verify_useful_work(solution).map_err(|e| {
-                TransactionError::QUPStateUpdateError(format!(
-                    "Failed to verify useful work solution: {}",
-                    e
-                ))
-            })?;
+            qup_state
+                .verify_useful_work(solution)
+                .context("Failed to verify useful work solution")?;
         }
 
         Ok(())
