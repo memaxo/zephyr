@@ -12,6 +12,7 @@ mod network_manager;
 mod quantum_resistant;
 mod node_message;
 mod shard_message;
+mod qup_message;
 
 use crate::chain::block::Block;
 use crate::chain::consensus::{Consensus, ConsensusType};
@@ -21,6 +22,8 @@ use crate::crypto::hash::Hasher;
 use crate::network::p2p::{Message, Peer, PeerError};
 use crate::network::sync::{BlockSyncState, StateSync};
 use crate::network::tls::{TLSConnectionError, TLSListener};
+use crate::qup::block::QUPBlock;
+use crate::qup::qup_message::QUPMessage;
 use crate::utils::node_id::NodeId;
 use crate::error_handling::mod::NetworkError;
 use log::{debug, error, info, warn};
@@ -55,6 +58,31 @@ impl Network {
             max_inbound_peers: config.max_inbound_peers,
             peer_channel: (peer_tx, peer_rx),
             network_error_handler,
+            Message::QUPMessage(qup_message) => self.handle_qup_message(peer_addr, qup_message).await,
+        }
+    }
+
+    async fn handle_qup_message(&self, peer_addr: &str, qup_message: QUPMessage) {
+        match qup_message {
+            QUPMessage::QUPBlock(block) => self.handle_qup_block(peer_addr, block).await,
+            QUPMessage::QUPTransaction(tx) => self.handle_qup_transaction(peer_addr, tx).await,
+        }
+    }
+
+    async fn handle_qup_block(&self, peer_addr: &str, block: QUPBlock) {
+        if self.consensus.validate_block(&block) {
+            self.state_sync.process_block(block.clone()).await;
+            self.broadcast(Message::QUPMessage(QUPMessage::QUPBlock(block))).await;
+        } else {
+            warn!("Received invalid QUP block from {}", peer_addr);
+        }
+    }
+
+    async fn handle_qup_transaction(&self, peer_addr: &str, tx: Transaction) {
+        let tx_hash = tx.hash();
+        if !self.tx_pool.read().unwrap().contains_key(&tx_hash) {
+            self.tx_pool.write().unwrap().insert(tx_hash, tx.clone());
+            self.broadcast(Message::QUPMessage(QUPMessage::QUPTransaction(tx))).await;
         }
     }
     pub fn new(config: &NetworkConfig, consensus: Arc<dyn Consensus>) -> Self {
