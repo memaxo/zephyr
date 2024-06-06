@@ -189,6 +189,66 @@ impl QUPConsensus {
             return Ok(false);
         }
 
+        // Validate useful work solution
+        if let Some(problem) = &block.useful_work_problem {
+            if let Some(solution) = &block.useful_work_solution {
+                if !self.validate_useful_work_solution(problem, solution)? {
+                    return Ok(false);
+                }
+            } else {
+                return Ok(false);
+            }
+        }
+
+        // Validate history proof
+        if !self.validate_history_proof(&block.history_proof)? {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
+    fn validate_useful_work_solution(
+        &self,
+        problem: &UsefulWorkProblem,
+        solution: &UsefulWorkSolution,
+    ) -> Result<bool, ConsensusError> {
+        // Implement the logic to validate the useful work solution
+        match problem {
+            UsefulWorkProblem::Knapsack(knapsack_problem) => {
+                // Validate the knapsack solution
+                let total_weight: u64 = solution
+                    .as_knapsack()
+                    .selected_items
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &selected)| selected)
+                    .map(|(i, _)| knapsack_problem.weights[i])
+                    .sum();
+                if total_weight > knapsack_problem.capacity {
+                    return Ok(false);
+                }
+                Ok(true)
+            }
+            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
+                // Validate the vertex cover solution
+                let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
+                if !is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover) {
+                    return Ok(false);
+                }
+                Ok(true)
+            }
+        }
+    }
+
+    fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
+        // Implement the logic to validate the history proof
+        // For example, check if the history proof contains valid hashes of previous blocks
+        for hash in history_proof {
+            if !self.state.is_valid_block_hash(hash)? {
+                return Ok(false);
+            }
+        }
         Ok(true)
     }
 
