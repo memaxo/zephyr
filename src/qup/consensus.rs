@@ -36,7 +36,8 @@ impl QUPConsensus {
             ConsensusMessage::Propose(block) => self.process_propose(block),
             ConsensusMessage::Vote(vote) => self.process_vote(vote),
             ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
-            // Add more message types as needed
+            ConsensusMessage::Vote(vote) => self.process_vote(vote),
+            ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
         }
     }
 
@@ -65,29 +66,25 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn process_vote(&mut self, vote: ConsensusVote) -> Result<(), ConsensusError> {
+    pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
         // Verify the vote signature
-        let signer = vote.signer;
-        let signature = vote.signature;
-        let vote_data = vote.block_hash.as_bytes();
-        if !verify_signature(&signer, &signature, vote_data)? {
+        if !verify_vote_signature(&vote) {
             return Err(ConsensusError::InvalidSignature);
         }
 
-        // Aggregate the votes for the corresponding block
-        self.state.add_vote(vote)?;
+        // Add the vote to the state
+        self.state.add_vote(vote.clone())?;
 
-        // If a quorum is reached, commit the block
-        let block_hash = vote.block_hash;
-        if self.state.has_quorum(&block_hash)? {
-            let block = self.state.get_proposed_block(&block_hash)?;
+        // Check if the block has reached quorum
+        if self.state.has_quorum(&vote.block_hash)? {
+            let block = self.state.get_proposed_block(&vote.block_hash)?;
             self.commit_block(block)?;
         }
 
         Ok(())
     }
 
-    fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
+    pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
         // Retrieve the block from the local pool of proposed blocks
         let block = self.state.get_proposed_block(&block_hash)?;
 
@@ -102,6 +99,37 @@ impl QUPConsensus {
         self.config.network.broadcast(message)?;
 
         Ok(())
+    }
+
+    pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
+        let vote = QUPVote {
+            voter: self.key_pair.public_key.to_bytes().to_vec(),
+            block_hash,
+            signature: self.key_pair.sign(&block_hash.to_bytes()),
+        };
+
+        // Broadcast the vote to other validators
+        let message = NetworkMessage::Vote(vote.clone());
+        self.config.network.broadcast(message)?;
+
+        Ok(vote)
+    }
+
+    pub fn has_quorum(&self, block_hash: &Hash) -> Result<bool, ConsensusError> {
+        let votes = self.state.get_votes(block_hash)?;
+        let total_stake: u64 = self.state.get_total_stake();
+        let quorum_stake: u64 = (total_stake as f64 * self.config.consensus_config.quorum_threshold) as u64;
+
+        let mut accumulated_stake: u64 = 0;
+        for vote in votes {
+            let voter_stake = self.state.get_validator_stake(&vote.voter)?;
+            accumulated_stake += voter_stake;
+            if accumulated_stake >= quorum_stake {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     pub fn propose_block(
