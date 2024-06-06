@@ -16,6 +16,7 @@ pub struct QUPConsensus {
     pub key_pair: QUPKeyPair,
     pub hdc_model: HDCModel,
     pub communication_protocol: CommunicationProtocol,
+}
 
 impl QUPConsensus {
     pub fn new(
@@ -36,6 +37,29 @@ impl QUPConsensus {
     }
 
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block
+        if !self.validate_block(&block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Evaluate the block using the HDC model
+        let block_vector = self.hdc_model.encode_block(&block);
+        let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+        // Check if the block meets the similarity threshold
+        if similarity < self.config.similarity_threshold {
+            return Err(ConsensusError::InsufficientSimilarity);
+        }
+
+        // Broadcast the block to other validators
+        let message = NetworkMessage::BlockProposal(block.clone());
+        self.communication_protocol.send_message(message)?;
+
+        // Add the block to the local pool of proposed blocks
+        self.state.add_proposed_block(block)?;
+
+        Ok(())
+    }
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         self.communication_protocol.receive_message(message.clone())?;
 
