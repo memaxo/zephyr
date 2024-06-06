@@ -56,13 +56,34 @@ pub fn generate_random_useful_work_problem() -> UsefulWorkProblem {
 }
 
 pub fn generate_random_knapsack_problem() -> KnapsackProblem {
-    // Generate a random knapsack problem
-    // ...
+    let mut rng = rand::thread_rng();
+    let capacity = rng.gen_range(50..100);
+    let num_items = rng.gen_range(5..20);
+    let weights = (0..num_items).map(|_| rng.gen_range(1..50)).collect();
+    let values = (0..num_items).map(|_| rng.gen_range(1..100)).collect();
+
+    KnapsackProblem {
+        capacity,
+        weights,
+        values,
+    }
 }
 
 pub fn generate_random_vertex_cover_problem() -> VertexCoverProblem {
-    // Generate a random vertex cover problem
-    // ...
+    let mut rng = rand::thread_rng();
+    let num_vertices = rng.gen_range(5..20);
+    let mut graph = vec![vec![]; num_vertices];
+
+    for i in 0..num_vertices {
+        for j in (i + 1)..num_vertices {
+            if rng.gen_bool(0.5) {
+                graph[i].push(j);
+                graph[j].push(i);
+            }
+        }
+    }
+
+    VertexCoverProblem { graph }
 }
 
 pub fn solve_useful_work_problem(problem: &UsefulWorkProblem) -> UsefulWorkSolution {
