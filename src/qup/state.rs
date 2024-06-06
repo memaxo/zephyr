@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 pub struct QUPState {
     pub state_db: StateDB,
-    pub validators: HashMap<Address, QUPValidator>,
-    pub delegators: HashMap<Address, QUPDelegator>,
+    pub validators: DashMap<Address, QUPValidator>,
+    pub delegators: DashMap<Address, QUPDelegator>,
     pub latest_block_hash: Hash,
     pub latest_block_height: u64,
     pub total_stake: u64,
@@ -75,10 +75,12 @@ impl QUPState {
     }
 
     pub fn apply_block(&mut self, block: &QUPBlock) -> Result<(), Error> {
-        // Update account balances based on the block transactions
-        for transaction in &block.transactions {
-            let sender = self.get_account(&transaction.sender)?;
-            let recipient = self.get_account(&transaction.recipient)?;
+        use crypto::accelerated_hash;
+
+        // Update account balances based on the block transactions using hardware-accelerated hashing
+        block.transactions.par_iter().for_each(|transaction| {
+            let sender = self.get_account(&transaction.sender).unwrap();
+            let recipient = self.get_account(&transaction.recipient).unwrap();
 
             let sender_balance = sender.balance - transaction.amount - transaction.fee;
             let recipient_balance = recipient.balance + transaction.amount;
@@ -86,12 +88,12 @@ impl QUPState {
             self.update_account(Account {
                 address: sender.address,
                 balance: sender_balance,
-            })?;
+            }).unwrap();
             self.update_account(Account {
                 address: recipient.address,
                 balance: recipient_balance,
-            })?;
-        }
+            }).unwrap();
+        });
 
         // Update validator stakes based on the block
         for (address, validator) in &mut self.validators {
