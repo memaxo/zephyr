@@ -33,6 +33,13 @@ pub struct Transaction {
     pub encrypted_details: Vec<u8>,
     pub post_quantum_signature: Option<PostQuantumSignature>,
     pub useful_work_solution: Option<UsefulWorkSolution>,
+    pub history_proof: Option<HistoryProof>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HistoryProof {
+    pub proof_data: Vec<u8>,
+    pub proof_hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -58,7 +65,28 @@ impl Transaction {
             .encrypt(nonce, plaintext.as_ref())
             .context("Encryption failed")?;
         self.encrypted_details = ciphertext;
+        // Verify the history proof if present
+        if let Some(proof) = &self.history_proof {
+            qup_state
+                .verify_history_proof(proof)
+                .context("Failed to verify history proof")?;
+        }
+
         Ok(())
+    }
+
+    /// Verifies the transaction's history proof.
+    pub fn verify_history_proof(
+        &self,
+        qup_state: &QUPState,
+    ) -> Result<()> {
+        if let Some(proof) = &self.history_proof {
+            qup_state
+                .verify_history_proof(proof)
+                .context("History proof verification failed")
+        } else {
+            anyhow::bail!("History proof not found")
+        }
     }
 
     /// Decrypts transaction details.
@@ -95,7 +123,10 @@ impl Transaction {
         &mut self,
         key_manager: &KeyManager,
         qup_crypto: &QUPCrypto,
+        qup_crypto: &QUPCrypto,
+        history_proof: Option<HistoryProof>,
     ) -> Result<()> {
+        self.history_proof = history_proof;
         info!("Signing transaction: {} -> {}", self.sender, self.receiver);
         let private_key = key_manager
             .get_private_key(&self.sender)
