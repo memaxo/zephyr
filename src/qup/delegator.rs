@@ -48,7 +48,9 @@ impl QUPDelegator {
 
     pub fn delegate(&mut self, validator: &Address, amount: u64) -> Result<(), Error> {
         // Ensure the delegator has sufficient stake
-        assert!(self.stake >= amount, "Insufficient stake");
+        if self.stake < amount {
+            return Err(Error::InsufficientStake("Insufficient stake".to_string()));
+        }
 
         // Update the delegator's delegated_to field
         self.delegated_to = Some(*validator);
@@ -59,33 +61,31 @@ impl QUPDelegator {
         self.state.set_validator_state(validator, validator_state)?;
 
         // Update the delegator's account balance
-        let mut account = self.state.get_account(&self.address).unwrap();
+        let mut account = self.state.get_account(&self.address)?;
         account.balance -= amount;
-        self.state.set_account(&self.address, account);
+        self.state.set_account(&self.address, account)?;
 
         Ok(())
     }
 
     pub fn undelegate(&mut self, amount: u64) -> Result<(), Error> {
         // Ensure the delegator has delegated to a validator
-        let validator = self.delegated_to.ok_or(Error::NoDelegation)?;
+        let validator = self.delegated_to.ok_or(Error::NoDelegation("No delegation found".to_string()))?;
 
         // Ensure the delegator has sufficient delegated amount
         let mut validator_state = self.state.get_validator_state(&validator)?;
-        assert!(
-            validator_state.delegated_stake >= amount,
-            "Insufficient delegated amount"
-        );
+        if validator_state.delegated_stake < amount {
+            return Err(Error::InsufficientDelegatedStake("Insufficient delegated amount".to_string()));
+        }
 
         // Update the corresponding validator's delegated stake
         validator_state.delegated_stake -= amount;
-        self.state
-            .set_validator_state(&validator, validator_state)?;
+        self.state.set_validator_state(&validator, validator_state)?;
 
         // Update the delegator's account balance
-        let mut account = self.state.get_account(&self.address).unwrap();
+        let mut account = self.state.get_account(&self.address)?;
         account.balance += amount;
-        self.state.set_account(&self.address, account);
+        self.state.set_account(&self.address, account)?;
 
         // Clear the delegator's delegated_to field if all tokens are undelegated
         if validator_state.delegated_stake == 0 {
