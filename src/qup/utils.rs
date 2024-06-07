@@ -389,3 +389,46 @@ pub fn verify_vote_signature(vote: &QUPVote) -> bool {
     let is_eligible_voter = true; // Replace with actual eligibility check
     is_eligible_voter
 }
+pub struct Utils;
+
+impl Utils {
+    pub fn calculate_block_hash() {
+        // Scaffold method for calculating block hash
+        unimplemented!()
+    }
+
+    pub fn calculate_transaction_hash() {
+        // Scaffold method for calculating transaction hash
+        unimplemented!()
+    }
+
+    pub fn verify_transaction_signature() {
+        // Scaffold method for verifying transaction signature
+        unimplemented!()
+    }
+
+    pub fn verify_block_signature() {
+        // Scaffold method for verifying block signature
+        unimplemented!()
+    }
+
+    pub fn verify_vote_signature() {
+        // Scaffold method for verifying vote signature
+        unimplemented!()
+    }
+
+    pub fn generate_random_useful_work_problem() {
+        // Scaffold method for generating random useful work problem
+        unimplemented!()
+    }
+
+    pub fn generate_proof_of_solution() {
+        // Scaffold method for generating proof of solution
+        unimplemented!()
+    }
+
+    pub fn verify_proof_of_solution() {
+        // Scaffold method for verifying proof of solution
+        unimplemented!()
+    }
+}
