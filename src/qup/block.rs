@@ -1,6 +1,7 @@
 use crate::chain::transaction::Transaction;
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{hash, QUPSignature};
+use crate::storage::block_storage::BlockStorage;
 use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
 use crate::qup::types::{UsefulWorkProblem, UsefulWorkSolution};
@@ -17,7 +18,13 @@ pub struct QUPBlock {
     pub useful_work_solution: Option<UsefulWorkSolution>,
     pub history_proof: Vec<Hash>,
     pub validator_signature: QUPSignature,
-}
+    pub fn save(&self, storage: &BlockStorage) -> Result<(), BlockStorageError> {
+        storage.save_block(self)
+    }
+
+    pub fn load(hash: &Hash, storage: &BlockStorage) -> Result<Self, BlockStorageError> {
+        storage.load_block(hash)
+    }
 
 impl QUPBlock {
     pub fn new(
