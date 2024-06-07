@@ -109,13 +109,26 @@ impl QUPConsensus {
 
         // Verify the block signature
         let signer = stored_block.proposer;
-        let signature = stored_block
-            .signature
-            .as_ref()
-            .ok_or(ConsensusError::MissingSignature)?;
-        let block_data = stored_block.hash().as_bytes();
-        if !verify_signature(&signer, signature, block_data)? {
-            return Ok(false);
+        if self.config.supports_quantum_features() {
+            // Quantum-resistant signature verification
+            let signature = stored_block
+                .signature
+                .as_ref()
+                .ok_or(ConsensusError::MissingSignature)?;
+            let block_data = stored_block.hash().as_bytes();
+            if !DilithiumSignature::verify(&signer, signature, block_data)? {
+                return Ok(false);
+            }
+        } else {
+            // Classical signature verification
+            let signature = stored_block
+                .signature
+                .as_ref()
+                .ok_or(ConsensusError::MissingSignature)?;
+            let block_data = stored_block.hash().as_bytes();
+            if !verify_signature(&signer, signature, block_data)? {
+                return Ok(false);
+            }
         }
 
         // Check if the block follows the QUP consensus rules
