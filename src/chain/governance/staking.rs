@@ -122,7 +122,7 @@ impl Staking {
         state.update_reward_rate(new_rate).await?;
 
         // Broadcast the reward rate update to the network using quantum-resistant communication
-        let message = StakingMessage::RewardRateUpdated { new_rate };
+        let message = GovernanceMessage::RewardDistribution { new_rate };
         connection_manager.broadcast(message).await?;
 
         Ok(())
@@ -140,7 +140,7 @@ impl Staking {
         state.update_lock_period(new_period).await?;
 
         // Broadcast the lock period update to the network using quantum-resistant communication
-        let message = StakingMessage::LockPeriodUpdated { new_period };
+        let message = GovernanceMessage::RewardDistribution { new_period };
         connection_manager.broadcast(message).await?;
 
         Ok(())
