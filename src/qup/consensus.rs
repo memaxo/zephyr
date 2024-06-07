@@ -45,6 +45,7 @@ impl QUPConsensus {
                 block_storage,
                 transaction_storage,
             }
+        }
     pub fn allocate_and_execute_task(&self, transaction: Transaction) -> Result<(), ConsensusError> {
         if self.is_task_complex(&transaction) {
             self.handle_computational_task(transaction)
@@ -154,6 +155,7 @@ impl QUPConsensus {
 
         Ok(true)
     }
+    }
 
     fn handle_standard_transaction(&self, transaction: Transaction) -> Result<(), ConsensusError> {
         // Logic for handling standard transactions by classical nodes
@@ -183,6 +185,12 @@ impl QUPConsensus {
         let result = self.perform_useful_work(transaction)?;
         self.synchronize_and_validate(result)?;
         Ok(())
+    }
+    }
+    }
+    }
+    }
+    }
     }
 
     fn perform_useful_work(&self, transaction: Transaction) -> Result<UsefulWorkResult, ConsensusError> {
@@ -479,6 +487,7 @@ impl QUPConsensus {
         self.block_storage.save_block(&block)?;
 
         Ok(block)
+    }
     pub fn propose_block(
         &self,
         transactions: Vec<Transaction>,
@@ -605,6 +614,7 @@ impl QUPConsensus {
         let deserialized_solution: UsefulWorkSolution = bincode::deserialize(proof).expect("Failed to deserialize useful work proof");
         Ok(&deserialized_solution == solution)
     }
+    fn validate_useful_work_solution(
         &self,
         problem: &UsefulWorkProblem,
         solution: &UsefulWorkSolution,
