@@ -206,6 +206,17 @@ impl QUPConsensus {
             return Err(ConsensusError::InvalidHistoryProof);
         }
 
+        // Validate useful work solution
+        if let Some(problem) = &block.useful_work_problem {
+            if let Some(solution) = &block.useful_work_solution {
+                if !self.validate_useful_work_solution(problem, solution)? {
+                    return Err(ConsensusError::InvalidUsefulWorkSolution);
+                }
+            } else {
+                return Err(ConsensusError::MissingUsefulWorkSolution);
+            }
+        }
+
         // Optimize the block using the HDC model
         let optimized_block = self.hdc_model.optimize_block(&block);
 
@@ -303,6 +314,22 @@ impl QUPConsensus {
         let history_proof = self.generate_history_proof();
 
         // Add history proof to the block
+        block.history_proof = history_proof;
+
+        use rayon::prelude::*;
+
+        // Generate useful work problem and history proof in parallel
+        let (useful_work_problem, history_proof) = rayon::join(
+            || self.generate_useful_work_problem(),
+            || self.generate_history_proof(),
+        );
+
+        // Solve useful work problem in parallel
+        let useful_work_solution = rayon::spawn(|| self.solve_useful_work_problem(&useful_work_problem)).join().unwrap();
+
+        // Add useful work problem, solution, and history proof to the block
+        block.useful_work_problem = Some(useful_work_problem);
+        block.useful_work_solution = Some(useful_work_solution);
         block.history_proof = history_proof;
 
         // Broadcast the block to other validators
