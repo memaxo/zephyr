@@ -19,6 +19,22 @@ impl ContractStorage {
         ContractStorage { db }
     }
 
-    // Implement contract storage methods here
-    // ...
+    pub fn save_contract(&self, contract: &SmartContract) -> Result<(), ContractStorageError> {
+        let contract_id = contract.id().to_string();
+        let data = serde_json::to_vec(contract)
+            .map_err(|e| ContractStorageError::DatabaseError(e.to_string()))?;
+        self.db.put(&contract_id, &data)
+            .map_err(|e| ContractStorageError::DatabaseError(e.to_string()))
+    }
+
+    pub fn load_contract(&self, contract_id: &str) -> Result<SmartContract, ContractStorageError> {
+        match self.db.get(contract_id) {
+            Some(data) => {
+                let contract: SmartContract = serde_json::from_slice(&data)
+                    .map_err(|e| ContractStorageError::DatabaseError(e.to_string()))?;
+                Ok(contract)
+            }
+            None => Err(ContractStorageError::ContractNotFound(contract_id.to_string())),
+        }
+    }
 }
