@@ -19,6 +19,7 @@ pub struct QUPBlock {
     pub useful_work_solution: Option<UsefulWorkSolution>,
     pub history_proof: Vec<Hash>,
     pub validator_signature: QUPSignature,
+}
 
 impl QUPBlock {
     pub fn new(
@@ -45,9 +46,6 @@ impl QUPBlock {
         block
     }
 
-}
-
-impl QUPBlock {
     pub fn save(&self, storage: &BlockStorage) -> Result<(), BlockStorageError> {
         storage.save_block(self)
     }
@@ -55,6 +53,7 @@ impl QUPBlock {
     pub fn load(hash: &Hash, storage: &BlockStorage) -> Result<Self, BlockStorageError> {
         storage.load_block(hash)
     }
+    pub fn hash(&self) -> Hash {
         let mut hasher = hash::Hasher::new();
         hasher.update(&self.height.to_le_bytes());
         hasher.update(&self.timestamp.to_le_bytes());
@@ -116,15 +115,14 @@ impl QUPBlock {
         }
 
         self.save(&state.state_storage.block_storage)?;
-        self.save(&state.state_storage.block_storage)?;
         Ok(())
     }
 
     pub fn apply(&self, state: &mut QUPState) -> Result<(), Error> {
         // Update the state with the block height, timestamp, and hash
-        state.set_block_height(self.height);
-        state.set_block_timestamp(self.timestamp);
-        state.set_block_hash(self.hash());
+        state.set_block_height(self.height)?;
+        state.set_block_timestamp(self.timestamp)?;
+        state.set_block_hash(self.hash())?;
 
         // Apply the transactions to the state
         for tx in &self.transactions {
@@ -138,64 +136,7 @@ impl QUPBlock {
         state.add_balance(&self.validator_signature.signer, validator_reward)?;
         // Distribute delegator_reward among delegators based on their stake
 
-        Ok(())
-    }
-}
-
-pub struct QUPState {
-    pub state_db: StateDB,
-    pub state_storage: StateStorage,
-}
-
-impl QUPState {
-    pub fn new(state_db: StateDB, state_storage: StateStorage) -> Self {
-        QUPState { state_db, state_storage }
-    }
-
-    pub fn get_block_height(&self) -> u64 {
-        self.state_db.get_block_height()
-    }
-
-    pub fn set_block_height(&mut self, height: u64) -> Result<(), StateStorageError> {
-        self.state_db.set_block_height(height);
-        self.state_storage.save_state("block_height", &self.state_db)?;
-        Ok(())
-    }
-
-    pub fn get_block_timestamp(&self) -> u64 {
-        self.state_db.get_block_timestamp()
-    }
-
-    pub fn set_block_timestamp(&mut self, timestamp: u64) -> Result<(), StateStorageError> {
-        self.state_db.set_block_timestamp(timestamp);
-        self.state_storage.save_state("block_timestamp", &self.state_db)?;
-        Ok(())
-    }
-
-    pub fn get_block_hash(&self) -> Hash {
-        self.state_db.get_block_hash()
-    }
-
-    pub fn set_block_hash(&mut self, hash: Hash) -> Result<(), StateStorageError> {
-        self.state_db.set_block_hash(hash);
-        self.state_storage.save_state("block_hash", &self.state_db)?;
-        Ok(())
-    }
-
-    pub fn add_balance(&mut self, account: &Account, amount: u64) -> Result<(), StateStorageError> {
-        self.state_db.add_balance(account, amount);
-        self.state_storage.save_state("balances", &self.state_db)?;
-        Ok(())
-    }
-
-    pub fn apply_block(&mut self, block: &QUPBlock) -> Result<(), StateStorageError> {
-        self.set_block_height(block.height)?;
-        self.set_block_timestamp(block.timestamp)?;
-        self.set_block_hash(block.hash())?;
-        for tx in &block.transactions {
-            tx.apply(&mut self.state_db)?;
-        }
-        self.state_storage.save_state("state", &self.state_db)?;
+        self.save(&state.state_storage.block_storage)?;
         Ok(())
     }
 }
