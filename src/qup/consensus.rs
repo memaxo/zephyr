@@ -79,6 +79,21 @@ impl QUPConsensus {
     pub fn submit_proof_to_classical_node(&self, proof: &[u8]) {
         // Scaffold method for submitting proofs to classical nodes
     }
+
+    pub fn validate_and_integrate_results(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
+        // Validate and integrate useful work results into the blockchain
+        if self.validate_useful_work(problem, solution) {
+            self.integrate_results(problem, solution);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn integrate_results(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) {
+        // Integrate the useful work results into the blockchain
+        // This can be customized based on the specific requirements of the useful work problem and solution
+    }
         if self.is_task_complex(&transaction) {
             self.handle_computational_task(transaction)
         } else {
