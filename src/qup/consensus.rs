@@ -7,7 +7,7 @@ use crate::network::NetworkMessage;
 use crate::qup::block::QUPBlock;
 use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
-use crate::qup::crypto::{verify_signature, QUPKeyPair, QuantumSafeEncryption};
+use crate::qup::crypto::{verify_signature, QUPKeyPair, QUPCrypto};
 use crate::qup::state::QUPState;
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ pub struct QUPConsensus {
     pub communication_protocol: CommunicationProtocol,
     pub block_storage: Arc<BlockStorage>,
     pub transaction_storage: Arc<TransactionStorage>,
-    pub quantum_safe_encryption: QuantumSafeEncryption,
+    pub qup_crypto: QUPCrypto,
 }
 
 impl QUPConsensus {
@@ -45,7 +45,7 @@ impl QUPConsensus {
                 blockchain,
                 block_storage,
                 transaction_storage,
-                quantum_safe_encryption: QuantumSafeEncryption::new(),
+                qup_crypto: QUPCrypto::new(),
             }
         }
     pub fn allocate_and_execute_task(&self, transaction: Transaction) -> Result<(), ConsensusError> {
@@ -117,8 +117,13 @@ impl QUPConsensus {
             .as_ref()
             .ok_or(ConsensusError::MissingSignature)?;
         let block_data = stored_block.hash().as_bytes();
+        let signature = stored_block
+            .signature
+            .as_ref()
+            .ok_or(ConsensusError::MissingSignature)?;
+        let block_data = stored_block.hash().as_bytes();
         if self.config.supports_quantum_features() {
-            if !self.quantum_safe_encryption.verify(block_data, signature) {
+            if !self.qup_crypto.verify(block_data, signature) {
                 return Ok(false);
             }
         } else {
@@ -259,7 +264,7 @@ impl QUPConsensus {
         Ok(())
     pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
         let signature = if self.config.supports_quantum_features() {
-            self.quantum_safe_encryption.sign(&block_hash.to_bytes())
+            self.qup_crypto.sign(&block_hash.to_bytes())
         } else {
             self.key_pair.sign(&block_hash.to_bytes())
         };

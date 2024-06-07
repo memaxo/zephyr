@@ -20,16 +20,16 @@ use crate::qup::error_correction::{
 };
 use std::sync::Arc;
 
-pub struct QuantumSafeEncryption {
+pub struct QUPCrypto {
     pub dilithium_keypair: DilithiumKeyPair,
     pub kyber_keypair: KyberKeyPair,
     pub mceliece_keypair: McElieceKeyPair,
     pub ntru_keypair: NTRUKeyPair,
 }
 
-impl QuantumSafeEncryption {
+impl QUPCrypto {
     pub fn new() -> Self {
-        QuantumSafeEncryption {
+        QUPCrypto {
             dilithium_keypair: DilithiumKeyPair::generate(),
             kyber_keypair: KyberKeyPair::generate(),
             mceliece_keypair: McElieceKeyPair::generate(),
