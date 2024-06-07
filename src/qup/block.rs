@@ -4,6 +4,7 @@ use crate::qup::crypto::{hash, QUPSignature};
 use crate::storage::block_storage::BlockStorage;
 use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
+use crate::storage::block_storage::BlockStorageError;
 use crate::qup::types::{UsefulWorkProblem, UsefulWorkSolution};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -112,6 +113,8 @@ impl QUPBlock {
             return Err(Error::InvalidBlock);
         }
 
+        self.save(&state.state_storage.block_storage)?;
+        self.save(&state.state_storage.block_storage)?;
         Ok(())
     }
 
