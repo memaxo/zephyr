@@ -24,4 +24,16 @@ pub fn update_account_balance(
     Ok(())
 }
 
+pub fn remove_account(state: &mut ChainState, account_id: &str) -> Result<(), String> {
+    if state.accounts.remove(account_id).is_some() {
+        Ok(())
+    } else {
+        Err(format!("Account {} not found", account_id))
+    }
+}
+
+pub fn account_exists(state: &ChainState, account_id: &str) -> bool {
+    state.accounts.contains_key(account_id)
+}
+
 // Add other common state operations here

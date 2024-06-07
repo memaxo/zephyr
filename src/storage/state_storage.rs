@@ -31,8 +31,9 @@ impl StateStorage {
     }
 
     pub fn save_state(&self, state_id: &str, state: &ChainState) -> Result<(), StateStorageError> {
-        // Implement the logic to save the state to the database
-        // This is a placeholder implementation
-        Ok(())
+        let data = serde_json::to_vec(state)
+            .map_err(|e| StateStorageError::DatabaseError(e.to_string()))?;
+        self.db.put(state_id, &data)
+            .map_err(|e| StateStorageError::DatabaseError(e.to_string()))
     }
 }
