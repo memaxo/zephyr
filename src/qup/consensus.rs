@@ -142,6 +142,9 @@ impl QUPConsensus {
         self.communication_protocol.send_message(message)?;
 
         self.block_storage.save_block(&block)?;
+        // Save the block to the block storage
+        self.block_storage.save_block(&block)?;
+
         Ok(block)
     }
     }
@@ -157,25 +160,28 @@ impl QUPConsensus {
     }
 
     pub fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
+        // Retrieve the block from the block storage
+        let stored_block = self.block_storage.load_block(&block.hash())?;
+
         // Verify the block signature
-        let signer = block.proposer;
-        let signature = block
+        let signer = stored_block.proposer;
+        let signature = stored_block
             .signature
             .as_ref()
             .ok_or(ConsensusError::MissingSignature)?;
-        let block_data = block.hash().as_bytes();
+        let block_data = stored_block.hash().as_bytes();
         if !verify_signature(&signer, signature, block_data)? {
             return Ok(false);
         }
 
         // Check if the block follows the QUP consensus rules
-        if !self.blockchain.state_transition.is_valid_block(block)? {
+        if !self.blockchain.state_transition.is_valid_block(&stored_block)? {
             return Ok(false);
         }
 
         // Validate useful work solution
-        if let Some(problem) = &block.useful_work_problem {
-            if let Some(solution) = &block.useful_work_solution {
+        if let Some(problem) = &stored_block.useful_work_problem {
+            if let Some(solution) = &stored_block.useful_work_solution {
                 if !self.validate_useful_work_solution(problem, solution)? {
                     return Ok(false);
                 }
@@ -185,7 +191,7 @@ impl QUPConsensus {
         }
 
         // Validate history proof
-        if !self.validate_history_proof(&block.history_proof)? {
+        if !self.validate_history_proof(&stored_block.history_proof)? {
             return Ok(false);
         }
 
