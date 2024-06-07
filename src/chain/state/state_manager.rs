@@ -1,5 +1,5 @@
 use crate::chain::state::account::Account;
-use crate::chain::state::state_db::StateDB;
+use crate::storage::state_storage::StateStorage;
 use crate::chain::state::ChainState;
 use crate::chain::validator::ChainValidator;
 use std::collections::HashMap;
