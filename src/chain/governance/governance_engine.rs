@@ -73,8 +73,18 @@ impl GovernanceEngine {
 
         // Execute the proposal based on its type and parameters
         match proposal.proposal_type {
-            // Handle different proposal types and their execution logic
-            _ => return Err("Unsupported proposal type".to_string()),
+            ProposalType::AllocateFunds { allocation_id, amount } => {
+                self.treasury.allocate(allocation_id, amount)?;
+            }
+            ProposalType::UpdateRewardRate { new_rate } => {
+                self.rewards.update_reward_rate(new_rate).await?;
+            }
+            ProposalType::UpdateLockPeriod { new_period } => {
+                self.staking.update_lock_period(new_period).await?;
+            }
+            ProposalType::TransferFunds { recipient, amount } => {
+                self.treasury.transfer(recipient, amount)?;
+            }
         }
 
         // Update the proposal status in the QUP state
@@ -91,12 +101,7 @@ impl GovernanceEngine {
 
     pub async fn stake(&mut self, staker: String, amount: u64) -> Result<(), String> {
         // Perform the staking using the staking module
-        self.staking.stake(&staker, amount)?;
-
-        // Update the staking information in the QUP state
-        self.qup_state
-            .update_staking(staker.clone(), amount)
-            .await?;
+        self.staking.stake(staker.clone(), amount, &mut self.qup_state, &self.connection_manager).await?;
 
         // Broadcast the staking update to other nodes using quantum-resistant communication
         let message = GovernanceMessage::StakingUpdate(staker, amount);
@@ -107,12 +112,7 @@ impl GovernanceEngine {
 
     pub async fn unstake(&mut self, staker: String, amount: u64) -> Result<(), String> {
         // Perform the unstaking using the staking module
-        self.staking.unstake(&staker, amount)?;
-
-        // Update the staking information in the QUP state
-        self.qup_state
-            .update_staking(staker.clone(), -amount)
-            .await?;
+        self.staking.unstake(&staker, amount, &mut self.qup_state, &self.connection_manager).await?;
 
         // Broadcast the unstaking update to other nodes using quantum-resistant communication
         let message = GovernanceMessage::UnstakingUpdate(staker, amount);
@@ -125,14 +125,7 @@ impl GovernanceEngine {
         let mut rewards = HashMap::new();
 
         // Distribute rewards to stakers using the rewards module
-        self.rewards.distribute_rewards(&mut rewards)?;
-
-        // Update the rewards in the QUP state
-        for (staker, reward) in rewards.iter() {
-            self.qup_state
-                .update_reward(staker.clone(), *reward)
-                .await?;
-        }
+        self.rewards.distribute_rewards(&mut rewards, &mut self.qup_state, &self.connection_manager).await?;
 
         // Broadcast the reward distribution to other nodes using quantum-resistant communication
         let message = GovernanceMessage::RewardDistribution(rewards);
@@ -155,8 +148,39 @@ impl GovernanceEngine {
         Ok(())
     }
 
-    // Implement additional methods for interacting with the treasury, rewards, and other components
-    // as needed for the governance engine
+    pub async fn deposit_to_treasury(&mut self, amount: u64) -> Result<(), String> {
+        self.treasury.deposit(amount);
+        Ok(())
+    }
+
+    pub async fn withdraw_from_treasury(&mut self, amount: u64) -> Result<(), String> {
+        self.treasury.withdraw(amount)?;
+        Ok(())
+    }
+
+    pub async fn allocate_treasury_funds(&mut self, allocation_id: String, amount: u64) -> Result<(), String> {
+        self.treasury.allocate(allocation_id, amount)?;
+        Ok(())
+    }
+
+    pub async fn deallocate_treasury_funds(&mut self, allocation_id: &str) -> Result<(), String> {
+        self.treasury.deallocate(allocation_id)?;
+        Ok(())
+    }
+
+    pub async fn get_treasury_allocation(&self, allocation_id: &str) -> Option<u64> {
+        self.treasury.get_allocation(allocation_id)
+    }
+
+    pub async fn update_reward_rate(&mut self, new_rate: f64) -> Result<(), String> {
+        self.rewards.update_reward_rate(new_rate, &mut self.qup_state, &self.connection_manager).await?;
+        Ok(())
+    }
+
+    pub async fn update_lock_period(&mut self, new_period: u64) -> Result<(), String> {
+        self.staking.update_lock_period(new_period, &mut self.qup_state, &self.connection_manager).await?;
+        Ok(())
+    }
 }
 
 // Define governance-related messages for quantum-resistant communication
