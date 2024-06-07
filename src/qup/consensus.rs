@@ -354,7 +354,14 @@ impl QUPConsensus {
         // Solve useful work problem in parallel
         let useful_work_solution = rayon::spawn(|| self.solve_useful_work_problem(&useful_work_problem)).join().unwrap();
 
-        // Add useful work problem, solution, and history proof to the block
+        // Generate proof of useful work
+        let useful_work_proof = self.generate_useful_work_proof(&useful_work_solution);
+
+        // Add useful work problem, solution, proof, and history proof to the block
+        block.useful_work_problem = Some(useful_work_problem);
+        block.useful_work_solution = Some(useful_work_solution);
+        block.useful_work_proof = Some(useful_work_proof);
+        block.history_proof = history_proof;
         block.useful_work_problem = Some(useful_work_problem);
         block.useful_work_solution = Some(useful_work_solution);
         block.history_proof = history_proof;
@@ -571,7 +578,20 @@ impl QUPConsensus {
                 UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
             }
         }
-    fn validate_useful_work_solution(
+    fn generate_useful_work_proof(&self, solution: &UsefulWorkSolution) -> Vec<u8> {
+        // Generate a proof of useful work
+        // This can be customized based on the specific requirements of the proof
+        // For simplicity, we will serialize the solution to a byte vector
+        bincode::serialize(solution).expect("Failed to serialize useful work solution")
+    }
+
+    fn verify_useful_work_proof(&self, proof: &[u8], solution: &UsefulWorkSolution) -> Result<bool, ConsensusError> {
+        // Verify the proof of useful work
+        // This can be customized based on the specific requirements of the proof
+        // For simplicity, we will deserialize the proof and compare it with the solution
+        let deserialized_solution: UsefulWorkSolution = bincode::deserialize(proof).expect("Failed to deserialize useful work proof");
+        Ok(&deserialized_solution == solution)
+    }
         &self,
         problem: &UsefulWorkProblem,
         solution: &UsefulWorkSolution,
