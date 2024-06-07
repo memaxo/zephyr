@@ -29,6 +29,19 @@ pub struct QuantumNode {
         // Scaffold method for validating results
         unimplemented!()
     }
+
+    pub fn receive_task(&self, task: &str) {
+        // Scaffold method for receiving tasks from classical nodes
+    }
+
+    pub fn perform_useful_work(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
+        // Scaffold method for performing useful work
+        unimplemented!()
+    }
+
+    pub fn submit_proof(&self, proof: &[u8]) {
+        // Scaffold method for submitting proofs to classical nodes
+    }
 }
 
 impl QuantumNode {
