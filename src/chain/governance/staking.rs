@@ -36,7 +36,7 @@ impl Staking {
         state.update_staking(staker.clone(), amount).await?;
 
         // Broadcast the staking update to the network using quantum-resistant communication
-        let message = StakingMessage::StakeUpdated {
+        let message = GovernanceMessage::StakingUpdate {
             staker,
             amount,
             total_staked: self.total_staked,
@@ -62,7 +62,7 @@ impl Staking {
                 state.update_staking(staker.to_string(), -amount).await?;
 
                 // Broadcast the unstaking update to the network using quantum-resistant communication
-                let message = StakingMessage::UnstakeUpdated {
+                let message = GovernanceMessage::UnstakingUpdate {
                     staker: staker.to_string(),
                     amount,
                     total_staked: self.total_staked,
@@ -102,7 +102,7 @@ impl Staking {
         }
 
         // Broadcast the reward distribution to the network using quantum-resistant communication
-        let message = StakingMessage::RewardsDistributed {
+        let message = GovernanceMessage::RewardDistribution {
             rewards: rewards.clone(),
         };
         connection_manager.broadcast(message).await?;
