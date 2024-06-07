@@ -11,6 +11,10 @@ pub struct QUPConfig {
     pub useful_work_config: UsefulWorkConfig,
     pub reward_scheme: RewardScheme,
     pub supports_quantum: bool,
+    pub block_storage_path: String,
+    pub transaction_storage_path: String,
+    pub state_storage_path: String,
+    pub contract_storage_path: String,
 }
 
 impl QUPConfig {
@@ -21,6 +25,10 @@ impl QUPConfig {
         validator_reward_ratio: f64,
         useful_work_config: UsefulWorkConfig,
         reward_scheme: RewardScheme,
+        block_storage_path: String::from("path/to/block/storage"),
+        transaction_storage_path: String::from("path/to/transaction/storage"),
+        state_storage_path: String::from("path/to/state/storage"),
+        contract_storage_path: String::from("path/to/contract/storage"),
     ) -> Self {
         QUPConfig {
             consensus_config,
