@@ -198,6 +198,22 @@ impl QUPConsensus {
         // Retrieve the block from the block storage
         let block = self.block_storage.load_block(&block_hash)?;
 
+        // Validate useful work solution
+        if let Some(problem) = &block.useful_work_problem {
+            if let Some(solution) = &block.useful_work_solution {
+                if !self.validate_useful_work_solution(problem, solution)? {
+                    return Err(ConsensusError::InvalidUsefulWorkSolution);
+                }
+            } else {
+                return Err(ConsensusError::MissingUsefulWorkSolution);
+            }
+        }
+
+        // Validate history proof
+        if !self.validate_history_proof(&block.history_proof)? {
+            return Err(ConsensusError::InvalidHistoryProof);
+        }
+
         // Apply the block to the state
         self.blockchain.state_transition.apply_block(&block)?;
 
@@ -242,6 +258,17 @@ impl QUPConsensus {
         self.state.apply_block(&block)?;
 
         // Distribute rewards to validators and delegators
+        self.distribute_rewards(&block)?;
+
+        // Optimize the block using the HDC model
+        let optimized_block = self.hdc_model.optimize_block(&block);
+
+        // Broadcast the optimized block to other nodes
+        let message = NetworkMessage::BlockCommit(optimized_block);
+        self.config.network.broadcast(message)?;
+
+        Ok(())
+    }
         self.distribute_rewards(&block)?;
 
         // Optimize the block using the HDC model
