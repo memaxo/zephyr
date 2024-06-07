@@ -7,7 +7,7 @@ use crate::network::NetworkMessage;
 use crate::qup::block::QUPBlock;
 use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
-use crate::qup::crypto::{verify_signature, QUPKeyPair};
+use crate::qup::crypto::{verify_signature, QUPKeyPair, QuantumSafeEncryption};
 use crate::qup::state::QUPState;
 use std::sync::Arc;
 
@@ -22,6 +22,7 @@ pub struct QUPConsensus {
     pub communication_protocol: CommunicationProtocol,
     pub block_storage: Arc<BlockStorage>,
     pub transaction_storage: Arc<TransactionStorage>,
+    pub quantum_safe_encryption: QuantumSafeEncryption,
 }
 
 impl QUPConsensus {
@@ -44,6 +45,7 @@ impl QUPConsensus {
                 blockchain,
                 block_storage,
                 transaction_storage,
+                quantum_safe_encryption: QuantumSafeEncryption::new(),
             }
         }
     pub fn allocate_and_execute_task(&self, transaction: Transaction) -> Result<(), ConsensusError> {
@@ -110,23 +112,16 @@ impl QUPConsensus {
 
         // Verify the block signature
         let signer = stored_block.proposer;
+        let signature = stored_block
+            .signature
+            .as_ref()
+            .ok_or(ConsensusError::MissingSignature)?;
+        let block_data = stored_block.hash().as_bytes();
         if self.config.supports_quantum_features() {
-            // Quantum-resistant signature verification
-            let signature = stored_block
-                .signature
-                .as_ref()
-                .ok_or(ConsensusError::MissingSignature)?;
-            let block_data = stored_block.hash().as_bytes();
-            if !DilithiumSignature::verify(&signer, signature, block_data)? {
+            if !self.quantum_safe_encryption.verify(block_data, signature) {
                 return Ok(false);
             }
         } else {
-            // Classical signature verification
-            let signature = stored_block
-                .signature
-                .as_ref()
-                .ok_or(ConsensusError::MissingSignature)?;
-            let block_data = stored_block.hash().as_bytes();
             if !verify_signature(&signer, signature, block_data)? {
                 return Ok(false);
             }
@@ -263,10 +258,16 @@ impl QUPConsensus {
 
         Ok(())
     pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
+        let signature = if self.config.supports_quantum_features() {
+            self.quantum_safe_encryption.sign(&block_hash.to_bytes())
+        } else {
+            self.key_pair.sign(&block_hash.to_bytes())
+        };
+
         let vote = QUPVote {
             voter: self.key_pair.public_key.to_bytes().to_vec(),
             block_hash,
-            signature: self.key_pair.sign(&block_hash.to_bytes()),
+            signature,
         };
 
         // Broadcast the vote to other validators
