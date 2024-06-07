@@ -1,5 +1,5 @@
 use crate::chain::transaction::{Transaction, QUPTransaction};
-use crate::storage::block_storage::BlockStorage;
+use crate::storage::{block_storage::BlockStorage, transaction_storage::TransactionStorage};
 use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
@@ -47,14 +47,6 @@ impl QUPConsensus {
             transaction_storage,
         }
     }
-        let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
-        QUPConsensus {
-            config,
-            state,
-            key_pair,
-            hdc_model,
-            communication_protocol,
-            blockchain,
 
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
         // Validate the block
@@ -75,10 +67,10 @@ impl QUPConsensus {
         let message = NetworkMessage::BlockProposal(block.clone());
         self.communication_protocol.send_message(message)?;
 
-        // Add the block to the local pool of proposed blocks
-        self.state.add_proposed_block(block)?;
+        // Save the block to the block storage
+        self.block_storage.save_block(&block)?;
 
-        Ok(())
+        Ok(block)
 
     pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
         match message {
@@ -134,8 +126,8 @@ impl QUPConsensus {
             return Err(ConsensusError::InvalidSignature);
         }
 
-        // Add the vote to the state
-        self.state.add_vote(vote.clone())?;
+        // Save the vote to the transaction storage
+        self.transaction_storage.save_transaction(&vote)?;
 
         // Check if the block has reached quorum
         if self.state.has_quorum(&vote.block_hash)? {
@@ -156,9 +148,6 @@ impl QUPConsensus {
         // Optimize the block using the HDC model
         let optimized_block = self.hdc_model.optimize_block(&block);
 
-        // Broadcast the optimized block to other nodes
-        let message = NetworkMessage::BlockCommit(optimized_block);
-        self.communication_protocol.send_message(message)?;
 
         Ok(())
     }
@@ -224,7 +213,8 @@ impl QUPConsensus {
         // Sign the block using the validator's private key
         block.sign(&self.key_pair);
 
-        // Broadcast the block proposal to other validators
+        // Save the block to the block storage
+        self.block_storage.save_block(&block)?;
         let message = NetworkMessage::BlockProposal(block.clone());
         self.communication_protocol.send_message(message)?;
 
@@ -527,7 +517,7 @@ impl QUPConsensus {
         let block = self.state.get_proposed_block(&block_hash)?;
 
         // Apply the block to the state
-        self.state.apply_block(&block)?;
+        self.blockchain.state_transition.apply_block(&block)?;
 
         // Optimize the block using the HDC model
         let optimized_block = self.hdc_model.optimize_block(&block);
@@ -774,10 +764,6 @@ impl QUPConsensus {
         // Calculate the rewards for validators and delegators based on the block
         let rewards = self.config.reward_scheme.calculate_rewards(block)?;
 
-        // Distribute the rewards to validators and delegators
-        for (address, reward) in rewards {
-            self.state.add_balance(&address, reward)?;
-        }
 
         Ok(())
     }
