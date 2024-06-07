@@ -1,6 +1,7 @@
 use crate::chain::quantum_voting::errors::VotingError;
 use crate::chain::quantum_voting::types::{Candidate, QuantumState, Vote};
 use crate::crypto::quantum::{QuantumCircuit, QuantumGate, QuantumRegister};
+use crate::crypto::classical::{ClassicalCircuit, ClassicalGate, ClassicalRegister};
 use log::{debug, info, trace};
 
 pub struct QuantumStatePreparation {
@@ -17,18 +18,37 @@ impl crate::chain::quantum_voting::traits::QuantumStatePreparation for QuantumSt
     fn prepare_vote_state(&self, vote: &Vote) -> Result<QuantumState, VotingError> {
         debug!("Preparing quantum state for vote");
 
-        // Create a quantum register to represent the vote
-        let num_qubits = self.determine_num_qubits(vote)?;
-        let mut vote_register = QuantumRegister::new(num_qubits);
+        if self.is_quantum_available() {
+            // Create a quantum register to represent the vote
+            let num_qubits = self.determine_num_qubits(vote)?;
+            let mut vote_register = QuantumRegister::new(num_qubits);
 
-        // Encode the vote information into the quantum state
-        self.encode_vote(&mut vote_register, vote)?;
+            // Encode the vote information into the quantum state
+            self.encode_vote(&mut vote_register, vote)?;
 
-        // Apply quantum gates to transform the quantum state
-        self.apply_quantum_gates(&mut vote_register)?;
+            // Apply quantum gates to transform the quantum state
+            self.apply_quantum_gates(&mut vote_register)?;
 
-        // Measure the quantum state to obtain the final vote state
-        let vote_state = self.measure_quantum_state(&vote_register)?;
+            // Measure the quantum state to obtain the final vote state
+            let vote_state = self.measure_quantum_state(&vote_register)?;
+            info!("Vote quantum state prepared successfully");
+            Ok(vote_state)
+        } else {
+            // Fallback to classical implementation
+            let num_bits = self.determine_num_bits(vote)?;
+            let mut vote_register = ClassicalRegister::new(num_bits);
+
+            // Encode the vote information into the classical state
+            self.encode_vote_classical(&mut vote_register, vote)?;
+
+            // Apply classical gates to transform the classical state
+            self.apply_classical_gates(&mut vote_register)?;
+
+            // Measure the classical state to obtain the final vote state
+            let vote_state = self.measure_classical_state(&vote_register)?;
+            info!("Vote classical state prepared successfully");
+            Ok(vote_state)
+        }
 
         info!("Vote quantum state prepared successfully");
         Ok(vote_state)
@@ -40,18 +60,37 @@ impl crate::chain::quantum_voting::traits::QuantumStatePreparation for QuantumSt
     ) -> Result<QuantumState, VotingError> {
         debug!("Preparing quantum state for candidate: {}", candidate.id);
 
-        // Create a quantum register to represent the candidate
-        let num_qubits = self.determine_num_qubits_candidate(candidate)?;
-        let mut candidate_register = QuantumRegister::new(num_qubits);
+        if self.is_quantum_available() {
+            // Create a quantum register to represent the candidate
+            let num_qubits = self.determine_num_qubits_candidate(candidate)?;
+            let mut candidate_register = QuantumRegister::new(num_qubits);
 
-        // Encode the candidate information into the quantum state
-        self.encode_candidate(&mut candidate_register, candidate)?;
+            // Encode the candidate information into the quantum state
+            self.encode_candidate(&mut candidate_register, candidate)?;
 
-        // Apply quantum gates to transform the quantum state
-        self.apply_quantum_gates(&mut candidate_register)?;
+            // Apply quantum gates to transform the quantum state
+            self.apply_quantum_gates(&mut candidate_register)?;
 
-        // Measure the quantum state to obtain the final candidate state
-        let candidate_state = self.measure_quantum_state(&candidate_register)?;
+            // Measure the quantum state to obtain the final candidate state
+            let candidate_state = self.measure_quantum_state(&candidate_register)?;
+            info!("Candidate quantum state prepared successfully: {}", candidate.id);
+            Ok(candidate_state)
+        } else {
+            // Fallback to classical implementation
+            let num_bits = self.determine_num_bits_candidate(candidate)?;
+            let mut candidate_register = ClassicalRegister::new(num_bits);
+
+            // Encode the candidate information into the classical state
+            self.encode_candidate_classical(&mut candidate_register, candidate)?;
+
+            // Apply classical gates to transform the classical state
+            self.apply_classical_gates(&mut candidate_register)?;
+
+            // Measure the classical state to obtain the final candidate state
+            let candidate_state = self.measure_classical_state(&candidate_register)?;
+            info!("Candidate classical state prepared successfully: {}", candidate.id);
+            Ok(candidate_state)
+        }
 
         info!(
             "Candidate quantum state prepared successfully: {}",
@@ -74,55 +113,63 @@ impl crate::chain::quantum_voting::traits::QuantumStatePreparation for QuantumSt
         Ok(candidate.id.len())
     }
 
-    fn encode_vote(
+    fn encode_vote_classical(
         &self,
-        vote_register: &mut QuantumRegister,
+        vote_register: &mut ClassicalRegister,
         vote: &Vote,
     ) -> Result<(), VotingError> {
-        // Encode the vote information into the quantum register
-        // This can involve applying quantum gates to initialize the quantum state based on the vote data
-        // Placeholder implementation
+        // Encode the vote information into the classical register
         for (i, bit) in vote.to_string().chars().enumerate() {
             if bit == '1' {
-                vote_register.apply_gate(QuantumGate::X, i)?;
+                vote_register.apply_gate(ClassicalGate::X, i)?;
             }
         }
         Ok(())
     }
 
-    fn encode_candidate(
+    fn encode_candidate_classical(
         &self,
-        candidate_register: &mut QuantumRegister,
+        candidate_register: &mut ClassicalRegister,
         candidate: &Candidate,
     ) -> Result<(), VotingError> {
-        // Encode the candidate information into the quantum register
-        // This can involve applying quantum gates to initialize the quantum state based on the candidate data
-        // Placeholder implementation
+        // Encode the candidate information into the classical register
         for (i, bit) in candidate.id.chars().enumerate() {
             if bit == '1' {
-                candidate_register.apply_gate(QuantumGate::X, i)?;
+                candidate_register.apply_gate(ClassicalGate::X, i)?;
             }
         }
         Ok(())
     }
 
-    fn apply_quantum_gates(&self, register: &mut QuantumRegister) -> Result<(), VotingError> {
-        // Apply a series of quantum gates to transform the quantum state
-        // This can include gates like Hadamard, CNOT, Rotation gates, etc., depending on the desired state transformation
-        // Placeholder implementation
-        register.apply_gate(QuantumGate::H, 0)?;
-        register.apply_gate(QuantumGate::CNOT, (0, 1))?;
+    fn apply_classical_gates(&self, register: &mut ClassicalRegister) -> Result<(), VotingError> {
+        // Apply a series of classical gates to transform the classical state
+        register.apply_gate(ClassicalGate::H, 0)?;
+        register.apply_gate(ClassicalGate::CNOT, (0, 1))?;
         Ok(())
     }
 
-    fn measure_quantum_state(
+    fn measure_classical_state(
         &self,
-        register: &QuantumRegister,
+        register: &ClassicalRegister,
     ) -> Result<QuantumState, VotingError> {
-        // Measure the quantum state to obtain the final state
-        // This collapses the quantum state into a classical state
-        // Placeholder implementation
+        // Measure the classical state to obtain the final state
         let measurement_result = register.measure()?;
         Ok(QuantumState::from_measurement(&measurement_result))
+    }
+
+    fn is_quantum_available(&self) -> bool {
+        // Check if quantum resources are available
+        // Placeholder implementation
+        true
+    }
+
+    fn determine_num_bits(&self, vote: &Vote) -> Result<usize, VotingError> {
+        // Determine the number of bits required to represent the vote based on its attributes
+        Ok(vote.to_string().len())
+    }
+
+    fn determine_num_bits_candidate(&self, candidate: &Candidate) -> Result<usize, VotingError> {
+        // Determine the number of bits required to represent the candidate based on its attributes
+        Ok(candidate.id.len())
     }
 }

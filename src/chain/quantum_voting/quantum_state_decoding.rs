@@ -13,14 +13,25 @@ impl QuantumStateDecoding {
     pub fn decode_vote(&self, vote_register: &QuantumRegister) -> Result<Vote, VotingError> {
         debug!("Decoding vote from quantum state");
 
-        // Perform quantum measurement on the vote register
-        let vote_measurement = self.measure_vote_register(vote_register)?;
+        if self.is_quantum_available() {
+            // Perform quantum measurement on the vote register
+            let vote_measurement = self.measure_vote_register(vote_register)?;
 
-        // Decode the vote data from the measurement result
-        let vote = self.decode_vote_data(&vote_measurement)?;
+            // Decode the vote data from the measurement result
+            let vote = self.decode_vote_data(&vote_measurement)?;
 
-        info!("Vote successfully decoded from quantum state");
-        Ok(vote)
+            info!("Vote successfully decoded from quantum state");
+            Ok(vote)
+        } else {
+            // Fallback to classical implementation
+            let vote_measurement = self.measure_vote_register_classical(vote_register)?;
+
+            // Decode the vote data from the classical measurement result
+            let vote = self.decode_vote_data_classical(&vote_measurement)?;
+
+            info!("Vote successfully decoded from classical state");
+            Ok(vote)
+        }
     }
 
     pub fn decode_candidate(
@@ -29,42 +40,47 @@ impl QuantumStateDecoding {
     ) -> Result<Candidate, VotingError> {
         debug!("Decoding candidate from quantum state");
 
-        // Perform quantum measurement on the candidate register
-        let candidate_measurement = self.measure_candidate_register(candidate_register)?;
+        if self.is_quantum_available() {
+            // Perform quantum measurement on the candidate register
+            let candidate_measurement = self.measure_candidate_register(candidate_register)?;
 
-        // Decode the candidate data from the measurement result
-        let candidate = self.decode_candidate_data(&candidate_measurement)?;
+            // Decode the candidate data from the measurement result
+            let candidate = self.decode_candidate_data(&candidate_measurement)?;
 
-        info!("Candidate successfully decoded from quantum state");
-        Ok(candidate)
+            info!("Candidate successfully decoded from quantum state");
+            Ok(candidate)
+        } else {
+            // Fallback to classical implementation
+            let candidate_measurement = self.measure_candidate_register_classical(candidate_register)?;
+
+            // Decode the candidate data from the classical measurement result
+            let candidate = self.decode_candidate_data_classical(&candidate_measurement)?;
+
+            info!("Candidate successfully decoded from classical state");
+            Ok(candidate)
+        }
     }
 
-    fn measure_vote_register(
+    fn measure_vote_register_classical(
         &self,
-        vote_register: &QuantumRegister,
-    ) -> Result<QuantumMeasurement, VotingError> {
-        // Perform quantum measurement on the vote register
-        // This collapses the quantum state and yields a classical measurement result
-        // Placeholder implementation
+        vote_register: &ClassicalRegister,
+    ) -> Result<ClassicalMeasurement, VotingError> {
+        // Perform classical measurement on the vote register
         let vote_measurement = vote_register.measure()?;
         Ok(vote_measurement)
     }
 
-    fn measure_candidate_register(
+    fn measure_candidate_register_classical(
         &self,
-        candidate_register: &QuantumRegister,
-    ) -> Result<QuantumMeasurement, VotingError> {
-        // Perform quantum measurement on the candidate register
-        // This collapses the quantum state and yields a classical measurement result
-        // Placeholder implementation
+        candidate_register: &ClassicalRegister,
+    ) -> Result<ClassicalMeasurement, VotingError> {
+        // Perform classical measurement on the candidate register
         let candidate_measurement = candidate_register.measure()?;
         Ok(candidate_measurement)
     }
 
-    fn decode_vote_data(&self, vote_measurement: &QuantumMeasurement) -> Result<Vote, VotingError> {
-        // Decode the vote data from the quantum measurement result
-        // This involves interpreting the measurement outcomes and reconstructing the vote object
-        // Placeholder implementation
+    fn decode_vote_data_classical(&self, vote_measurement: &ClassicalMeasurement) -> Result<Vote, VotingError> {
+        // Decode the vote data from the classical measurement result
         let vote_str = vote_measurement
             .outcomes
             .iter()
@@ -74,13 +90,11 @@ impl QuantumStateDecoding {
         Ok(vote)
     }
 
-    fn decode_candidate_data(
+    fn decode_candidate_data_classical(
         &self,
-        candidate_measurement: &QuantumMeasurement,
+        candidate_measurement: &ClassicalMeasurement,
     ) -> Result<Candidate, VotingError> {
-        // Decode the candidate data from the quantum measurement result
-        // This involves interpreting the measurement outcomes and reconstructing the candidate object
-        // Placeholder implementation
+        // Decode the candidate data from the classical measurement result
         let candidate_str = candidate_measurement
             .outcomes
             .iter()
@@ -92,5 +106,11 @@ impl QuantumStateDecoding {
             party: party.to_string(),
         };
         Ok(candidate)
+    }
+
+    fn is_quantum_available(&self) -> bool {
+        // Check if quantum resources are available
+        // Placeholder implementation
+        true
     }
 }
