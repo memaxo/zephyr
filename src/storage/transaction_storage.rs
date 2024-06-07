@@ -19,6 +19,22 @@ impl TransactionStorage {
         TransactionStorage { db }
     }
 
-    // Implement transaction storage methods here
-    // ...
+    pub fn save_transaction(&self, transaction: &Transaction) -> Result<(), TransactionStorageError> {
+        let tx_id = transaction.id().to_string();
+        let data = serde_json::to_vec(transaction)
+            .map_err(|e| TransactionStorageError::DatabaseError(e.to_string()))?;
+        self.db.put(&tx_id, &data)
+            .map_err(|e| TransactionStorageError::DatabaseError(e.to_string()))
+    }
+
+    pub fn load_transaction(&self, tx_id: &str) -> Result<Transaction, TransactionStorageError> {
+        match self.db.get(tx_id) {
+            Some(data) => {
+                let transaction: Transaction = serde_json::from_slice(&data)
+                    .map_err(|e| TransactionStorageError::DatabaseError(e.to_string()))?;
+                Ok(transaction)
+            }
+            None => Err(TransactionStorageError::TransactionNotFound(tx_id.to_string())),
+        }
+    }
 }
