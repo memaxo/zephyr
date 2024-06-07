@@ -132,12 +132,15 @@ impl Blockchain {
     }
 
     pub async fn validate_chain(&self) -> Result<(), BlockchainError> {
-        let chain = self.chain.read();
-        let mut spent_transactions: HashSet<String> = HashSet::new();
+        let chain = {
+            let chain_read = self.chain.read();
+            if chain_read.is_empty() {
+                return Err(BlockchainError::EmptyBlockchain);
+            }
+            chain_read.clone()
+        };
 
-        if chain.is_empty() {
-            return Err(BlockchainError::EmptyBlockchain);
-        }
+        let mut spent_transactions: HashSet<String> = HashSet::new();
 
         chain.par_iter().enumerate().try_for_each(|(i, block)| {
             if i == 0 {
