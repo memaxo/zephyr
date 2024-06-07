@@ -35,14 +35,6 @@ impl QUPConsensus {
         block_storage: Arc<BlockStorage>,
         transaction_storage: Arc<TransactionStorage>,
     ) -> Self {
-        let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
-        QUPConsensus {
-            config,
-            state,
-            key_pair,
-            hdc_model,
-            communication_protocol,
-            blockchain,
             block_storage,
             transaction_storage,
         }
@@ -70,7 +62,7 @@ impl QUPConsensus {
         // Save the block to the block storage
         self.block_storage.save_block(&block)?;
 
-        Ok(block)
+        Ok(())
 
     pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
         match message {
@@ -93,49 +85,7 @@ impl QUPConsensus {
             ConsensusMessage::Vote(vote) => self.process_vote(vote),
             ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
 
-    fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
-        // Validate the block
-        if !self.blockchain.validate_block(&block)? {
-            return Err(ConsensusError::InvalidBlock);
-        }
 
-        // Evaluate the block using the HDC model
-        let block_vector = self.hdc_model.encode_block(&block);
-        let similarity = self.hdc_model.evaluate_similarity(&block_vector);
-
-        // Check if the block meets the similarity threshold
-        if similarity < self.config.similarity_threshold {
-            return Err(ConsensusError::InsufficientSimilarity);
-        }
-
-        // Use a more efficient consensus algorithm under high load
-        // For example, we can use a simplified voting mechanism
-        let vote = self.cast_vote(block.hash())?;
-        self.state.add_vote(vote.clone())?;
-
-        // Check if the block has reached quorum
-        if self.state.has_quorum(&block.hash())? {
-            self.commit_block(block)?;
-        }
-
-        Ok(())
-
-    pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
-        // Verify the vote signature
-        if !verify_vote_signature(&vote) {
-            return Err(ConsensusError::InvalidSignature);
-        }
-
-        // Save the vote to the transaction storage
-        self.transaction_storage.save_transaction(&vote)?;
-
-        // Check if the block has reached quorum
-        if self.state.has_quorum(&vote.block_hash)? {
-            let block = self.state.get_proposed_block(&vote.block_hash)?;
-            self.commit_block(block)?;
-        }
-
-        Ok(())
     }
 
     pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
@@ -152,35 +102,8 @@ impl QUPConsensus {
         Ok(())
     }
 
-    pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
-        let vote = QUPVote {
-            voter: self.key_pair.public_key.to_bytes().to_vec(),
-            block_hash,
-            signature: self.key_pair.sign(&block_hash.to_bytes()),
-        };
-
-        // Broadcast the vote to other validators
-        let message = NetworkMessage::Vote(vote.clone());
-        self.communication_protocol.send_message(message)?;
-
-        Ok(vote)
     }
 
-    pub fn has_quorum(&self, block_hash: &Hash) -> Result<bool, ConsensusError> {
-        let votes = self.state.get_votes(block_hash)?;
-        let total_stake: u64 = self.state.get_total_stake();
-        let quorum_stake: u64 = (total_stake as f64 * self.config.consensus_config.quorum_threshold) as u64;
-
-        let mut accumulated_stake: u64 = 0;
-        for vote in votes {
-            let voter_stake = self.state.get_validator_stake(&vote.voter)?;
-            accumulated_stake += voter_stake;
-            if accumulated_stake >= quorum_stake {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
     }
 
     pub fn propose_block(
@@ -223,64 +146,8 @@ impl QUPConsensus {
     }
     }
 
-    fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
-        // Generate a useful work problem
-        // This can be customized based on the specific requirements of the useful work problem
-        // Randomly choose a problem type to generate
-        let problem_type = rand::random::<u8>() % 2;
-
-        match problem_type {
-            0 => UsefulWorkProblem::Knapsack(KnapsackProblem {
-                capacity: 50,
-                weights: vec![10, 20, 30, 40],
-                values: vec![60, 100, 120, 160],
-            }),
-            1 => UsefulWorkProblem::VertexCover(VertexCoverProblem {
-                graph: vec![
-                    vec![1, 2], // Edges for vertex 0
-                    vec![0, 2], // Edges for vertex 1
-                    vec![0, 1], // Edges for vertex 2
-                ],
-            }),
-            _ => unreachable!(),
-        }
     }
 
-    fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
-        // Solve the useful work problem
-        // This can be customized based on the specific requirements of the useful work problem
-        match problem {
-            UsefulWorkProblem::Knapsack(knapsack_problem) => {
-                // Implement a simple greedy algorithm to solve the knapsack problem
-                let mut total_weight = 0;
-                let mut selected_items = vec![false; knapsack_problem.weights.len()];
-
-                for (i, &weight) in knapsack_problem.weights.iter().enumerate() {
-                    if total_weight + weight <= knapsack_problem.capacity {
-                        total_weight += weight;
-                        selected_items[i] = true;
-                    }
-                }
-
-                UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
-            }
-            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-                // Implement a simple greedy algorithm to solve the vertex cover problem
-                let mut vertex_cover = Vec::new();
-                let mut covered_edges = vec![false; vertex_cover_problem.graph.len()];
-
-                for (vertex, edges) in vertex_cover_problem.graph.iter().enumerate() {
-                    if !covered_edges[vertex] {
-                        vertex_cover.push(vertex);
-                        for &edge in edges {
-                            covered_edges[edge] = true;
-                        }
-                    }
-                }
-
-                UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
-            }
-        }
     }
 
     fn generate_history_proof(&self) -> Vec<Hash> {
@@ -325,37 +192,6 @@ impl QUPConsensus {
         Ok(true)
     }
 
-    fn validate_useful_work_solution(
-        &self,
-        problem: &UsefulWorkProblem,
-        solution: &UsefulWorkSolution,
-    ) -> Result<bool, ConsensusError> {
-        // Implement the logic to validate the useful work solution
-        match problem {
-            UsefulWorkProblem::Knapsack(knapsack_problem) => {
-                // Validate the knapsack solution
-                let total_weight: u64 = solution
-                    .as_knapsack()
-                    .selected_items
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, &selected)| selected)
-                    .map(|(i, _)| knapsack_problem.weights[i])
-                    .sum();
-                if total_weight > knapsack_problem.capacity {
-                    return Ok(false);
-                }
-                Ok(true)
-            }
-            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-                // Validate the vertex cover solution
-                let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
-                if !is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover) {
-                    return Ok(false);
-                }
-                Ok(true)
-            }
-        }
     }
 
     fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
@@ -386,16 +222,6 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
-        // Calculate the rewards for validators and delegators based on the block
-        let rewards = self.config.reward_scheme.calculate_rewards(block)?;
-
-        // Distribute the rewards to validators and delegators
-        for (address, reward) in rewards {
-            self.blockchain.state_transition.add_balance(&address, reward)?;
-        }
-
-        Ok(())
     }
 }
         }
@@ -424,23 +250,6 @@ impl QUPConsensus {
         self.state.add_proposed_block(block)?;
 
         Ok(())
-    }
-    pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
-        self.communication_protocol.receive_message(message.clone())?;
-
-        match message {
-            ConsensusMessage::Propose(block) => {
-                // Adaptive consensus mechanism
-                if self.state.get_network_load() > self.config.consensus_config.load_threshold {
-                    // Use a more efficient consensus algorithm under high load
-                    self.process_propose_efficient(block)
-                } else {
-                    self.process_propose(block)
-                }
-            }
-            ConsensusMessage::Vote(vote) => self.process_vote(vote),
-            ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
-        }
     }
 
     fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
@@ -657,46 +466,8 @@ impl QUPConsensus {
         }
     }
 
-    fn generate_history_proof(&self) -> Vec<Hash> {
-        // Generate a history proof
-        // This can be customized based on the specific requirements of the history proof
-        vec![self.state.get_block_hash()?]
     }
 
-    pub fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
-        // Verify the block signature
-        let signer = block.proposer;
-        let signature = block
-            .signature
-            .as_ref()
-            .ok_or(ConsensusError::MissingSignature)?;
-        let block_data = block.hash().as_bytes();
-        if !verify_signature(&signer, signature, block_data)? {
-            return Ok(false);
-        }
-
-        // Check if the block follows the QUP consensus rules
-        if !self.state.is_valid_block(block)? {
-            return Ok(false);
-        }
-
-        // Validate useful work solution
-        if let Some(problem) = &block.useful_work_problem {
-            if let Some(solution) = &block.useful_work_solution {
-                if !self.validate_useful_work_solution(problem, solution)? {
-                    return Ok(false);
-                }
-            } else {
-                return Ok(false);
-            }
-        }
-
-        // Validate history proof
-        if !self.validate_history_proof(&block.history_proof)? {
-            return Ok(false);
-        }
-
-        Ok(true)
     }
 
     fn validate_useful_work_solution(
@@ -732,15 +503,6 @@ impl QUPConsensus {
         }
     }
 
-    fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
-        // Implement the logic to validate the history proof
-        // For example, check if the history proof contains valid hashes of previous blocks
-        for hash in history_proof {
-            if !self.state.is_valid_block_hash(hash)? {
-                return Ok(false);
-            }
-        }
-        Ok(true)
     }
 
     pub fn commit_block(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
