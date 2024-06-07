@@ -46,6 +46,24 @@ impl QUPConsensus {
                 transaction_storage,
             }
     pub fn allocate_and_execute_task(&self, transaction: Transaction) -> Result<(), ConsensusError> {
+        if self.is_task_complex(&transaction) {
+            self.handle_computational_task(transaction)
+        } else {
+            self.handle_standard_transaction(transaction)
+        }
+    }
+
+    fn is_task_complex(&self, transaction: &Transaction) -> bool {
+        // Determine the complexity of the task
+        // This can be customized based on the specific requirements of the task
+        match transaction.transaction_type {
+            TransactionType::Standard => false,
+            TransactionType::Computational => {
+                // Example: Check if the computational task requires more resources
+                transaction.data.len() > self.config.complexity_threshold
+            }
+        }
+    }
         match transaction.transaction_type {
             TransactionType::Standard => self.handle_standard_transaction(transaction),
             TransactionType::Computational => self.handle_computational_task(transaction),
