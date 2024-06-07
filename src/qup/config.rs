@@ -15,6 +15,10 @@ pub struct QUPConfig {
     pub transaction_storage_path: String,
     pub state_storage_path: String,
     pub contract_storage_path: String,
+    pub block_storage_path: String,
+    pub transaction_storage_path: String,
+    pub state_storage_path: String,
+    pub contract_storage_path: String,
 }
 
 impl QUPConfig {
@@ -29,6 +33,10 @@ impl QUPConfig {
         transaction_storage_path: String::from("path/to/transaction/storage"),
         state_storage_path: String::from("path/to/state/storage"),
         contract_storage_path: String::from("path/to/contract/storage"),
+        block_storage_path: String,
+        transaction_storage_path: String,
+        state_storage_path: String,
+        contract_storage_path: String,
     ) -> Self {
         QUPConfig {
             consensus_config,
