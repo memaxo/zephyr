@@ -148,7 +148,20 @@ impl QUPConsensus {
     fn generate_history_proof(&self) -> Vec<Hash> {
         // Generate a history proof
         // This can be customized based on the specific requirements of the history proof
-        vec![self.blockchain.get_latest_block().await.unwrap().hash]
+        let mut history_proof = Vec::new();
+        let mut current_block = self.blockchain.get_latest_block().await.unwrap();
+
+        // Traverse the blockchain to collect the hashes of previous blocks
+        for _ in 0..self.config.history_proof_length {
+            history_proof.push(current_block.hash);
+            if let Some(previous_block) = self.blockchain.get_block_by_hash(&current_block.previous_hash).await {
+                current_block = previous_block;
+            } else {
+                break;
+            }
+        }
+
+        history_proof
     }
     }
 
@@ -187,6 +200,11 @@ impl QUPConsensus {
 
         // Apply the block to the state
         self.blockchain.state_transition.apply_block(&block)?;
+
+        // Validate history proof
+        if !self.validate_history_proof(&block.history_proof)? {
+            return Err(ConsensusError::InvalidHistoryProof);
+        }
 
         // Optimize the block using the HDC model
         let optimized_block = self.hdc_model.optimize_block(&block);
@@ -280,6 +298,12 @@ impl QUPConsensus {
         if similarity < self.config.similarity_threshold {
             return Err(ConsensusError::InsufficientSimilarity);
         }
+
+        // Generate history proof
+        let history_proof = self.generate_history_proof();
+
+        // Add history proof to the block
+        block.history_proof = history_proof;
 
         // Broadcast the block to other validators
         let message = NetworkMessage::BlockProposal(block.clone());
