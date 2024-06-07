@@ -39,7 +39,7 @@ impl Rewards {
         }
 
         // Broadcast the reward distribution to the network using quantum-resistant communication
-        let message = RewardMessage::RewardDistributed {
+        let message = GovernanceMessage::RewardDistribution {
             participants: participants.to_vec(),
             total_participation,
         };
@@ -65,7 +65,7 @@ impl Rewards {
             state.claim_reward(participant, reward).await?;
 
             // Broadcast the reward claim to the network using quantum-resistant communication
-            let message = RewardMessage::RewardClaimed {
+            let message = GovernanceMessage::RewardDistribution {
                 participant: participant.to_string(),
                 reward,
             };
@@ -91,7 +91,7 @@ impl Rewards {
         state.update_reward_pool(self.reward_pool).await?;
 
         // Broadcast the reward pool update to the network using quantum-resistant communication
-        let message = RewardMessage::RewardPoolUpdated {
+        let message = GovernanceMessage::RewardDistribution {
             new_reward_pool: self.reward_pool,
         };
         connection_manager.broadcast(message).await?;
@@ -111,7 +111,7 @@ impl Rewards {
         state.update_reward_rate(new_rate).await?;
 
         // Broadcast the reward rate update to the network using quantum-resistant communication
-        let message = RewardMessage::RewardRateUpdated {
+        let message = GovernanceMessage::RewardDistribution {
             new_reward_rate: new_rate,
         };
         connection_manager.broadcast(message).await?;

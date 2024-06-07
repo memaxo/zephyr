@@ -143,25 +143,18 @@ impl Proposal {
         Ok(())
     }
 
-    pub async fn start_voting(
-        &self,
-        voting: &mut Voting,
-        connection_manager: &QuantumResistantConnectionManager,
-    ) -> Result<(), GovernanceError> {
+    pub async fn start_voting(&self, voting: &mut Voting, connection_manager: &QuantumResistantConnectionManager) -> Result<(), GovernanceError> {
         if self.is_active() {
             voting.start_voting_for_proposal(self.id)?;
             info!("Voting started for proposal: {:?}", self);
 
             // Broadcast the voting start event to the network using quantum-resistant communication
-            let message = ProposalMessage::VotingStarted(self.id);
+            let message = GovernanceMessage::NewProposal(self.clone());
             connection_manager.broadcast(message).await?;
 
             Ok(())
         } else {
-            Err(GovernanceError::InvalidProposalStatus(
-                "Cannot start voting. The proposal is not active.".to_string(),
-            ))
-        }
+            Err(GovernanceError::InvalidProposalStatus("Cannot start voting. The proposal is not active.".to_string()))
     }
 
     pub fn verify_proposal_integrity(&self, qup_crypto: &QUPCrypto) -> bool {

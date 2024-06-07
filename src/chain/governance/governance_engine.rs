@@ -37,6 +37,33 @@ impl GovernanceEngine {
         }
     }
 
+    pub async fn handle_message(&self, message: GovernanceMessage) -> Result<(), String> {
+        match message {
+            GovernanceMessage::NewProposal(proposal) => {
+                self.create_proposal(proposal).await?;
+            }
+            GovernanceMessage::NewVote(vote) => {
+                self.vote(vote).await?;
+            }
+            GovernanceMessage::ExecutedProposal(proposal_id) => {
+                self.execute_proposal(proposal_id).await?;
+            }
+            GovernanceMessage::StakingUpdate(staker, amount) => {
+                self.stake(staker, amount).await?;
+            }
+            GovernanceMessage::UnstakingUpdate(staker, amount) => {
+                self.unstake(staker, amount).await?;
+            }
+            GovernanceMessage::RewardDistribution(rewards) => {
+                self.rewards.distribute_rewards(&rewards.keys().cloned().collect::<Vec<_>>(), rewards.values().sum(), &mut self.qup_state, &self.connection_manager).await?;
+            }
+            GovernanceMessage::ValidatorSetUpdate(validators) => {
+                self.update_validator_set(validators).await?;
+            }
+        }
+        Ok(())
+    }
+
     pub async fn create_proposal(&self, proposal: Proposal) -> Result<(), String> {
         // Store the proposal in the QUP state
         self.qup_state.add_proposal(proposal.clone()).await?;
