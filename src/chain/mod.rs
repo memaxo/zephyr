@@ -10,6 +10,5 @@ mod validation;
 mod wallet;
 mod sharding;
 mod governance;
-mod storage;
 mod state;
 mod quantum_voting;
