@@ -35,9 +35,260 @@ impl QUPConsensus {
         block_storage: Arc<BlockStorage>,
         transaction_storage: Arc<TransactionStorage>,
     ) -> Self {
-            block_storage,
-            transaction_storage,
+            QUPConsensus {
+                config,
+                state,
+                key_pair,
+                hdc_model,
+                communication_protocol: CommunicationProtocol::new(node_type),
+                blockchain,
+                block_storage,
+                transaction_storage,
+            }
+    pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
+        match message {
+            QUPMessage::QUPBlock(block) => self.process_qup_block(block),
+            QUPMessage::QUPTransaction(tx) => self.process_qup_transaction(tx),
         }
+    pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
+        // Retrieve the block from the block storage
+        let block = self.block_storage.load_block(&block_hash)?;
+
+        // Apply the block to the state
+        self.blockchain.state_transition.apply_block(&block)?;
+
+        // Optimize the block using the HDC model
+        let optimized_block = self.hdc_model.optimize_block(&block);
+
+        // Broadcast the optimized block to other nodes
+        let message = NetworkMessage::BlockCommit(optimized_block);
+        self.communication_protocol.send_message(message)?;
+
+        Ok(())
+    pub fn commit_block(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Apply the block to the state
+        self.blockchain.state_transition.apply_block(&block)?;
+
+        // Distribute rewards to validators and delegators
+        self.distribute_rewards(&block)?;
+
+        // Optimize the block using the HDC model
+        let optimized_block = self.hdc_model.optimize_block(&block);
+
+        // Broadcast the optimized block to other nodes
+        let message = NetworkMessage::BlockCommit(optimized_block);
+        self.config.network.broadcast(message)?;
+
+        Ok(())
+    fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
+        // Implement the logic to validate the history proof
+        // For example, check if the history proof contains valid hashes of previous blocks
+        for hash in history_proof {
+            if !self.blockchain.state_transition.is_valid_block_hash(hash)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block
+        if !self.validate_block(&block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Evaluate the block using the HDC model
+        let block_vector = self.hdc_model.encode_block(&block);
+        let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+        // Check if the block meets the similarity threshold
+        if similarity < self.config.similarity_threshold {
+            return Err(ConsensusError::InsufficientSimilarity);
+        }
+
+        // Broadcast the block to other validators
+        let message = NetworkMessage::BlockProposal(block.clone());
+        self.communication_protocol.send_message(message)?;
+
+        // Add the block to the local pool of proposed blocks
+        self.state.add_proposed_block(block)?;
+
+        Ok(())
+    fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block
+        if !self.validate_block(&block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Evaluate the block using the HDC model
+        let block_vector = self.hdc_model.encode_block(&block);
+        let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+        // Check if the block meets the similarity threshold
+        if similarity < self.config.similarity_threshold {
+            return Err(ConsensusError::InsufficientSimilarity);
+        }
+
+        // Use a more efficient consensus algorithm under high load
+        // For example, we can use a simplified voting mechanism
+        let vote = self.cast_vote(block.hash())?;
+        self.state.add_vote(vote.clone())?;
+
+        // Check if the block has reached quorum
+        if self.state.has_quorum(&block.hash())? {
+            self.commit_block(block)?;
+        }
+
+        Ok(())
+    pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
+        // Verify the vote signature
+        if !verify_vote_signature(&vote) {
+            return Err(ConsensusError::InvalidSignature);
+        }
+
+        // Add the vote to the state
+        self.state.add_vote(vote.clone())?;
+
+        // Check if the block has reached quorum
+        if self.state.has_quorum(&vote.block_hash)? {
+            let block = self.state.get_proposed_block(&vote.block_hash)?;
+            self.commit_block(block)?;
+        }
+
+        Ok(())
+    pub fn propose_block(
+        &self,
+        transactions: Vec<Transaction>,
+    ) -> Result<QUPBlock, ConsensusError> {
+        use rayon::prelude::*;
+
+        // Generate useful work problem and history proof in parallel
+        let (useful_work_problem, history_proof) = rayon::join(
+            || self.generate_useful_work_problem(),
+            || self.generate_history_proof(),
+        );
+
+        // Solve useful work problem in parallel
+        let useful_work_solution = rayon::spawn(|| self.solve_useful_work_problem(&useful_work_problem)).join().unwrap();
+
+        // Create a new block with the given transactions, useful work problem, solution, and history proof
+        let mut block = QUPBlock::new(
+            self.state.get_block_height()? + 1,
+            self.state.get_block_timestamp()?,
+            self.state.get_block_hash()?,
+            transactions,
+            Some(useful_work_problem),
+            Some(useful_work_solution),
+            history_proof,
+            &self.key_pair,
+        );
+
+        // Sign the block using the validator's private key
+        block.sign(&self.key_pair);
+
+        // Broadcast the block proposal to other validators
+        let message = NetworkMessage::BlockProposal(block.clone());
+        self.communication_protocol.send_message(message)?;
+
+        // Save the block to the block storage
+        self.block_storage.save_block(&block)?;
+
+        Ok(block)
+    fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
+        // Generate a useful work problem
+        // This can be customized based on the specific requirements of the useful work problem
+        // Randomly choose a problem type to generate
+        let problem_type = rand::random::<u8>() % 2;
+
+        match problem_type {
+            0 => UsefulWorkProblem::Knapsack(KnapsackProblem {
+                capacity: 50,
+                weights: vec![10, 20, 30, 40],
+                values: vec![60, 100, 120, 160],
+            }),
+            1 => UsefulWorkProblem::VertexCover(VertexCoverProblem {
+                graph: vec![
+                    vec![1, 2], // Edges for vertex 0
+                    vec![0, 2], // Edges for vertex 1
+                    vec![0, 1], // Edges for vertex 2
+                ],
+            }),
+            _ => unreachable!(),
+        }
+    fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
+        // Solve the useful work problem
+        // This can be customized based on the specific requirements of the useful work problem
+        match problem {
+            UsefulWorkProblem::Knapsack(knapsack_problem) => {
+                // Implement a simple greedy algorithm to solve the knapsack problem
+                let mut total_weight = 0;
+                let mut selected_items = vec![false; knapsack_problem.weights.len()];
+
+                for (i, &weight) in knapsack_problem.weights.iter().enumerate() {
+                    if total_weight + weight <= knapsack_problem.capacity {
+                        total_weight += weight;
+                        selected_items[i] = true;
+                    }
+                }
+
+                UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
+            }
+            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
+                // Implement a simple greedy algorithm to solve the vertex cover problem
+                let mut vertex_cover = Vec::new();
+                let mut covered_edges = vec![false; vertex_cover_problem.graph.len()];
+
+                for (vertex, edges) in vertex_cover_problem.graph.iter().enumerate() {
+                    if !covered_edges[vertex] {
+                        vertex_cover.push(vertex);
+                        for &edge in edges {
+                            covered_edges[edge] = true;
+                        }
+                    }
+                }
+
+                UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
+            }
+        }
+    fn validate_useful_work_solution(
+        &self,
+        problem: &UsefulWorkProblem,
+        solution: &UsefulWorkSolution,
+    ) -> Result<bool, ConsensusError> {
+        // Implement the logic to validate the useful work solution
+        match problem {
+            UsefulWorkProblem::Knapsack(knapsack_problem) => {
+                // Validate the knapsack solution
+                let total_weight: u64 = solution
+                    .as_knapsack()
+                    .selected_items
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &selected)| selected)
+                    .map(|(i, _)| knapsack_problem.weights[i])
+                    .sum();
+                if total_weight > knapsack_problem.capacity {
+                    return Ok(false);
+                }
+                Ok(true)
+            }
+            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
+                // Validate the vertex cover solution
+                let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
+                if !is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover) {
+                    return Ok(false);
+                }
+                Ok(true)
+            }
+        }
+    fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
+        // Calculate the rewards for validators and delegators based on the block
+        let rewards = self.config.reward_scheme.calculate_rewards(block)?;
+
+        // Distribute the rewards
+        for (address, reward) in rewards {
+            self.state.add_balance(&address, reward)?;
+        }
+
+        Ok(())
     }
 
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
@@ -63,6 +314,7 @@ impl QUPConsensus {
         self.block_storage.save_block(&block)?;
 
         Ok(())
+    }
 
     pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
         match message {
