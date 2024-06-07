@@ -19,13 +19,6 @@ pub struct QUPBlock {
     pub useful_work_solution: Option<UsefulWorkSolution>,
     pub history_proof: Vec<Hash>,
     pub validator_signature: QUPSignature,
-    pub fn save(&self, storage: &BlockStorage) -> Result<(), BlockStorageError> {
-        storage.save_block(self)
-    }
-
-    pub fn load(hash: &Hash, storage: &BlockStorage) -> Result<Self, BlockStorageError> {
-        storage.load_block(hash)
-    }
 
 impl QUPBlock {
     pub fn new(
@@ -52,7 +45,16 @@ impl QUPBlock {
         block
     }
 
-    pub fn hash(&self) -> Hash {
+}
+
+impl QUPBlock {
+    pub fn save(&self, storage: &BlockStorage) -> Result<(), BlockStorageError> {
+        storage.save_block(self)
+    }
+
+    pub fn load(hash: &Hash, storage: &BlockStorage) -> Result<Self, BlockStorageError> {
+        storage.load_block(hash)
+    }
         let mut hasher = hash::Hasher::new();
         hasher.update(&self.height.to_le_bytes());
         hasher.update(&self.timestamp.to_le_bytes());
