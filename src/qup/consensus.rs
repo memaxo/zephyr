@@ -1,4 +1,5 @@
 use crate::chain::transaction::{Transaction, QUPTransaction};
+use crate::storage::block_storage::BlockStorage;
 use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
@@ -19,6 +20,7 @@ pub struct QUPConsensus {
     pub key_pair: QUPKeyPair,
     pub hdc_model: HDCModel,
     pub communication_protocol: CommunicationProtocol,
+    pub block_storage: Arc<BlockStorage>,
 }
 
 impl QUPConsensus {
@@ -29,7 +31,19 @@ impl QUPConsensus {
         hdc_model: HDCModel,
         node_type: NodeType,
         blockchain: Arc<Blockchain>,
+        block_storage: Arc<BlockStorage>,
     ) -> Self {
+        let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
+        QUPConsensus {
+            config,
+            state,
+            key_pair,
+            hdc_model,
+            communication_protocol,
+            blockchain,
+            block_storage,
+        }
+    }
         let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
         QUPConsensus {
             config,
@@ -211,7 +225,9 @@ impl QUPConsensus {
         let message = NetworkMessage::BlockProposal(block.clone());
         self.communication_protocol.send_message(message)?;
 
+        self.block_storage.save_block(&block)?;
         Ok(block)
+    }
     }
 
     fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
