@@ -21,6 +21,7 @@ pub struct QUPConsensus {
     pub hdc_model: HDCModel,
     pub communication_protocol: CommunicationProtocol,
     pub block_storage: Arc<BlockStorage>,
+    pub transaction_storage: Arc<TransactionStorage>,
 }
 
 impl QUPConsensus {
@@ -32,6 +33,7 @@ impl QUPConsensus {
         node_type: NodeType,
         blockchain: Arc<Blockchain>,
         block_storage: Arc<BlockStorage>,
+        transaction_storage: Arc<TransactionStorage>,
     ) -> Self {
         let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
         QUPConsensus {
@@ -42,6 +44,7 @@ impl QUPConsensus {
             communication_protocol,
             blockchain,
             block_storage,
+            transaction_storage,
         }
     }
         let communication_protocol = CommunicationProtocol::new(node_type, key_pair.clone());
