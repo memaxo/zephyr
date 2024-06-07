@@ -320,3 +320,10 @@ impl Block {
         }
     }
 }
+impl Block {
+    pub fn verify_transactions(&self) -> bool {
+        self.transactions
+            .par_iter()
+            .all(|transaction| transaction.verify_signature())
+    }
+}

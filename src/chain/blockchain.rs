@@ -190,13 +190,7 @@ impl Blockchain {
             // Additional transaction validation checks can be added here
             // ...
 
-            let verification_results = block
-                .transactions
-                .par_iter()
-                .map(|transaction| transaction.verify_signature())
-                .collect::<Vec<_>>();
-
-            if !verification_results.into_iter().all(|result| result) {
+            if !block.verify_transactions() {
                 return Err(BlockchainError::ZKPVerificationFailed(i));
             }
 
