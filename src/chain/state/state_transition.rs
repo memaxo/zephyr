@@ -30,37 +30,21 @@ impl StateTransition {
         let sender_address = &transaction.sender;
         let receiver_address = &transaction.receiver;
 
-        let mut sender_account = self
-            .qup_state
-            .get_account(sender_address)
-            .ok_or_else(|| format!("Sender account not found: {}", sender_address))?;
-
-        let mut receiver_account = self
-            .qup_state
-            .get_account(receiver_address)
-            .unwrap_or_else(|| Account::new(receiver_address.clone(), 0));
+        let (mut sender_account, mut receiver_account) = self.qup_state.get_accounts(sender_address, receiver_address)?;
 
         // Validate the transaction using post-quantum cryptography
         self.validate_transaction(&sender_account, transaction)?;
 
         // Apply the state transition
-        sender_account.balance -= transaction.amount;
-        receiver_account.balance += transaction.amount;
-        sender_account.nonce += 1;
+        sender_account.apply_transaction(transaction)?;
+        receiver_account.receive_transaction(transaction)?;
 
-        // Update the accounts in the QUPState
-        self.qup_state.update_account(&sender_account);
-        self.qup_state.update_account(&receiver_account);
-
-        // Update the accounts in the local state
-        self.state_manager.update_account(&sender_account);
-        self.state_manager.update_account(&receiver_account);
+        // Batch update the accounts in the QUPState and local state
+        self.qup_state.update_accounts(&[&sender_account, &receiver_account]);
+        self.state_manager.update_accounts(&[&sender_account, &receiver_account]);
 
         // Apply QUP-specific state changes
         self.qup_state.apply_state_changes(transaction)?;
-
-        // Revert QUP-specific state changes
-        self.qup_state.revert_state_changes(transaction)?;
 
         Ok(())
     }
@@ -123,28 +107,15 @@ impl StateTransition {
         let sender_address = &transaction.sender;
         let receiver_address = &transaction.receiver;
 
-        let mut sender_account = self
-            .qup_state
-            .get_account(sender_address)
-            .ok_or_else(|| format!("Sender account not found: {}", sender_address))?;
-
-        let mut receiver_account = self
-            .qup_state
-            .get_account(receiver_address)
-            .ok_or_else(|| format!("Receiver account not found: {}", receiver_address))?;
+        let (mut sender_account, mut receiver_account) = self.qup_state.get_accounts(sender_address, receiver_address)?;
 
         // Revert the state transition
-        sender_account.balance += transaction.amount;
-        receiver_account.balance -= transaction.amount;
-        sender_account.nonce -= 1;
+        sender_account.revert_transaction(transaction)?;
+        receiver_account.revert_receive_transaction(transaction)?;
 
-        // Update the accounts in the QUPState
-        self.qup_state.update_account(&sender_account);
-        self.qup_state.update_account(&receiver_account);
-
-        // Update the accounts in the local state
-        self.state_manager.update_account(&sender_account);
-        self.state_manager.update_account(&receiver_account);
+        // Batch update the accounts in the QUPState and local state
+        self.qup_state.update_accounts(&[&sender_account, &receiver_account]);
+        self.state_manager.update_accounts(&[&sender_account, &receiver_account]);
 
         Ok(())
     }
