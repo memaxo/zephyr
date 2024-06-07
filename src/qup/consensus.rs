@@ -144,8 +144,8 @@ impl QUPConsensus {
     }
 
     pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
-        // Retrieve the block from the local pool of proposed blocks
-        let block = self.state.get_proposed_block(&block_hash)?;
+        // Retrieve the block from the block storage
+        let block = self.block_storage.load_block(&block_hash)?;
 
         // Apply the block to the state
         self.blockchain.state_transition.apply_block(&block)?;
