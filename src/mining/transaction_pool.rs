@@ -1,4 +1,5 @@
 use crate::chain::transaction::Transaction;
+use crate::storage::Storage;
 use log::debug;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -16,14 +17,12 @@ impl TransactionPool {
         }
     }
 
-    pub fn add_transaction(&self, transaction: Transaction) -> bool {
+    pub fn add_transaction(&self, transaction: Transaction, storage: &dyn Storage) -> bool {
         let mut transactions = self.transactions.lock().unwrap();
-        // Ensure transactions have valid history proofs
-        for tx in &transactions {
-            if let Err(e) = tx.verify_history_proof(&qup_state) {
-                error!("History proof verification failed for transaction: {}", e);
-                return false;
-            }
+        // Ensure transactions have valid history proofs using storage
+        if let Err(e) = transaction.verify_history_proof(storage) {
+            error!("History proof verification failed for transaction: {}", e);
+            return false;
         }
         if transactions.len() >= self.capacity {
             debug!("Transaction pool is full. Skipping transaction: {:?}", transaction);

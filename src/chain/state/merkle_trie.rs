@@ -1,4 +1,5 @@
 use crate::crypto::post_quantum::{sign, verify, PostQuantumSignature};
+use crate::storage::Storage;
 use sha3::{Digest, Sha3_256};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -72,7 +73,7 @@ impl MerkleTrie {
         MerkleTrie { root: None }
     }
 
-    pub fn insert(&mut self, key: &[u8], value: &[u8]) {
+    pub fn insert(&mut self, key: &[u8], value: &[u8], storage: &dyn Storage) {
         let mut current_node = self
             .root
             .get_or_insert_with(|| Arc::new(TrieNode::new(Arc::from(vec![]), None)));
@@ -106,7 +107,7 @@ impl MerkleTrie {
         }
     }
 
-    pub fn remove(&mut self, key: &[u8]) -> Result<(), MerkleTrieError> {
+    pub fn remove(&mut self, key: &[u8], storage: &dyn Storage) -> Result<(), MerkleTrieError> {
         self.remove_recursive(key, &mut self.root)
     }
 
