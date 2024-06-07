@@ -20,9 +20,14 @@ impl StateStorage {
     }
 
     pub fn load_state(&self, state_id: &str) -> Result<ChainState, StateStorageError> {
-        // Implement the logic to load the state from the database
-        // This is a placeholder implementation
-        Err(StateStorageError::StateNotFound(state_id.to_string()))
+        match self.db.get(state_id) {
+            Some(data) => {
+                let state: ChainState = serde_json::from_slice(&data)
+                    .map_err(|e| StateStorageError::DatabaseError(e.to_string()))?;
+                Ok(state)
+            }
+            None => Err(StateStorageError::StateNotFound(state_id.to_string())),
+        }
     }
 
     pub fn save_state(&self, state_id: &str, state: &ChainState) -> Result<(), StateStorageError> {
