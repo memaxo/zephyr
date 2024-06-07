@@ -1170,50 +1170,6 @@ impl QUPConsensus {
 
     }
 
-    fn validate_useful_work_solution(
-        &self,
-        problem: &UsefulWorkProblem,
-        solution: &UsefulWorkSolution,
-    ) -> Result<bool, ConsensusError> {
-        // Implement the logic to validate the useful work solution
-        match problem {
-            UsefulWorkProblem::Knapsack(knapsack_problem) => {
-                // Validate the knapsack solution
-                let total_weight: u64 = solution
-                    .as_knapsack()
-                    .selected_items
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, &selected)| selected)
-                    .map(|(i, _)| knapsack_problem.weights[i])
-                    .sum();
-                if total_weight > knapsack_problem.capacity {
-                    return Ok(false);
-                }
-                Ok(true)
-            }
-            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-                // Validate the vertex cover solution
-                let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
-                if !is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover) {
-                    return Ok(false);
-                }
-                Ok(true)
-            }
-        }
-    }
-
-    fn validate_useful_work_proof(
-        &self,
-        proof: &[u8],
-        solution: &UsefulWorkSolution,
-    ) -> Result<bool, ConsensusError> {
-        // Verify the proof of useful work
-        // This can be customized based on the specific requirements of the proof
-        // For simplicity, we will deserialize the proof and compare it with the solution
-        let deserialized_solution: UsefulWorkSolution = bincode::deserialize(proof).expect("Failed to deserialize useful work proof");
-        Ok(&deserialized_solution == solution)
-    }
         &self,
         problem: &UsefulWorkProblem,
         solution: &UsefulWorkSolution,
