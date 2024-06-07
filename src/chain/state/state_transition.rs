@@ -56,6 +56,12 @@ impl StateTransition {
         self.state_manager.update_account(&sender_account);
         self.state_manager.update_account(&receiver_account);
 
+        // Apply QUP-specific state changes
+        self.qup_state.apply_state_changes(transaction)?;
+
+        // Revert QUP-specific state changes
+        self.qup_state.revert_state_changes(transaction)?;
+
         Ok(())
     }
 
