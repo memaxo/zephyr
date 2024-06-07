@@ -94,12 +94,6 @@ impl QUPConsensus {
         // Integrate the useful work results into the blockchain
         // This can be customized based on the specific requirements of the useful work problem and solution
     }
-        if self.is_task_complex(&transaction) {
-            self.handle_computational_task(transaction)
-        } else {
-            self.handle_standard_transaction(transaction)
-        }
-    }
 
     fn is_task_complex(&self, transaction: &Transaction) -> bool {
         // Determine the complexity of the task
@@ -201,6 +195,7 @@ impl QUPConsensus {
         Ok(true)
     }
     }
+    }
 
     fn handle_standard_transaction(&self, transaction: Transaction) -> Result<(), ConsensusError> {
         // Logic for handling standard transactions by classical nodes
@@ -230,6 +225,9 @@ impl QUPConsensus {
         let result = self.perform_useful_work(transaction)?;
         self.synchronize_and_validate(result)?;
         Ok(())
+    }
+    }
+    }
     }
     }
     }
@@ -666,37 +664,6 @@ impl QUPConsensus {
         Ok(&deserialized_solution == solution)
     }
     fn validate_useful_work_solution(
-        &self,
-        problem: &UsefulWorkProblem,
-        solution: &UsefulWorkSolution,
-    ) -> Result<bool, ConsensusError> {
-        // Implement the logic to validate the useful work solution
-        match problem {
-            UsefulWorkProblem::Knapsack(knapsack_problem) => {
-                // Validate the knapsack solution
-                let total_weight: u64 = solution
-                    .as_knapsack()
-                    .selected_items
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, &selected)| selected)
-                    .map(|(i, _)| knapsack_problem.weights[i])
-                    .sum();
-                if total_weight > knapsack_problem.capacity {
-                    return Ok(false);
-                }
-                Ok(true)
-            }
-            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-                // Validate the vertex cover solution
-                let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
-                if !is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover) {
-                    return Ok(false);
-                }
-                Ok(true)
-            }
-        }
-    }
         // Implement the logic to validate the useful work solution
         match problem {
             UsefulWorkProblem::Knapsack(knapsack_problem) => {
@@ -780,6 +747,8 @@ impl QUPConsensus {
             }
             ConsensusMessage::Vote(vote) => self.process_vote(vote),
             ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
+        }
+    }
 
 
     }
@@ -1219,6 +1188,7 @@ impl QUPConsensus {
         self.config.network.broadcast(message)?;
 
         Ok(())
+    }
     }
 
     fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
