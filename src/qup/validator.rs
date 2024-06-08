@@ -6,11 +6,14 @@ use crate::qup::crypto::{QUPKeyPair, QUPSignature};
 use crate::qup::qup_hdcmodels::QUPHDCModels;
 use crate::qup::state::QUPState;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 pub struct QUPValidator {
     config: QUPConfig,
     state: Arc<QUPState>,
     hdc_models: QUPHDCModels,
+    stakes: HashMap<String, u64>, // Validator stakes
+    weights: HashMap<String, f64>, // Validator weights
 }
 
 impl QUPValidator {
@@ -19,6 +22,8 @@ impl QUPValidator {
             config,
             state,
             hdc_models,
+            stakes: HashMap::new(),
+            weights: HashMap::new(),
         }
     }
 
@@ -58,6 +63,40 @@ impl QUPValidator {
         }
     }
 
+    pub fn stake(&mut self, validator_id: String, amount: u64) {
+        let entry = self.stakes.entry(validator_id.clone()).or_insert(0);
+        *entry += amount;
+        self.update_weight(&validator_id);
+    }
+
+    pub fn unstake(&mut self, validator_id: String, amount: u64) -> Result<(), Error> {
+        if let Some(entry) = self.stakes.get_mut(&validator_id) {
+            if *entry >= amount {
+                *entry -= amount;
+                self.update_weight(&validator_id);
+                Ok(())
+            } else {
+                Err(Error::InsufficientStake)
+            }
+        } else {
+            Err(Error::ValidatorNotFound)
+        }
+    }
+
+    fn update_weight(&mut self, validator_id: &String) {
+        if let Some(stake) = self.stakes.get(validator_id) {
+            let performance = self.get_performance(validator_id);
+            let weight = (*stake as f64) * performance;
+            self.weights.insert(validator_id.clone(), weight);
+        }
+    }
+
+    fn get_performance(&self, validator_id: &String) -> f64 {
+        // Implement logic to calculate performance
+        // For now, return a dummy value
+        1.0
+    }
+
     fn sign_block(&self, block: &QUPBlock) -> QUPSignature {
         // Implement the logic to sign the block
         QUPSignature::new()
@@ -77,6 +116,7 @@ impl QUPValidator {
         // Implement the logic to verify the block commit
         true
     }
+
     pub fn perform_cryptographic_operations(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
         if self.config.supports_quantum_features() {
             // Quantum-specific implementation
