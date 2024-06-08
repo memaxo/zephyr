@@ -15,10 +15,9 @@ pub struct QUPConfig {
     pub transaction_storage_path: String,
     pub state_storage_path: String,
     pub contract_storage_path: String,
-    pub block_storage_path: String,
-    pub transaction_storage_path: String,
-    pub state_storage_path: String,
-    pub contract_storage_path: String,
+    pub quantum_node_settings: QuantumNodeSettings,
+    pub useful_work_problem_types: Vec<UsefulWorkProblemType>,
+    pub cryptographic_parameters: CryptographicParameters,
 }
 
 /// Configuration settings for quantum nodes.
