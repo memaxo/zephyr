@@ -264,4 +264,53 @@ impl Shard {
 enum ShardMessage {
     StateRequest { shard_id: u64 },
     StateResponse(ShardState),
+}use crate::chain::transaction::Transaction;
+use crate::chain::block::Block;
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ShardState {
+    pub shard_id: u64,
+    pub transactions: Vec<Transaction>,
+    pub blocks: Vec<Block>,
+}
+
+impl ShardState {
+    pub fn new(shard_id: u64) -> Self {
+        ShardState {
+            shard_id,
+            transactions: Vec::new(),
+            blocks: Vec::new(),
+        }
+    }
+
+    pub fn apply_transaction(&mut self, transaction: Transaction) -> Result<(), String> {
+        // Validate and apply the transaction to the shard state
+        // ...
+
+        self.transactions.push(transaction);
+        Ok(())
+    }
+
+    pub fn apply_block(&mut self, block: &Block) -> Result<(), String> {
+        // Validate and apply the block to the shard state
+        // ...
+
+        self.blocks.push(block.clone());
+        Ok(())
+    }
+
+    pub fn commit_block_header(&mut self, block_header: BlockHeader) -> Result<(), String> {
+        // Commit the block header to the shard state
+        // ...
+
+        Ok(())
+    }
+
+    pub fn hash(&self) -> String {
+        // Calculate the hash of the shard state
+        // ...
+
+        "shard_state_hash".to_string()
+    }
 }

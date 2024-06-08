@@ -32,6 +32,14 @@ pub enum ShardMessage {
     QKDKeyConfirmationShard,
     QuantumStateDistributionShard(QuantumState),
     QuantumStateMeasurementResultsShard(Vec<bool>),
+    ShardSyncRequest {
+        shard_id: u64,
+        sync_hash: String,
+    },
+    ShardSyncResponse {
+        shard_id: u64,
+        sync_data: Vec<u8>,
+    },
 }
 
 impl ShardMessage {
@@ -184,8 +192,47 @@ impl ShardMessageHandler {
                     self.handle_quantum_state_measurement_results_shard(shard_id, results)
                         .await;
                 }
+                ShardMessage::ShardSyncRequest { shard_id, sync_hash } => {
+                    self.handle_shard_sync_request(shard_id, sync_hash).await;
+                }
+                ShardMessage::ShardSyncResponse { shard_id, sync_data } => {
+                    self.handle_shard_sync_response(shard_id, sync_data).await;
+                }
             }
         }
+
+    async fn handle_shard_sync_request(&mut self, shard_id: u64, sync_hash: String) {
+        // Retrieve the shard state
+        let shard_state = self.get_shard_state(shard_id).await.unwrap();
+
+        // Check if the sync hash matches the current shard state
+        if shard_state.hash() == sync_hash {
+            info!("Shard {} is already in sync", shard_id);
+            return;
+        }
+
+        // Serialize the shard state
+        let serialized_state = bincode::serialize(&shard_state).unwrap();
+
+        // Send the shard sync response
+        let sync_response = ShardMessage::ShardSyncResponse {
+            shard_id,
+            sync_data: serialized_state,
+        };
+        if let Err(e) = self.send_message(shard_id, sync_response).await {
+            error!("Failed to send shard sync response for shard {}: {}", shard_id, e);
+        }
+    }
+
+    async fn handle_shard_sync_response(&mut self, shard_id: u64, sync_data: Vec<u8>) {
+        // Deserialize the shard state
+        let shard_state: ShardState = bincode::deserialize(&sync_data).unwrap();
+
+        // Update the local shard state
+        self.update_shard_state(shard_id, shard_state).await.unwrap();
+
+        info!("Shard {} state synced successfully", shard_id);
+    }
 
     async fn handle_transaction_message(&mut self, shard_id: u64, transaction: Transaction) {
         info!("Received transaction message for shard {}", shard_id);
