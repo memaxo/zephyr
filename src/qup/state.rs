@@ -25,12 +25,17 @@ pub struct QUPState {
 
 impl QUPState {
     pub fn prune_state(&mut self, prune_threshold: u64) {
+        self.prune_old_blocks(prune_threshold);
+        self.prune_old_accounts(prune_threshold);
+    }
+
+    fn prune_old_blocks(&mut self, prune_threshold: u64) {
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-
-        // Remove old blocks
         self.blocks.retain(|block| block.timestamp >= current_time - prune_threshold);
+    }
 
-        // Remove old accounts
+    fn prune_old_accounts(&mut self, prune_threshold: u64) {
+        let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
         self.accounts.retain(|_, account| account.last_updated >= current_time - prune_threshold);
     }
 
