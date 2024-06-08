@@ -5,7 +5,8 @@ use crate::qup::block::QUPBlock;
 use crate::qup::config::QUPConfig;
 use crate::qup::state::QUPState;
 use crate::qup::transaction::Transaction;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use std::thread;
 use merkle::MerkleTree;
 use rand::Rng;
 use sha2::{Digest, Sha256};
@@ -22,32 +23,47 @@ impl HDCommunication {
 
     /// Shard a block into multiple smaller blocks for parallel processing.
     /// Each shard will have its own Merkle tree for transaction verification.
-    pub fn shard_block(&self, block: &QUPBlock, shard_count: usize) -> Vec<QUPBlock> {
-        let mut shards = Vec::new();
-        let transactions_per_shard = (block.transactions.len() + shard_count - 1) / shard_count;
+    pub fn process_block_parallel(&self, block: &QUPBlock, shard_count: usize) -> QUPBlock {
+        let shards = self.shard_block(block, shard_count);
 
-        for i in 0..shard_count {
-            let shard_transactions = block.transactions[i * transactions_per_shard..]
-                .iter()
-                .take(transactions_per_shard)
-                .cloned()
-                .collect::<Vec<_>>();
+        let (tx, rx) = mpsc::channel();
 
-            let merkle_tree = MerkleTree::from_data(&shard_transactions);
+        for shard in shards {
+            let tx = tx.clone();
+            let config = self.config.clone();
+            let hdc_model = self.hdc_model.clone();
 
-            let shard = QUPBlock {
-                height: block.height,
-                timestamp: block.timestamp,
-                prev_block_hash: block.prev_block_hash.clone(),
-                transactions: shard_transactions,
-                hdc_encoded_block: Vec::new(),
-                merkle_root: merkle_tree.root(),
-            };
-
-            shards.push(shard);
+            thread::spawn(move || {
+                let hdc_comm = HDCommunication::new(config, hdc_model);
+                let processed_shard = hdc_comm.process_shard(shard);
+                tx.send(processed_shard).unwrap();
+            });
         }
 
-        shards
+        drop(tx);
+
+        let mut processed_shards = Vec::new();
+        for _ in 0..shard_count {
+            let processed_shard = rx.recv().unwrap();
+            processed_shards.push(processed_shard);
+        }
+
+        self.merge_shards(processed_shards)
+    }
+
+    fn process_shard(&self, shard: QUPBlock) -> QUPBlock {
+        let optimized_shard = self.optimize_block(&shard);
+        // Perform other processing steps on the shard
+        optimized_shard
+    }
+
+    fn merge_shards(&self, shards: Vec<QUPBlock>) -> QUPBlock {
+        let mut merged_block = shards[0].clone();
+        for shard in shards.into_iter().skip(1) {
+            merged_block.transactions.extend(shard.transactions);
+        }
+        merged_block.merkle_root = MerkleTree::from_data(&merged_block.transactions).root();
+        merged_block
     }
     }
 
