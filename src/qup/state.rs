@@ -8,6 +8,7 @@ use crate::qup::validator::QUPValidator;
 use crate::storage::state_storage::StateStorage;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 pub struct QUPState {
     pub accounts: HashMap<String, Account>,
@@ -19,7 +20,34 @@ pub struct QUPState {
     pub hdc_models: Arc<QUPHDCModels>,
     pub state_storage: Arc<StateStorage>,
     pub network_state: Mutex<NetworkState>,
+    pub fn prune_state(&mut self, prune_threshold: u64) {
+        let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+
+        // Remove old blocks
+        self.blocks.retain(|block| block.timestamp >= current_time - prune_threshold);
+
+        // Remove old accounts
+        self.accounts.retain(|_, account| account.last_updated >= current_time - prune_threshold);
+    }
+
+    pub fn create_snapshot(&self) -> QUPStateSnapshot {
+        QUPStateSnapshot {
+            accounts: self.accounts.clone(),
+            blocks: self.blocks.clone(),
+            network_state: self.get_network_state(),
+        }
+    }
+
+    pub fn load_snapshot(&mut self, snapshot: QUPStateSnapshot) {
+        self.accounts = snapshot.accounts;
+        self.blocks = snapshot.blocks;
+        self.update_network_state(snapshot.network_state);
+    }
+
     pub fn synchronize_state(&self, other_state: &QUPState) {
+        // Prune old state before synchronizing
+        let mut pruned_state = self.clone();
+        pruned_state.prune_state(self.config.state_pruning_threshold);
         let mut network_state = self.network_state.lock().unwrap();
         let other_network_state = other_state.network_state.lock().unwrap();
 
@@ -120,6 +148,14 @@ impl QUPState {
         let network_state = self.network_state.lock().unwrap();
         network_state.clone()
     }
+}
+
+#[derive(Clone, Default)]
+#[derive(Clone)]
+pub struct QUPStateSnapshot {
+    pub accounts: HashMap<String, Account>,
+    pub blocks: Vec<QUPBlock>,
+    pub network_state: NetworkState,
 }
 
 #[derive(Clone, Default)]
