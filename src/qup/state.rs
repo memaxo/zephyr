@@ -21,6 +21,9 @@ pub struct QUPState {
     pub hdc_models: Arc<QUPHDCModels>,
     pub state_storage: Arc<StateStorage>,
     pub network_state: Mutex<NetworkState>,
+}
+
+impl QUPState {
     pub fn prune_state(&mut self, prune_threshold: u64) {
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
@@ -107,9 +110,6 @@ pub struct QUPState {
             *tasks = average_tasks;
         }
     }
-}
-
-impl QUPState {
     pub fn new(config: Arc<QUPConfig>, state_db: Arc<StateDB>, delegator: Arc<QUPDelegator>, validator: Arc<QUPValidator>, hdc_models: Arc<QUPHDCModels>, state_storage: Arc<StateStorage>) -> Self {
         let mut state = QUPState {
             accounts: HashMap::new(),
@@ -206,7 +206,12 @@ pub struct QUPStateSnapshot {
     pub network_state: NetworkState,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
+pub struct NetworkStateSnapshot {
+    pub node_count: usize,
+    pub active_nodes: Vec<String>,
+    pub task_distribution: HashMap<String, usize>,
+}
 pub struct NetworkState {
     pub node_count: usize,
     pub active_nodes: Vec<String>,
