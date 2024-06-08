@@ -50,16 +50,79 @@ impl QUPConsensus {
         }
     }
 
-    fn adapt_useful_work(&mut self) {
+    fn adapt_consensus_algorithm(&mut self) {
         // Assess the current needs and threats in the network
         let current_needs = self.assess_current_needs();
         let current_threats = self.assess_current_threats();
 
-        // Determine the appropriate useful work based on the assessment
-        let useful_work_type = self.determine_useful_work_type(current_needs, current_threats);
+        // Determine the appropriate consensus algorithm based on the assessment
+        let consensus_algorithm = self.determine_consensus_algorithm(current_needs, current_threats);
 
-        // Update the useful work problem generator
-        self.update_useful_work_generator(useful_work_type);
+        // Update the consensus algorithm
+        self.update_consensus_algorithm(consensus_algorithm);
+    }
+
+    fn assess_current_needs(&self) -> NetworkNeeds {
+        // Assess the current needs of the network
+        // This can be customized based on the specific requirements and metrics
+        // For example, consider factors like transaction throughput, storage capacity, etc.
+        let transaction_throughput = self.state.get_transaction_throughput();
+        let storage_capacity = self.state.get_storage_capacity();
+
+        NetworkNeeds {
+            transaction_throughput,
+            storage_capacity,
+            // Add more need assessment metrics as required
+        }
+    }
+
+    fn assess_current_threats(&self) -> NetworkThreats {
+        // Assess the current threats to the network
+        // This can be customized based on the specific types of threats and attack vectors
+        // For example, consider factors like network attacks, spam transactions, etc.
+        let network_attack_rate = self.state.get_network_attack_rate();
+        let spam_transaction_rate = self.state.get_spam_transaction_rate();
+
+        NetworkThreats {
+            network_attack_rate,
+            spam_transaction_rate,
+            // Add more threat assessment metrics as required
+        }
+    }
+
+    fn determine_consensus_algorithm(&self, needs: NetworkNeeds, threats: NetworkThreats) -> ConsensusAlgorithm {
+        // Determine the appropriate consensus algorithm based on the current needs and threats
+        // This can be customized based on the specific logic and thresholds
+        // For example, use different consensus algorithms for different scenarios
+        if needs.transaction_throughput > self.config.throughput_threshold && threats.network_attack_rate < self.config.attack_threshold {
+            ConsensusAlgorithm::Efficient
+        } else if threats.spam_transaction_rate > self.config.spam_threshold {
+            ConsensusAlgorithm::Secure
+        } else {
+            ConsensusAlgorithm::Standard
+        }
+    }
+
+    fn update_consensus_algorithm(&mut self, consensus_algorithm: ConsensusAlgorithm) {
+        // Update the consensus algorithm based on the determined algorithm
+        // This can be customized based on the specific implementation
+        // For example, switch to a different consensus mechanism or adjust parameters
+        match consensus_algorithm {
+            ConsensusAlgorithm::Standard => {
+                // Use the standard consensus algorithm
+                self.consensus_mechanism = ConsensusMechanism::Standard;
+            }
+            ConsensusAlgorithm::Efficient => {
+                // Use an efficient consensus algorithm with optimized parameters
+                self.consensus_mechanism = ConsensusMechanism::Efficient;
+                self.config.block_interval = 2; // Reduce block interval for faster consensus
+            }
+            ConsensusAlgorithm::Secure => {
+                // Use a secure consensus algorithm with enhanced security measures
+                self.consensus_mechanism = ConsensusMechanism::Secure;
+                self.config.validator_threshold = 0.75; // Increase validator threshold for higher security
+            }
+        }
     }
 
     fn assess_current_needs(&self) -> NetworkNeeds {
