@@ -1,5 +1,5 @@
 use crate::qup::block::QUPBlock;
-use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, verify_signature};
+use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, verify_signature, hash_data};
 use crate::qup::state::QUPState;
 use crate::network::{NetworkMessage, send_message, receive_message};
 use crate::error::ConsensusError;
@@ -95,6 +95,42 @@ impl CommunicationProtocol {
             decrypt_data(&result, &self.key_pair)
         } else {
             Err(ConsensusError::InvalidMessage)
+        }
+    }
+
+    fn authenticate_message(&self, message: &NetworkMessage) -> Result<(), ConsensusError> {
+        match message {
+            NetworkMessage::Proof { proof, signature } => {
+                let hashed_proof = hash_data(proof)?;
+                verify_signature(&hashed_proof, signature, &self.key_pair)
+            }
+            NetworkMessage::Result { result, signature } => {
+                let hashed_result = hash_data(result)?;
+                verify_signature(&hashed_result, signature, &self.key_pair)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn verify_message_integrity(&self, message: &NetworkMessage) -> Result<(), ConsensusError> {
+        match message {
+            NetworkMessage::Proof { proof, .. } => {
+                let decrypted_proof = decrypt_data(proof, &self.key_pair)?;
+                let hashed_proof = hash_data(&decrypted_proof)?;
+                if hashed_proof != *proof {
+                    return Err(ConsensusError::MessageIntegrityError);
+                }
+                Ok(())
+            }
+            NetworkMessage::Result { result, .. } => {
+                let decrypted_result = decrypt_data(result, &self.key_pair)?;
+                let hashed_result = hash_data(&decrypted_result)?;
+                if hashed_result != *result {
+                    return Err(ConsensusError::MessageIntegrityError);
+                }
+                Ok(())
+            }
+            _ => Ok(()),
         }
     }
 }
