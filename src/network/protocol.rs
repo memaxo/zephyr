@@ -167,3 +167,15 @@ mod protocol_message {
         // ...
     }
 }
+    BlockProposal {
+        block: Vec<u8>,
+        signature: QUPSignature,
+    },
+    Vote {
+        vote: Vec<u8>,
+        signature: QUPSignature,
+    },
+    BlockCommit {
+        block: Vec<u8>,
+        signature: QUPSignature,
+    },

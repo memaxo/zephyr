@@ -720,8 +720,11 @@ pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError>
     self.block_storage.save_block(&optimized_block)?;
 
     // Broadcast the optimized block to other nodes
-    let message = NetworkMessage::BlockCommit(optimized_block);
-    self.network.broadcast(message)?;
+    let message = ProtocolMessage::BlockCommit {
+        block: bincode::serialize(&optimized_block)?,
+        signature: self.qup_crypto.sign(&bincode::serialize(&optimized_block)?),
+    };
+    self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
 
     Ok(())
 }
@@ -740,8 +743,11 @@ pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
     };
 
     // Broadcast the vote to other validators
-    let message = NetworkMessage::Vote(vote.clone());
-    self.network.broadcast(message)?;
+    let message = ProtocolMessage::Vote {
+        vote: bincode::serialize(&vote)?,
+        signature: self.qup_crypto.sign(&bincode::serialize(&vote)?),
+    };
+    self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
 
     Ok(vote)
 }
@@ -823,8 +829,11 @@ pub fn propose_block(
     block.sign(&self.key_pair);
 
     // Broadcast the block proposal to other validators
-    let message = NetworkMessage::BlockProposal(block.clone());
-    self.network.broadcast(message)?;
+    let message = ProtocolMessage::BlockProposal {
+        block: bincode::serialize(&block)?,
+        signature: self.qup_crypto.sign(&bincode::serialize(&block)?),
+    };
+    self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
 
     Ok(block)
 }

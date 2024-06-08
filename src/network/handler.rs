@@ -49,7 +49,9 @@ impl Handler for HandlerImpl {
             MessageType::ClassicalKeyExchangeResponse(classical_key_exchange_response) => self.handle_classical_key_exchange_response(peer, classical_key_exchange_response),
             MessageType::QuantumKeyExchange(quantum_key_exchange) => self.handle_quantum_key_exchange(peer, quantum_key_exchange),
             MessageType::QuantumKeyExchangeResponse(quantum_key_exchange_response) => self.handle_quantum_key_exchange_response(peer, quantum_key_exchange_response),
-            MessageType::QUPMessage(qup_message) => self.handle_qup_message(peer, qup_message),
+            MessageType::BlockProposal(block_proposal) => self.handle_block_proposal(peer, block_proposal),
+            MessageType::Vote(vote) => self.handle_vote(peer, vote),
+            MessageType::BlockCommit(block_commit) => self.handle_block_commit(peer, block_commit),
             MessageType::UsefulWorkProblem(useful_work_problem) => self.handle_useful_work_problem(peer, useful_work_problem),
             MessageType::UsefulWorkSolution(useful_work_solution) => self.handle_useful_work_solution(peer, useful_work_solution),
         }
@@ -177,4 +179,93 @@ impl Handler for HandlerImpl {
         debug!("Received useful work solution from peer: {}", peer.id);
         // Process the useful work solution
         // ...
+    }
+    fn handle_block_proposal(&self, peer: &Peer, block_proposal: BlockProposal) {
+        debug!("Received block proposal from peer: {}", peer.id);
+        // Verify the block proposal signature
+        if !self.verify_block_proposal_signature(&block_proposal) {
+            error!("Invalid block proposal signature from peer: {}", peer.id);
+            return;
+        }
+        // Deserialize the block
+        let block = match bincode::deserialize(&block_proposal.block) {
+            Ok(block) => block,
+            Err(e) => {
+                error!("Failed to deserialize block proposal from peer {}: {}", peer.id, e);
+                return;
+            }
+        };
+        // Process the block proposal
+        if let Err(e) = self.consensus.process_propose(block) {
+            error!("Failed to process block proposal from peer {}: {}", peer.id, e);
+        }
+    }
+
+    fn handle_vote(&self, peer: &Peer, vote: Vote) {
+        debug!("Received vote from peer: {}", peer.id);
+        // Verify the vote signature
+        if !self.verify_vote_signature(&vote) {
+            error!("Invalid vote signature from peer: {}", peer.id);
+            return;
+        }
+        // Deserialize the vote
+        let vote = match bincode::deserialize(&vote.vote) {
+            Ok(vote) => vote,
+            Err(e) => {
+                error!("Failed to deserialize vote from peer {}: {}", peer.id, e);
+                return;
+            }
+        };
+        // Process the vote
+        if let Err(e) = self.consensus.process_vote(vote) {
+            error!("Failed to process vote from peer {}: {}", peer.id, e);
+        }
+    }
+
+    fn handle_block_commit(&self, peer: &Peer, block_commit: BlockCommit) {
+        debug!("Received block commit from peer: {}", peer.id);
+        // Verify the block commit signature
+        if !self.verify_block_commit_signature(&block_commit) {
+            error!("Invalid block commit signature from peer: {}", peer.id);
+            return;
+        }
+        // Deserialize the block
+        let block = match bincode::deserialize(&block_commit.block) {
+            Ok(block) => block,
+            Err(e) => {
+                error!("Failed to deserialize block commit from peer {}: {}", peer.id, e);
+                return;
+            }
+        };
+        // Process the block commit
+        if let Err(e) = self.consensus.process_commit(block) {
+            error!("Failed to process block commit from peer {}: {}", peer.id, e);
+        }
+    }
+
+    fn verify_block_proposal_signature(&self, block_proposal: &BlockProposal) -> bool {
+        let proposer_public_key = self.state.get_validator_public_key(&block_proposal.proposer).unwrap();
+        self.qup_crypto.verify(
+            &block_proposal.block,
+            &block_proposal.signature,
+            &proposer_public_key,
+        )
+    }
+
+    fn verify_vote_signature(&self, vote: &Vote) -> bool {
+        let voter_public_key = self.state.get_validator_public_key(&vote.voter).unwrap();
+        self.qup_crypto.verify(
+            &vote.vote,
+            &vote.signature,
+            &voter_public_key,
+        )
+    }
+
+    fn verify_block_commit_signature(&self, block_commit: &BlockCommit) -> bool {
+        let committer_public_key = self.state.get_validator_public_key(&block_commit.committer).unwrap();
+        self.qup_crypto.verify(
+            &block_commit.block,
+            &block_commit.signature,
+            &committer_public_key,
+        )
     }
