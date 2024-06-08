@@ -94,7 +94,15 @@ impl QUPValidator {
     fn get_performance(&self, validator_id: &String) -> f64 {
         // Implement logic to calculate performance
         // For now, return a dummy value
-        1.0
+        // Example: Calculate performance based on the number of blocks proposed and committed
+        let proposed_blocks = self.state.get_proposed_blocks(validator_id);
+        let committed_blocks = self.state.get_committed_blocks(validator_id);
+
+        if proposed_blocks == 0 {
+            1.0 // Default performance if no blocks proposed
+        } else {
+            committed_blocks as f64 / proposed_blocks as f64
+        }
     }
 
     fn sign_block(&self, block: &QUPBlock) -> QUPSignature {
@@ -140,8 +148,17 @@ impl QUPValidator {
     }
 
     fn verify_block_commit(&self, block: &QUPBlock) -> bool {
-        // Implement the logic to verify the block commit
-        true
+        // Retrieve the block's signature
+        let signature = block.signature();
+
+        // Retrieve the block's committer public key
+        let committer_public_key = block.committer_public_key();
+
+        // Serialize the block to bytes
+        let block_bytes = block.to_bytes();
+
+        // Verify the block's signature using the committer's public key
+        committer_public_key.verify(&block_bytes, &signature)
     }
 
     pub fn perform_cryptographic_operations(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
