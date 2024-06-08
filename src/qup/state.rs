@@ -45,6 +45,22 @@ pub struct QUPState {
         self.update_network_state(snapshot.network_state);
     }
 
+    pub fn create_network_state_snapshot(&self) -> NetworkStateSnapshot {
+        let network_state = self.network_state.lock().unwrap();
+        NetworkStateSnapshot {
+            node_count: network_state.node_count,
+            active_nodes: network_state.active_nodes.clone(),
+            task_distribution: network_state.task_distribution.clone(),
+        }
+    }
+
+    pub fn load_network_state_snapshot(&self, snapshot: NetworkStateSnapshot) {
+        let mut network_state = self.network_state.lock().unwrap();
+        network_state.node_count = snapshot.node_count;
+        network_state.active_nodes = snapshot.active_nodes;
+        network_state.task_distribution = snapshot.task_distribution;
+    }
+
     pub fn synchronize_state(&self, other_state: &QUPState) {
         // Prune old state before synchronizing
         let mut pruned_state = self.clone();
@@ -177,7 +193,12 @@ impl QUPState {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
+pub struct NetworkStateSnapshot {
+    pub node_count: usize,
+    pub active_nodes: Vec<String>,
+    pub task_distribution: HashMap<String, usize>,
+}
 #[derive(Clone)]
 pub struct QUPStateSnapshot {
     pub accounts: HashMap<String, Account>,
