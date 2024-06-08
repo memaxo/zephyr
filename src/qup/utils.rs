@@ -326,19 +326,30 @@ pub fn verify_proof_of_solution(solution: &UsefulWorkSolution, proof: &[u8]) -> 
 pub struct Utils;
 
 impl Utils {
-    pub fn calculate_block_hash() {
-        // Scaffold method for calculating block hash
-        unimplemented!()
+    pub fn calculate_block_hash(block_header: &QUPBlockHeader) -> Hash {
+        let mut hasher = Hasher::new();
+        hasher.update(&block_header.version.to_le_bytes());
+        hasher.update(&block_header.prev_block_hash);
+        hasher.update(&block_header.merkle_root);
+        hasher.update(&block_header.timestamp.to_le_bytes());
+        hasher.update(&block_header.difficulty.to_le_bytes());
+        hasher.update(&block_header.nonce.to_le_bytes());
+        hasher.finalize()
     }
 
-    pub fn calculate_transaction_hash() {
-        // Scaffold method for calculating transaction hash
-        unimplemented!()
+    pub fn calculate_transaction_hash(transaction: &QUPTransaction) -> Hash {
+        let mut hasher = Hasher::new();
+        hasher.update(&transaction.from);
+        hasher.update(&transaction.to);
+        hasher.update(&transaction.amount.to_le_bytes());
+        hasher.update(&transaction.signature);
+        hasher.finalize()
     }
 
-    pub fn verify_transaction_signature() {
-        // Scaffold method for verifying transaction signature
-        unimplemented!()
+    pub fn verify_transaction_signature(transaction: &QUPTransaction) -> bool {
+        let message = calculate_transaction_hash(transaction);
+        let public_key = get_public_key_from_address(&transaction.from);
+        Signature::verify(&message, &transaction.signature, &public_key)
     }
 
     pub fn verify_block_signature() {
