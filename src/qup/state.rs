@@ -152,13 +152,34 @@ impl QUPState {
     }
 
     pub fn execute_transactions_parallel(&mut self, transactions: &[Transaction]) {
-        let chunked_transactions = transactions.par_chunks(self.config.parallel_transaction_chunk_size);
+        let shard_count = self.config.shard_count;
+        let mut shards: Vec<Vec<Transaction>> = vec![Vec::new(); shard_count];
 
-        chunked_transactions.for_each(|chunk| {
-            for transaction in chunk {
-                self.execute_transaction(transaction);
+        // Distribute transactions into shards
+        for transaction in transactions {
+            let shard_index = self.get_shard_index(transaction);
+            shards[shard_index].push(transaction.clone());
+        }
+
+        // Process each shard in parallel
+        shards.into_par_iter().for_each(|shard| {
+            for transaction in shard {
+                self.execute_transaction(&transaction);
             }
         });
+    }
+
+    fn get_shard_index(&self, transaction: &Transaction) -> usize {
+        // Simple hash-based sharding
+        let hash = self.hash_transaction(transaction);
+        (hash % self.config.shard_count as u64) as usize
+    }
+
+    fn hash_transaction(&self, transaction: &Transaction) -> u64 {
+        // Implement a simple hash function for transactions
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        transaction.hash(&mut hasher);
+        hasher.finish()
     }
 
     pub fn add_account(&mut self, id: String, account: Account) {
@@ -170,13 +191,34 @@ impl QUPState {
     }
 
     pub fn update_state_parallel(&mut self, updates: &[(String, Account)]) {
-        let chunked_updates = updates.par_chunks(self.config.parallel_state_update_chunk_size);
+        let shard_count = self.config.shard_count;
+        let mut shards: Vec<Vec<(String, Account)>> = vec![Vec::new(); shard_count];
 
-        chunked_updates.for_each(|chunk| { 
-            for (id, account) in chunk {
-                self.accounts.insert(id.clone(), account.clone());
+        // Distribute updates into shards
+        for (id, account) in updates {
+            let shard_index = self.get_shard_index_for_account(id);
+            shards[shard_index].push((id.clone(), account.clone()));
+        }
+
+        // Process each shard in parallel
+        shards.into_par_iter().for_each(|shard| {
+            for (id, account) in shard {
+                self.accounts.insert(id, account);
             }
         });
+    }
+
+    fn get_shard_index_for_account(&self, id: &str) -> usize {
+        // Simple hash-based sharding for accounts
+        let hash = self.hash_account_id(id);
+        (hash % self.config.shard_count as u64) as usize
+    }
+
+    fn hash_account_id(&self, id: &str) -> u64 {
+        // Implement a simple hash function for account IDs
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        id.hash(&mut hasher);
+        hasher.finish()
     }
 
     pub fn get_account(&self, id: &str) -> Option<&Account> {
