@@ -24,6 +24,7 @@ pub struct Discovery {
     swarm: Swarm<Kademlia<MemoryStore>>,
     bootstrap_nodes: Vec<Multiaddr>,
     known_peers: Arc<RwLock<HashSet<PeerId>>>,
+    active_peers: Arc<RwLock<HashSet<PeerId>>>,
     crypto: QUPCrypto,
     quantum_channel: QuantumChannel,
     quantum_key_distribution: QuantumKeyDistribution,
@@ -59,6 +60,7 @@ impl Discovery {
             swarm,
             bootstrap_nodes,
             known_peers: Arc::new(RwLock::new(HashSet::new())),
+            active_peers: Arc::new(RwLock::new(HashSet::new())),
             crypto,
             quantum_channel,
             quantum_key_distribution,
@@ -135,10 +137,23 @@ impl Discovery {
                 return;
             }
 
-            known_peers.insert(peer_id);
-            // Notify other components about the newly discovered peer
-            // or initiate a connection to the peer
+            known_peers.insert(peer_id.clone());
+
+            // Check if the discovered peer is a QUP node
+            if self.is_qup_node(&peer_id).await {
+                let mut active_peers = self.active_peers.write().await;
+                active_peers.insert(peer_id);
+                info!("Added QUP node {} to active peers", peer_id);
+            }
         }
+    }
+
+    async fn is_qup_node(&mut self, peer_id: &PeerId) -> bool {
+        // Check if the peer supports the QUP protocol
+        // This can be done by sending a QUP-specific message and waiting for a valid response
+        // Return true if the peer is a QUP node, false otherwise
+        // ...
+        true // Placeholder implementation
     }
 
     async fn remove_peer(&mut self, peer_id: &PeerId) {
