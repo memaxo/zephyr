@@ -192,3 +192,21 @@ pub struct NetworkState {
     pub task_distribution: HashMap<String, usize>,
 }
 
+use std::collections::HashMap;
+
+#[derive(Clone)]
+pub struct AccountState {
+    pub balance: u64,
+    pub nonce: u64,
+    pub storage: HashMap<String, String>,
+}
+
+impl AccountState {
+    pub fn new(balance: u64) -> Self {
+        AccountState {
+            balance,
+            nonce: 0,
+            storage: HashMap::new(),
+        }
+    }
+}
