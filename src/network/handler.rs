@@ -31,13 +31,27 @@ impl HandlerImpl {
 impl Handler for HandlerImpl {
     fn handle_message(&self, peer: &Peer, message: Message) {
         match message.message_type {
-            MessageType::Block(block) => self.handle_block(peer, block),
-            MessageType::Transaction(transaction) => self.handle_transaction(peer, transaction),
-            MessageType::PeerDiscovery(peer_addresses) => self.handle_peer_discovery(peer, peer_addresses),
-            MessageType::StateSync(state_sync_message) => self.handle_state_sync(peer, state_sync_message),
+            MessageType::Ping => self.handle_ping(peer),
+            MessageType::Pong => self.handle_pong(peer),
+            MessageType::Handshake(handshake) => self.handle_handshake(peer, handshake),
+            MessageType::BlockRequest(block_request) => self.handle_block_request(peer, block_request),
+            MessageType::BlockResponse(block_response) => self.handle_block_response(peer, block_response),
+            MessageType::TransactionBroadcast(transaction_broadcast) => self.handle_transaction_broadcast(peer, transaction_broadcast),
+            MessageType::PeerDiscovery(peer_discovery) => self.handle_peer_discovery(peer, peer_discovery),
+            MessageType::StateSyncRequest(state_sync_request) => self.handle_state_sync_request(peer, state_sync_request),
+            MessageType::StateSyncResponse(state_sync_response) => self.handle_state_sync_response(peer, state_sync_response),
+            MessageType::QKDKeyRequest => self.handle_qkd_key_request(peer),
+            MessageType::QKDKeyResponse(qkd_key_response) => self.handle_qkd_key_response(peer, qkd_key_response),
+            MessageType::QKDKeyConfirmation => self.handle_qkd_key_confirmation(peer),
+            MessageType::QuantumStateDistribution(quantum_state_distribution) => self.handle_quantum_state_distribution(peer, quantum_state_distribution),
+            MessageType::QuantumStateMeasurementResults(quantum_state_measurement_results) => self.handle_quantum_state_measurement_results(peer, quantum_state_measurement_results),
+            MessageType::ClassicalKeyExchange(classical_key_exchange) => self.handle_classical_key_exchange(peer, classical_key_exchange),
+            MessageType::ClassicalKeyExchangeResponse(classical_key_exchange_response) => self.handle_classical_key_exchange_response(peer, classical_key_exchange_response),
+            MessageType::QuantumKeyExchange(quantum_key_exchange) => self.handle_quantum_key_exchange(peer, quantum_key_exchange),
+            MessageType::QuantumKeyExchangeResponse(quantum_key_exchange_response) => self.handle_quantum_key_exchange_response(peer, quantum_key_exchange_response),
             MessageType::QUPMessage(qup_message) => self.handle_qup_message(peer, qup_message),
-            MessageType::UsefulWorkProblem(problem) => self.handle_useful_work_problem(peer, problem),
-            MessageType::UsefulWorkSolution(solution) => self.handle_useful_work_solution(peer, solution),
+            MessageType::UsefulWorkProblem(useful_work_problem) => self.handle_useful_work_problem(peer, useful_work_problem),
+            MessageType::UsefulWorkSolution(useful_work_solution) => self.handle_useful_work_solution(peer, useful_work_solution),
         }
     }
 
