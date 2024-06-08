@@ -12,7 +12,7 @@ use std::time::SystemTime;
 use rayon::prelude::*;
 
 pub struct QUPState {
-    pub accounts: HashMap<String, Account>,
+    pub accounts: HashMap<String, AccountState>,
     pub blocks: Vec<QUPBlock>,
     pub config: Arc<QUPConfig>,
     pub state_db: Arc<StateDB>,
