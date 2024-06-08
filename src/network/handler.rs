@@ -294,3 +294,13 @@ impl Handler for HandlerImpl {
         let transaction_data = bincode::serialize(transaction).unwrap();
         self.qup_crypto.verify(&transaction_data, signature)
     }
+
+    fn verify_block_signature(&self, block: &Block, signature: &QUPSignature) -> bool {
+        let block_data = bincode::serialize(block).unwrap();
+        self.qup_crypto.verify(&block_data, signature)
+    }
+
+    fn verify_transaction_signature(&self, transaction: &Transaction, signature: &QUPSignature) -> bool {
+        let transaction_data = bincode::serialize(transaction).unwrap();
+        self.qup_crypto.verify(&transaction_data, signature)
+    }

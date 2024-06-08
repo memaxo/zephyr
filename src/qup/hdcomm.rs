@@ -4,7 +4,7 @@ use crate::hdcmodels::HDCModel;
 use crate::qup::block::QUPBlock;
 use crate::qup::config::QUPConfig;
 use crate::qup::state::QUPState;
-use crate::qup::transaction::Transaction;
+use crate::qup::transaction::{Transaction, TransactionFee};
 use std::sync::{Arc, mpsc};
 use std::thread;
 use merkle::MerkleTree;
@@ -203,7 +203,7 @@ impl StateChannel {
         let amount = u64::from_le_bytes(decode_data(encoded_tx).try_into().unwrap());
 
         // Decode the transaction fee
-        let fee = u64::from_le_bytes(decode_data(encoded_tx).try_into().unwrap());
+        let fee = TransactionFee::from_le_bytes(decode_data(encoded_tx).try_into().unwrap());
 
         Transaction {
             sender,
