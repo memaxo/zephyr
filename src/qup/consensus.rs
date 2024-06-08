@@ -51,15 +51,40 @@ impl QUPConsensus {
     }
 
     fn adapt_consensus_algorithm(&mut self) {
-        // Assess the current needs and threats in the network
-        let current_needs = self.assess_current_needs();
-        let current_threats = self.assess_current_threats();
+        // Assess the current network load and security threats
+        let network_load = self.state.get_network_load();
+        let security_threats = self.assess_security_threats();
 
         // Determine the appropriate consensus algorithm based on the assessment
-        let consensus_algorithm = self.determine_consensus_algorithm(current_needs, current_threats);
+        let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
 
         // Update the consensus algorithm
         self.update_consensus_algorithm(consensus_algorithm);
+    }
+
+    fn assess_security_threats(&self) -> SecurityThreats {
+        // Assess the current security threats to the network
+        // This can be customized based on the specific types of threats and attack vectors
+        // For example, consider factors like network attacks, spam transactions, etc.
+        let network_attack_rate = self.state.get_network_attack_rate();
+        let spam_transaction_rate = self.state.get_spam_transaction_rate();
+
+        SecurityThreats {
+            network_attack_rate,
+            spam_transaction_rate,
+            // Add more threat assessment metrics as required
+        }
+    }
+
+    fn determine_consensus_algorithm(&self, network_load: f64, security_threats: SecurityThreats) -> ConsensusAlgorithm {
+        // Determine the appropriate consensus algorithm based on the network load and security threats
+        // This can be customized based on the specific logic and thresholds
+        // For example, use the efficient algorithm under high load and low threats, otherwise use the secure algorithm
+        if network_load > self.config.consensus_config.load_threshold && security_threats.network_attack_rate < self.config.consensus_config.attack_threshold {
+            ConsensusAlgorithm::Efficient
+        } else {
+            ConsensusAlgorithm::Secure
+        }
     }
 
     fn assess_current_needs(&self) -> NetworkNeeds {
@@ -982,3 +1007,30 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
             ConsensusAlgorithm::Secure
         }
     }
+fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+    // Validate the block
+    if !self.validate_block(&block)? {
+        return Err(ConsensusError::InvalidBlock);
+    }
+
+    // Evaluate the block using the HDC model
+    let block_vector = self.hdc_model.encode_block(&block);
+    let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+    // Check if the block meets the similarity threshold
+    if similarity < self.config.similarity_threshold {
+        return Err(ConsensusError::InsufficientSimilarity);
+    }
+
+    // Use a more efficient consensus algorithm under high load
+    // For example, we can use a simplified voting mechanism
+    let vote = self.cast_vote(block.hash())?;
+    self.state.add_vote(vote.clone())?;
+
+    // Check if the block has reached quorum
+    if self.state.has_quorum(&block.hash())? {
+        self.commit_block(block)?;
+    }
+
+    Ok(())
+}
