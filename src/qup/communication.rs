@@ -1,7 +1,7 @@
 use crate::qup::block::QUPBlock;
 use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, verify_signature, hash_data};
 use crate::qup::state::QUPState;
-use crate::network::{NetworkMessage, send_message_async, receive_message_async, discover_peers, connect_to_peer, disconnect_from_peer};
+use crate::network::{NetworkMessage, NetworkSender, NetworkReceiver, discover_peers, connect_to_peer, disconnect_from_peer};
 use crate::error::ConsensusError;
 use std::sync::Arc;
 
@@ -14,14 +14,18 @@ pub struct CommunicationProtocol {
     pub node_type: NodeType,
     pub key_pair: QUPKeyPair,
     pub peers: Vec<String>,
+    pub sender: NetworkSender,
+    pub receiver: NetworkReceiver,
 }
 
 impl CommunicationProtocol {
-    pub fn new(node_type: NodeType, key_pair: QUPKeyPair) -> Self {
+    pub fn new(node_type: NodeType, key_pair: QUPKeyPair, sender: NetworkSender, receiver: NetworkReceiver) -> Self {
         CommunicationProtocol { 
             node_type, 
             key_pair,
             peers: Vec::new(),
+            sender,
+            receiver,
         }
     }
 
@@ -47,14 +51,12 @@ impl CommunicationProtocol {
 
     pub async fn send_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
         let serialized_message = bincode::serialize(&message)?;
-        match send_message_async(serialized_message).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send message: {}", e))),
-        }
+        self.sender.send(serialized_message).await?;
+        Ok(())
     }
 
     pub async fn receive_message(&self) -> Result<NetworkMessage, ConsensusError> {
-        let serialized_message = receive_message_async().await?;
+        let serialized_message = self.receiver.receive().await?;
         let message: NetworkMessage = bincode::deserialize(&serialized_message)?;
         self.authenticate_message(&message)?;
         self.verify_message_integrity(&message)?;
