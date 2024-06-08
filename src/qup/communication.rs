@@ -1,7 +1,7 @@
 use crate::qup::block::QUPBlock;
 use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, verify_signature, hash_data};
 use crate::qup::state::QUPState;
-use crate::network::{NetworkMessage, send_message, receive_message, discover_peers, connect_to_peer, disconnect_from_peer};
+use crate::network::{NetworkMessage, send_message_async, receive_message_async, discover_peers, connect_to_peer, disconnect_from_peer};
 use crate::error::ConsensusError;
 use std::sync::Arc;
 
@@ -45,50 +45,20 @@ impl CommunicationProtocol {
         Ok(())
     }
 
-    pub fn send_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        match self.node_type {
-            NodeType::Classical => self.send_classical_message(message),
-            NodeType::Quantum => self.send_quantum_message(message),
-        }
-    }
-
-    fn send_classical_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
+    pub async fn send_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
         let serialized_message = bincode::serialize(&message)?;
-        match send_message(serialized_message) {
+        match send_message_async(serialized_message).await {
             Ok(_) => Ok(()),
-            Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send classical message: {}", e))),
+            Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send message: {}", e))),
         }
     }
 
-    fn send_quantum_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        let serialized_message = bincode::serialize(&message)?;
-        match send_quantum_message(serialized_message) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send quantum message: {}", e))),
-        }
-    }
-
-    pub fn receive_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        match self.node_type {
-            NodeType::Classical => self.receive_classical_message(message),
-            NodeType::Quantum => self.receive_quantum_message(message),
-        }
-    }
-
-    fn receive_classical_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        let serialized_message = receive_message()?;
+    pub async fn receive_message(&self) -> Result<NetworkMessage, ConsensusError> {
+        let serialized_message = receive_message_async().await?;
         let message: NetworkMessage = bincode::deserialize(&serialized_message)?;
         self.authenticate_message(&message)?;
         self.verify_message_integrity(&message)?;
-        Ok(())
-    }
-
-    fn receive_quantum_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        let serialized_message = receive_quantum_message()?;
-        let message: NetworkMessage = bincode::deserialize(&serialized_message)?;
-        self.authenticate_message(&message)?;
-        self.verify_message_integrity(&message)?;
-        Ok(())
+        Ok(message)
     }
 
     pub fn send_proof(&self, proof: &[u8], recipient: &str) -> Result<(), ConsensusError> {
