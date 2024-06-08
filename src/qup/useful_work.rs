@@ -98,3 +98,39 @@ impl UsefulWorkSolution {
         }
     }
 }
+use crate::crypto::hash::hash;
+use crate::crypto::merkle_tree::MerkleTree;
+use crate::crypto::signature::Signature;
+
+pub struct UsefulWorkProof {
+    pub problem: UsefulWorkProblem,
+    pub solution: UsefulWorkSolution,
+    pub signature: Signature,
+}
+
+impl UsefulWorkProof {
+    pub fn generate(
+        problem: UsefulWorkProblem, 
+        solution: UsefulWorkSolution,
+        private_key: &[u8; 32],
+    ) -> Self {
+        let problem_hash = hash(&bincode::serialize(&problem).unwrap());
+        let solution_hash = hash(&bincode::serialize(&solution).unwrap());
+        let data_to_sign = [problem_hash.as_ref(), solution_hash.as_ref()].concat();
+        let signature = Signature::sign(&data_to_sign, private_key);
+
+        UsefulWorkProof {
+            problem,
+            solution,
+            signature,
+        }
+    }
+
+    pub fn verify(&self, public_key: &[u8; 32]) -> bool {
+        let problem_hash = hash(&bincode::serialize(&self.problem).unwrap());
+        let solution_hash = hash(&bincode::serialize(&self.solution).unwrap());
+        let data_to_verify = [problem_hash.as_ref(), solution_hash.as_ref()].concat();
+        
+        self.signature.verify(&data_to_verify, public_key)
+    }
+}
