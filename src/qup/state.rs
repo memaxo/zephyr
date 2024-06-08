@@ -60,17 +60,39 @@ pub struct QUPState {
 
 impl QUPState {
     pub fn new(config: Arc<QUPConfig>, state_db: Arc<StateDB>, delegator: Arc<QUPDelegator>, validator: Arc<QUPValidator>, hdc_models: Arc<QUPHDCModels>, state_storage: Arc<StateStorage>) -> Self {
-        QUPState {
+        let mut state = QUPState {
             accounts: HashMap::new(),
             blocks: Vec::new(),
-            config,
-            state_db,
-            delegator,
-            validator,
-            hdc_models,
-            state_storage,
+            config: config.clone(),
+            state_db: state_db.clone(),
+            delegator: delegator.clone(),
+            validator: validator.clone(),
+            hdc_models: hdc_models.clone(),
+            state_storage: state_storage.clone(),
             network_state: Mutex::new(NetworkState::default()),
-        }
+        };
+
+        // Initialize quantum nodes
+        let quantum_nodes = (0..config.quantum_node_settings.max_qubits)
+            .map(|_| QuantumNode::new(config.quantum_node_settings.clone()))
+            .collect();
+
+        // Initialize classical nodes
+        let classical_nodes = (0..config.network_config.node_count)
+            .map(|_| ClassicalNode::new())
+            .collect();
+
+        // Initialize ParallelProcessor
+        let parallel_processor = ParallelProcessor::new(quantum_nodes, classical_nodes);
+
+        // Set up initial network state
+        state.update_network_state(NetworkState {
+            node_count: config.network_config.node_count,
+            active_nodes: vec![],
+            task_distribution: HashMap::new(),
+        });
+
+        state
     }
 
     pub fn add_account(&mut self, id: String, account: Account) {
