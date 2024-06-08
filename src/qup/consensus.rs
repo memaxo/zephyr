@@ -431,6 +431,68 @@ impl QUPConsensus {
         }
 
         history_proof
+    pub fn synchronize_blocks(&mut self) -> Result<(), ConsensusError> {
+        // Get the current block height
+        let current_height = self.blockchain.get_latest_block().height;
+
+        // Request blocks from other nodes
+        let message = NetworkMessage::BlockSyncRequest(current_height);
+        self.communication_protocol.send_message(message)?;
+
+        // Receive and process blocks
+        loop {
+            let message = self.communication_protocol.receive_message()?;
+            match message {
+                NetworkMessage::BlockSyncResponse(blocks) => {
+                    for block in blocks {
+                        // Validate and add the block to the blockchain
+                        if self.validate_block(&block)? {
+                            self.blockchain.add_block(block)?;
+                        }
+                    }
+                }
+                NetworkMessage::BlockSyncComplete => {
+                    break;
+                }
+                _ => continue,
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn reorganize_chain(&mut self) -> Result<(), ConsensusError> {
+        // Get the current main chain
+        let main_chain = self.blockchain.get_main_chain();
+
+        // Find the common ancestor block
+        let mut common_ancestor = None;
+        for block in main_chain.iter().rev() {
+            if self.blockchain.is_block_in_chain(block)? {
+                common_ancestor = Some(block.clone());
+                break;
+            }
+        }
+
+        if let Some(ancestor) = common_ancestor {
+            // Revert the blocks up to the common ancestor
+            while let Some(block) = self.blockchain.get_latest_block() {
+                if block.hash() == ancestor.hash() {
+                    break;
+                }
+                self.blockchain.revert_block(&block)?;
+            }
+
+            // Add the new blocks from the main chain
+            for block in main_chain.iter().skip_while(|b| b.hash() != ancestor.hash()) {
+                self.blockchain.add_block(block.clone())?;
+            }
+        } else {
+            // No common ancestor found, replace the entire chain
+            self.blockchain.replace_chain(main_chain)?;
+        }
+
+        Ok(())
     }
 }
 
