@@ -366,11 +366,16 @@ impl QUPConsensus {
         match message {
             QUPMessage::QUPBlock(block) => {
                 // Adaptive consensus mechanism
-                if self.state.get_network_load() > self.config.consensus_config.load_threshold {
-                    // Use a more efficient consensus algorithm under high load
-                    self.process_propose_efficient(block)
-                } else {
-                    self.process_propose(block)
+                // Assess the current network load and security threats
+                let network_load = self.state.get_network_load();
+                let security_threats = self.assess_security_threats();
+
+                // Determine the appropriate consensus algorithm based on the assessment
+                let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
+
+                match consensus_algorithm {
+                    ConsensusAlgorithm::Efficient => self.process_propose_efficient(block),
+                    ConsensusAlgorithm::Secure => self.process_propose(block),
                 }
             }
             QUPMessage::QUPTransaction(tx) => self.allocate_and_execute_task(tx),
@@ -874,15 +879,43 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
 
     match message {
         ConsensusMessage::Propose(block) => {
-            // Adaptive consensus mechanism
-            if self.state.get_network_load() > self.config.consensus_config.load_threshold {
-                // Use a more efficient consensus algorithm under high load
-                self.process_propose_efficient(block)
-            } else {
-                self.process_propose(block)
+            // Assess the current network load and security threats
+            let network_load = self.state.get_network_load();
+            let security_threats = self.assess_security_threats();
+
+            // Determine the appropriate consensus algorithm based on the assessment
+            let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
+
+            match consensus_algorithm {
+                ConsensusAlgorithm::Efficient => self.process_propose_efficient(block),
+                ConsensusAlgorithm::Secure => self.process_propose(block),
             }
         }
         ConsensusMessage::Vote(vote) => self.process_vote(vote),
         ConsensusMessage::Commit(block_hash) => self.process_commit(block_hash),
     }
 }
+    fn assess_security_threats(&self) -> SecurityThreats {
+        // Assess the current security threats to the network
+        // This can be customized based on the specific types of threats and attack vectors
+        // For example, consider factors like network attacks, spam transactions, etc.
+        let network_attack_rate = self.state.get_network_attack_rate();
+        let spam_transaction_rate = self.state.get_spam_transaction_rate();
+
+        SecurityThreats {
+            network_attack_rate,
+            spam_transaction_rate,
+            // Add more threat assessment metrics as required
+        }
+    }
+
+    fn determine_consensus_algorithm(&self, network_load: f64, security_threats: SecurityThreats) -> ConsensusAlgorithm {
+        // Determine the appropriate consensus algorithm based on the network load and security threats
+        // This can be customized based on the specific logic and thresholds
+        // For example, use the efficient algorithm under high load and low threats, otherwise use the secure algorithm
+        if network_load > self.config.consensus_config.load_threshold && security_threats.network_attack_rate < self.config.consensus_config.attack_threshold {
+            ConsensusAlgorithm::Efficient
+        } else {
+            ConsensusAlgorithm::Secure
+        }
+    }
