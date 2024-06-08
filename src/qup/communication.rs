@@ -39,6 +39,15 @@ impl CommunicationProtocol {
         connect_to_peer(peer)?;
         if !self.peers.contains(&peer.to_string()) {
             self.peers.push(peer.to_string());
+            
+            // Check if the connected peer is a QUP node
+            if self.is_qup_node(peer)? {
+                // Perform QKD with the QUP node
+                self.perform_qkd(peer)?;
+                
+                // Establish a quantum communication channel
+                self.establish_quantum_channel(peer)?;
+            }
         }
         Ok(())
     }
@@ -46,6 +55,36 @@ impl CommunicationProtocol {
     pub fn disconnect_from_peer(&mut self, peer: &str) -> Result<(), ConsensusError> {
         disconnect_from_peer(peer)?;
         self.peers.retain(|p| p != peer);
+        
+        // Remove the shared key and quantum channel for the disconnected peer
+        self.shared_keys.remove(peer);
+        self.quantum_channels.remove(peer);
+        
+        Ok(())
+    }
+    
+    fn is_qup_node(&self, peer: &str) -> Result<bool, ConsensusError> {
+        // Send a message to the peer to check if it's a QUP node
+        let message = QUPMessage::IsQUPNode;
+        let response = self.send_message(message, peer).await?;
+        
+        match response {
+            QUPMessage::QUPNodeStatus(status) => Ok(status),
+            _ => Err(ConsensusError::InvalidResponse),
+        }
+    }
+    
+    fn perform_qkd(&mut self, peer: &str) -> Result<(), ConsensusError> {
+        // Perform quantum key distribution with the peer
+        let shared_key = self.quantum_key_distribution.perform_qkd(peer)?;
+        self.shared_keys.insert(peer.to_string(), shared_key);
+        Ok(())
+    }
+    
+    fn establish_quantum_channel(&mut self, peer: &str) -> Result<(), ConsensusError> {
+        // Establish a quantum communication channel with the peer
+        let quantum_channel = self.quantum_channel.establish_channel(peer)?;
+        self.quantum_channels.insert(peer.to_string(), quantum_channel);
         Ok(())
     }
 
