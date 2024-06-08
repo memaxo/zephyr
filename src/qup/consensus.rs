@@ -364,9 +364,45 @@ impl QUPConsensus {
 
     pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
         match message {
-            QUPMessage::QUPBlock(block) => self.process_qup_block(block),
+            QUPMessage::QUPBlock(block) => {
+                // Adaptive consensus mechanism
+                if self.state.get_network_load() > self.config.consensus_config.load_threshold {
+                    // Use a more efficient consensus algorithm under high load
+                    self.process_propose_efficient(block)
+                } else {
+                    self.process_propose(block)
+                }
+            }
             QUPMessage::QUPTransaction(tx) => self.allocate_and_execute_task(tx),
         }
+    }
+
+    fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block
+        if !self.validate_block(&block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Evaluate the block using the HDC model
+        let block_vector = self.hdc_model.encode_block(&block);
+        let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+        // Check if the block meets the similarity threshold
+        if similarity < self.config.similarity_threshold {
+            return Err(ConsensusError::InsufficientSimilarity);
+        }
+
+        // Use a more efficient consensus algorithm under high load
+        // For example, we can use a simplified voting mechanism
+        let vote = self.cast_vote(block.hash())?;
+        self.state.add_vote(vote.clone())?;
+
+        // Check if the block has reached quorum
+        if self.state.has_quorum(&block.hash())? {
+            self.commit_block(block)?;
+        }
+
+        Ok(())
     }
 
     pub fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
