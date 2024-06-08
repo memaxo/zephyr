@@ -62,42 +62,6 @@ pub fn generate_random_useful_work_problem() -> UsefulWorkProblem {
         10 => UsefulWorkProblem::PortfolioOptimization(generate_random_portfolio_optimization_problem()),
         11 => UsefulWorkProblem::MarketEquilibrium(generate_random_market_equilibrium_problem()),
         _ => panic!("Invalid useful work problem type"),
-        UsefulWorkProblem::Knapsack(knapsack_problem) => {
-            UsefulWorkSolution::Knapsack(solve_knapsack_problem(knapsack_problem))
-        }
-        UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-            UsefulWorkSolution::VertexCover(solve_vertex_cover_problem(vertex_cover_problem))
-        }
-        UsefulWorkProblem::TravelingSalesman(traveling_salesman_problem) => {
-            UsefulWorkSolution::TravelingSalesman(solve_traveling_salesman_problem(traveling_salesman_problem))
-        }
-        UsefulWorkProblem::JobScheduling(job_scheduling_problem) => {
-            UsefulWorkSolution::JobScheduling(solve_job_scheduling_problem(job_scheduling_problem))
-        }
-        UsefulWorkProblem::BinPacking(bin_packing_problem) => {
-            UsefulWorkSolution::BinPacking(solve_bin_packing_problem(bin_packing_problem))
-        }
-        UsefulWorkProblem::MaximumFlow(maximum_flow_problem) => {
-            UsefulWorkSolution::MaximumFlow(solve_maximum_flow_problem(maximum_flow_problem))
-        }
-        UsefulWorkProblem::ShortestPath(shortest_path_problem) => {
-            UsefulWorkSolution::ShortestPath(solve_shortest_path_problem(shortest_path_problem))
-        }
-        UsefulWorkProblem::MinimumSpanningTree(minimum_spanning_tree_problem) => {
-            UsefulWorkSolution::MinimumSpanningTree(solve_minimum_spanning_tree_problem(minimum_spanning_tree_problem))
-        }
-        UsefulWorkProblem::ResourceAllocation(resource_allocation_problem) => {
-            UsefulWorkSolution::ResourceAllocation(solve_resource_allocation_problem(resource_allocation_problem))
-        }
-        UsefulWorkProblem::VehicleRouting(vehicle_routing_problem) => {
-            UsefulWorkSolution::VehicleRouting(solve_vehicle_routing_problem(vehicle_routing_problem))
-        }
-        UsefulWorkProblem::PortfolioOptimization(portfolio_optimization_problem) => {
-            UsefulWorkSolution::PortfolioOptimization(solve_portfolio_optimization_problem(portfolio_optimization_problem))
-        }
-        UsefulWorkProblem::MarketEquilibrium(market_equilibrium_problem) => {
-            UsefulWorkSolution::MarketEquilibrium(solve_market_equilibrium_problem(market_equilibrium_problem))
-        }
     }
 }
 }
@@ -364,19 +328,6 @@ pub fn verify_proof_of_solution(solution: &UsefulWorkSolution, proof: &[u8]) -> 
     calculated_proof == proof
 }
 
-pub fn verify_vote_signature(vote: &QUPVote) -> bool {
-    let message = vote.block_hash;
-    let public_key = get_public_key_from_address(&vote.voter);
-    if !Signature::verify(&message, &vote.signature, &public_key) {
-        return false;
-    }
-
-    // Additional checks to ensure fairness and verifiability
-    // For example, checking if the voter is eligible to vote
-    // This is a placeholder implementation and should be replaced with the actual logic
-    let is_eligible_voter = true; // Replace with actual eligibility check
-    is_eligible_voter
-}
 pub struct Utils;
 
 impl Utils {
