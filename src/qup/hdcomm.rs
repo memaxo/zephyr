@@ -1,10 +1,10 @@
-use crate::hdcmodels::encoding::{decode_data, encode_data};
 use crate::hdcmodels::similarity::cosine_similarity;
 use crate::hdcmodels::HDCModel;
 use crate::qup::block::QUPBlock;
 use crate::qup::config::QUPConfig;
 use crate::qup::state::QUPState;
-use crate::qup::transaction::{Transaction, TransactionFee};
+use crate::qup::transaction::Transaction;
+use crate::qup::encoding::{encode_block, decode_block};
 use std::sync::{Arc, mpsc};
 use std::thread;
 use merkle::MerkleTree;
@@ -65,7 +65,6 @@ impl HDCommunication {
         merged_block.merkle_root = MerkleTree::from_data(&merged_block.transactions).root();
         merged_block
     }
-    }
 
     pub fn create_state_channel(&self, initial_state: &QUPState) -> StateChannel {
         StateChannel {
@@ -81,79 +80,9 @@ impl HDCommunication {
         let mut rng = rand::thread_rng();
         data.iter().map(|&x| x + rng.gen_range(-0.1..0.1)).collect()
     }
-    }
-}
-
-pub struct StateChannel {
-    pub state: QUPState,
-    pub updates: Vec<QUPState>,
-}
-
-impl StateChannel {
-    pub fn update_state(&mut self, new_state: QUPState) {
-        self.updates.push(new_state);
-        self.state = new_state;
-    }
-
-    pub fn finalize(self) -> QUPState {
-        self.state
-    }
-}
-
-pub struct StateChannel {
-    pub state: QUPState,
-    pub updates: Vec<QUPState>,
-}
-
-impl StateChannel {
-    pub fn update_state(&mut self, new_state: QUPState) {
-        self.updates.push(new_state);
-        self.state = new_state;
-    }
-
-    pub fn finalize(self) -> QUPState {
-        self.state
-    }
-}
-
-    }
-
-    /// Decode a block from a vector of floating-point numbers.
-    /// This includes decoding the block height, timestamp, previous block hash, and transactions.
-    pub fn decode_block(&self, encoded_block: &[f64]) -> QUPBlock {
-            merkle_root: Vec::new(), // Placeholder for Merkle root
-        }
-    }
-        let mut decoded_data = encoded_block.to_vec();
-
-        // Decode the block height
-        let height = u64::from_le_bytes(decode_data(&mut decoded_data).try_into().unwrap());
-
-        // Decode the block timestamp
-        let timestamp = u64::from_le_bytes(decode_data(&mut decoded_data).try_into().unwrap());
-
-        // Decode the previous block hash
-        let prev_block_hash = decode_data(&mut decoded_data);
-
-        // Decode the transactions
-        let mut transactions = Vec::new();
-        while !decoded_data.is_empty() {
-            let tx = self.decode_transaction(&mut decoded_data);
-            transactions.push(tx);
-        }
-
-        QUPBlock {
-            height,
-            timestamp,
-            prev_block_hash,
-            transactions,
-            hdc_encoded_block: encoded_block.to_vec(),
-        }
-    }
 
     /// Evaluate the similarity between two blocks using cosine similarity.
     pub fn evaluate_block_similarity(&self, block1: &QUPBlock, block2: &QUPBlock) -> f64 {
-    }
         let encoded_block1 = &block1.hdc_encoded_block;
         let encoded_block2 = &block2.hdc_encoded_block;
 
@@ -162,55 +91,10 @@ impl StateChannel {
 
     /// Optimize a block using the HDC model.
     pub fn optimize_block(&self, block: &QUPBlock) -> QUPBlock {
-    }
-        let encoded_block = self.encode_block(block);
+        let encoded_block = encode_block(block);
         let optimized_encoded_block = self.hdc_model.optimize(&encoded_block);
 
-        self.decode_block(&optimized_encoded_block)
-    }
-
-    /// Encode a transaction into a vector of floating-point numbers.
-    fn encode_transaction(&self, tx: &Transaction) -> Vec<f64> {
-    }
-        let mut encoded_data = Vec::new();
-
-        // Encode the transaction sender
-        encoded_data.extend(encode_data(&tx.sender));
-
-        // Encode the transaction recipient
-        encoded_data.extend(encode_data(&tx.recipient));
-
-        // Encode the transaction amount
-        encoded_data.extend(encode_data(&tx.amount.to_le_bytes()));
-
-        // Encode the transaction fee
-        encoded_data.extend(encode_data(&tx.fee.to_le_bytes()));
-
-        encoded_data
-    }
-
-    /// Decode a transaction from a vector of floating-point numbers.
-    fn decode_transaction(&self, encoded_tx: &mut Vec<f64>) -> Transaction {
-        }
-    }
-        // Decode the transaction sender
-        let sender = decode_data(encoded_tx);
-
-        // Decode the transaction recipient
-        let recipient = decode_data(encoded_tx);
-
-        // Decode the transaction amount
-        let amount = u64::from_le_bytes(decode_data(encoded_tx).try_into().unwrap());
-
-        // Decode the transaction fee
-        let fee = TransactionFee::from_le_bytes(decode_data(encoded_tx).try_into().unwrap());
-
-        Transaction {
-            sender,
-            recipient,
-            amount,
-            fee,
-        }
+        decode_block(&optimized_encoded_block)
     }
 }
 /// # Scaling Enhancements
