@@ -75,6 +75,17 @@ pub enum ProtocolMessage {
         shard_id: u64,
         state: Vec<u8>,
     },
+    QUPMessage {
+        message: Vec<u8>,
+        signature: QUPSignature,
+    },
+    UsefulWorkProblem {
+        problem: Vec<u8>,
+    },
+    UsefulWorkSolution {
+        solution: Vec<u8>,
+        signature: QUPSignature,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
