@@ -175,10 +175,66 @@ impl QUPConsensus {
     }
 
     fn handle_computational_task(&self, transaction: &Transaction) -> Result<(), ConsensusError> {
-        // Logic for handling computational tasks by quantum nodes
-        let result = self.perform_useful_work(transaction)?;
-        self.synchronize_and_validate(result)?;
+        // Determine the complexity and computing requirements of the task
+        let complexity = self.evaluate_task_complexity(transaction);
+        let computing_requirements = self.evaluate_computing_requirements(transaction);
+
+        // Allocate the task to quantum nodes based on complexity and computing requirements
+        let allocated_nodes = self.allocate_quantum_nodes(complexity, computing_requirements);
+
+        // Distribute the task to the allocated quantum nodes
+        for node in allocated_nodes {
+            self.communication_protocol.send_message(NetworkMessage::ComputationalTask(transaction.clone(), node))?;
+        }
+
+        // Collect and synchronize the results from quantum nodes
+        let results = self.collect_quantum_node_results(transaction)?;
+        self.synchronize_and_validate(results)?;
+
         Ok(())
+    }
+
+    fn evaluate_task_complexity(&self, transaction: &Transaction) -> f64 {
+        // Evaluate the complexity of the task based on its data and requirements
+        // This can be customized based on the specific needs of the task
+        transaction.data.len() as f64
+    }
+
+    fn evaluate_computing_requirements(&self, transaction: &Transaction) -> u64 {
+        // Evaluate the computing requirements of the task based on its data and requirements
+        // This can be customized based on the specific needs of the task
+        transaction.data.len() as u64
+    }
+
+    fn allocate_quantum_nodes(&self, complexity: f64, computing_requirements: u64) -> Vec<NodeId> {
+        // Allocate quantum nodes based on the complexity and computing requirements
+        // This can be customized based on the specific allocation strategy
+        let available_nodes = self.state.get_available_quantum_nodes();
+        let mut allocated_nodes = Vec::new();
+
+        for node in available_nodes {
+            if node.can_handle_complexity(complexity) && node.can_meet_computing_requirements(computing_requirements) {
+                allocated_nodes.push(node.id);
+            }
+        }
+
+        allocated_nodes
+    }
+
+    fn collect_quantum_node_results(&self, transaction: &Transaction) -> Result<Vec<UsefulWorkResult>, ConsensusError> {
+        // Collect the results from the allocated quantum nodes
+        let mut results = Vec::new();
+
+        for node in self.state.get_allocated_quantum_nodes(transaction)? {
+            let result = self.communication_protocol.receive_message(node)?;
+            if let NetworkMessage::UsefulWorkResult(result) = result {
+                results.push(result);
+            } else {
+                return Err(ConsensusError::UnexpectedMessage);
+            }
+        }
+
+        Ok(results)
     }
 
     fn perform_useful_work(&self, transaction: &Transaction) -> Result<UsefulWorkResult, ConsensusError> {
