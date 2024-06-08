@@ -1,23 +1,35 @@
-use crate::crypto::post_quantum::dilithium::DilithiumKeyPair;
-use crate::crypto::post_quantum::kyber::KyberKeyPair;
-use crate::crypto::post_quantum::mceliece::McElieceKeyPair;
-use crate::crypto::post_quantum::ntru::NTRUKeyPair;
-use crate::qup::crypto_common::{Decrypt, Encrypt, Sign, Verify};
+use crate::crypto::post_quantum::dilithium::{DilithiumPublicKey, DilithiumSecretKey};
+use crate::crypto::post_quantum::kyber::{KyberPublicKey, KyberSecretKey};
+use crate::crypto::post_quantum::mceliece::{McEliecePublicKey, McElieceSecretKey};
+use crate::crypto::post_quantum::ntru::{NTRUPublicKey, NTRUSecretKey};
+use crate::qup::crypto_common::{Decrypt, Encrypt, KeyPair, Sign, Verify};
 
 pub struct QUPCrypto {
-    pub dilithium_keypair: DilithiumKeyPair,
-    pub kyber_keypair: KyberKeyPair,
-    pub mceliece_keypair: McElieceKeyPair,
-    pub ntru_keypair: NTRUKeyPair,
+    pub dilithium_keypair: KeyPair<DilithiumPublicKey, DilithiumSecretKey>,
+    pub kyber_keypair: KeyPair<KyberPublicKey, KyberSecretKey>,
+    pub mceliece_keypair: KeyPair<McEliecePublicKey, McElieceSecretKey>,
+    pub ntru_keypair: KeyPair<NTRUPublicKey, NTRUSecretKey>,
 }
 
 impl QUPCrypto {
     pub fn new() -> Self {
         QUPCrypto {
-            dilithium_keypair: DilithiumKeyPair::generate(),
-            kyber_keypair: KyberKeyPair::generate(),
-            mceliece_keypair: McElieceKeyPair::generate(),
-            ntru_keypair: NTRUKeyPair::generate(),
+            dilithium_keypair: KeyPair {
+                public_key: DilithiumPublicKey::generate(),
+                secret_key: DilithiumSecretKey::generate(),
+            },
+            kyber_keypair: KeyPair {
+                public_key: KyberPublicKey::generate(),
+                secret_key: KyberSecretKey::generate(),
+            },
+            mceliece_keypair: KeyPair {
+                public_key: McEliecePublicKey::generate(),
+                secret_key: McElieceSecretKey::generate(),
+            },
+            ntru_keypair: KeyPair {
+                public_key: NTRUPublicKey::generate(),
+                secret_key: NTRUSecretKey::generate(),
+            },
         }
     }
 
@@ -33,7 +45,7 @@ impl QUPCrypto {
 
     pub fn sign(&self, data: &[u8]) -> Vec<u8> {
         // Use Dilithium for signing
-        self.dilithium_keypair.sign(data.as_ref())
+        self.dilithium_keypair.secret_key.sign(data.as_ref())
     }
 
     pub fn verify(&self, data: &[u8], signature: &[u8]) -> bool {

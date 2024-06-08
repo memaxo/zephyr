@@ -1,3 +1,8 @@
+pub struct KeyPair<P, S> {
+    pub public_key: P,
+    pub secret_key: S,
+}
+
 pub trait Encrypt {
     fn encrypt(&self, data: &[u8]) -> Vec<u8>;
 }
