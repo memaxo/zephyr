@@ -1,7 +1,7 @@
 use crate::chain::block::{Block, BlockProposal, BlockCommit};
 use crate::chain::transaction::Transaction;
 use crate::consensus::{Vote, UsefulWorkProblem, UsefulWorkSolution};
-use crate::network::p2p::message::{Message, MessageType};
+use crate::network::p2p::message::{Message, MessageType, QUPMessage};
 use crate::network::p2p::peer::Peer;
 use crate::network::sync::state_sync::StateSyncMessage;
 use crate::qup::crypto::{QUPCrypto, QUPSignature};
