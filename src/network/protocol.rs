@@ -87,6 +87,18 @@ pub enum ProtocolMessage {
         solution: Vec<u8>,
         signature: QUPSignature,
     },
+    BlockProposal {
+        block: Vec<u8>,
+        signature: QUPSignature,
+    },
+    Vote {
+        vote: Vec<u8>,
+        signature: QUPSignature,
+    },
+    BlockCommit {
+        block: Vec<u8>,
+        signature: QUPSignature,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -106,8 +118,24 @@ impl ProtocolMessage {
                 }
                 ProtocolMessage::Pong => {
                     root.set_pong(());
-                } // Serialization for other message types
-                  // ...
+                }
+                ProtocolMessage::BlockProposal { block, signature } => {
+                    let mut block_proposal = root.init_block_proposal();
+                    block_proposal.set_block(block);
+                    block_proposal.set_signature(signature);
+                }
+                ProtocolMessage::Vote { vote, signature } => {
+                    let mut vote_msg = root.init_vote();
+                    vote_msg.set_vote(vote);
+                    vote_msg.set_signature(signature);
+                }
+                ProtocolMessage::BlockCommit { block, signature } => {
+                    let mut block_commit = root.init_block_commit();
+                    block_commit.set_block(block);
+                    block_commit.set_signature(signature);
+                }
+                // Serialization for other message types
+                // ...
             }
         }
         let serialized_data = serialize::write_message_to_words(&message);
@@ -131,6 +159,21 @@ impl ProtocolMessage {
         match root.which() {
             Ok(protocol_message::Ping(())) => Ok(ProtocolMessage::Ping),
             Ok(protocol_message::Pong(())) => Ok(ProtocolMessage::Pong),
+            Ok(protocol_message::BlockProposal(block_proposal)) => {
+                let block = block_proposal.get_block().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
+                let signature = block_proposal.get_signature().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
+                Ok(ProtocolMessage::BlockProposal { block: block.to_vec(), signature: signature.to_vec() })
+            }
+            Ok(protocol_message::Vote(vote_msg)) => {
+                let vote = vote_msg.get_vote().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
+                let signature = vote_msg.get_signature().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
+                Ok(ProtocolMessage::Vote { vote: vote.to_vec(), signature: signature.to_vec() })
+            }
+            Ok(protocol_message::BlockCommit(block_commit)) => {
+                let block = block_commit.get_block().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
+                let signature = block_commit.get_signature().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
+                Ok(ProtocolMessage::BlockCommit { block: block.to_vec(), signature: signature.to_vec() })
+            }
             // Deserialization for other message types
             // ...
             Err(e) => Err(ProtocolError::DeserializationFailed(e.to_string())),
