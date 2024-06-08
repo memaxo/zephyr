@@ -11,7 +11,9 @@ use crate::chain::consensus::Consensus;
  #[derive(Serialize, Deserialize, Debug)]
  pub enum StateSyncMessage {
      RequestState { shard_id: u64 },
-     StateResponse { shard_id: u64, state: ShardState, signature: Signature
+     StateResponse { shard_id: u64, state: ShardState, signature: Signature },
+     StateDeltaRequest { shard_id: u64, last_sync_hash: String },
+     StateDeltaResponse { shard_id: u64, state_delta: ShardStateDelta, signature: Signature },
      StateDeltaRequest { shard_id: u64, last_sync_hash: String },
      StateDeltaResponse { shard_id: u64, state_delta: ShardStateDelta,
  signature: Signature },
@@ -266,3 +268,91 @@ use crate::chain::consensus::Consensus;
          self.send_state_response(response).await
      }
 }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ShardStateDelta {
+    pub transactions: Vec<Transaction>,
+    pub blocks: Vec<Block>,
+}
+    async fn handle_state_delta_request(&self, shard_id: u64, last_sync_hash: String) -> Result<(), StateSyncError> {
+        if let Some(shard_state) = self.consensus.get_shard_state(shard_id).await {
+            let state_delta = self.calculate_state_delta(&shard_state, &last_sync_hash);
+            let signature = self.sign_state_delta(&state_delta);
+            let response = StateSyncMessage::StateDeltaResponse {
+                shard_id,
+                state_delta,
+                signature,
+            };
+            if self.use_quantum {
+                // Quantum state delta synchronization logic
+                self.send_quantum_state_delta_response(response).await?;
+            } else {
+                // Classical state delta synchronization logic
+                self.send_state_delta_response(response).await?;
+            }
+            Ok(())
+        } else {
+            Err(StateSyncError::InvalidShardId(shard_id))
+        }
+    }
+
+    async fn handle_state_delta_response(
+        &self,
+        shard_id: u64,
+        state_delta: ShardStateDelta,
+        signature: Signature,
+    ) -> Result<(), StateSyncError> {
+        if self.verify_state_delta_signature(&state_delta, &signature) {
+            self.consensus.apply_shard_state_delta(shard_id, state_delta).await;
+            info!("Applied state delta for shard {}", shard_id);
+            Ok(())
+        } else {
+            if self.use_quantum {
+                // Fallback to classical state delta synchronization
+                warn!("Quantum state delta verification failed, falling back to classical mode");
+                self.handle_classical_state_delta_response(shard_id, state_delta, signature).await?;
+            } else {
+                Err(StateSyncError::InvalidStateDeltaSignature(shard_id))
+            }
+        }
+    }
+
+    async fn handle_classical_state_delta_response(
+        &self,
+        shard_id: u64,
+        state_delta: ShardStateDelta,
+        signature: Signature,
+    ) -> Result<(), StateSyncError> {
+        if self.verify_state_delta_signature(&state_delta, &signature) {
+            self.consensus.apply_shard_state_delta(shard_id, state_delta).await;
+            info!("Applied state delta for shard {} in classical mode", shard_id);
+            Ok(())
+        } else {
+            Err(StateSyncError::InvalidStateDeltaSignature(shard_id))
+        }
+    }
+
+    fn calculate_state_delta(&self, state: &ShardState, last_sync_hash: &str) -> ShardStateDelta {
+        // Calculate the state delta based on the last sync hash
+        // ...
+
+        ShardStateDelta {
+            transactions: Vec::new(),
+            blocks: Vec::new(),
+        }
+    }
+
+    fn sign_state_delta(&self, state_delta: &ShardStateDelta) -> Signature {
+        self.signature_scheme.sign(state_delta)
+    }
+
+    fn verify_state_delta_signature(&self, state_delta: &ShardStateDelta, signature: &Signature) -> bool {
+        self.signature_scheme.verify(state_delta, signature)
+    }
+
+    async fn send_state_delta_response(&self, response: StateSyncMessage) -> Result<(), StateSyncError> {
+        self.state_sync_channel
+            .0
+            .send(response)
+            .await
+            .map_err(|e| StateSyncError::ChannelSendError(e.to_string()))
+    }
