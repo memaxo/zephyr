@@ -572,7 +572,7 @@ fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), Consensus
 
 pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
     // Verify the vote signature
-    if !verify_vote_signature(&vote) {
+    if !self.verify_vote_signature(&vote)? {
         return Err(ConsensusError::InvalidSignature);
     }
 
@@ -588,15 +588,38 @@ pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
     Ok(())
 }
 
+fn verify_vote_signature(&self, vote: &QUPVote) -> Result<bool, ConsensusError> {
+    let voter_public_key = self.state.get_validator_public_key(&vote.voter)?;
+    let message = vote.block_hash.as_bytes();
+    let signature = &vote.signature;
+
+    if self.config.supports_quantum_features() {
+        Ok(self.qup_crypto.verify(message, signature, &voter_public_key))
+    } else {
+        Ok(verify_signature(&voter_public_key, signature, message)?)
+    }
+}
+
 pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
     // Retrieve the block from the block storage
     let block = self.block_storage.load_block(&block_hash)?;
 
+    // Validate the block
+    if !self.validate_block(&block)? {
+        return Err(ConsensusError::InvalidBlock);
+    }
+
     // Apply the block to the state
-    self.blockchain.state_transition.apply_block(&block)?;
+    self.state.apply_block(&block)?;
+
+    // Distribute rewards to validators and delegators
+    self.distribute_rewards(&block)?;
 
     // Optimize the block using the HDC model
     let optimized_block = self.hdc_model.optimize_block(&block);
+
+    // Save the optimized block to storage
+    self.block_storage.save_block(&optimized_block)?;
 
     // Broadcast the optimized block to other nodes
     let message = NetworkMessage::BlockCommit(optimized_block);
