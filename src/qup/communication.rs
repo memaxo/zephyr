@@ -29,12 +29,18 @@ impl CommunicationProtocol {
 
     fn send_classical_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
         // Implement classical message sending logic
-        Ok(())
+        match classical_send(message) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send classical message: {}", e))),
+        }
     }
 
     fn send_quantum_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
         // Implement quantum message sending logic
-        Ok(())
+        match quantum_send(message) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send quantum message: {}", e))),
+        }
     }
 
     pub fn receive_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
