@@ -112,13 +112,31 @@ impl QUPValidator {
     }
 
     fn sign_vote(&self, vote: &Vote) -> QUPSignature {
-        // Implement the logic to sign the vote
-        QUPSignature::new()
+        // Retrieve the validator's key pair
+        let key_pair = QUPKeyPair::new(); // Replace with actual key retrieval logic
+
+        // Serialize the vote to bytes
+        let vote_bytes = vote.to_bytes();
+
+        // Sign the vote bytes
+        let signature = key_pair.sign(&vote_bytes);
+
+        // Return the signature
+        QUPSignature::from(signature)
     }
 
     fn verify_block_proposal(&self, block: &QUPBlock) -> bool {
-        // Implement the logic to verify the block proposal
-        true
+        // Retrieve the block's signature
+        let signature = block.signature();
+
+        // Retrieve the block's proposer public key
+        let proposer_public_key = block.proposer_public_key();
+
+        // Serialize the block to bytes
+        let block_bytes = block.to_bytes();
+
+        // Verify the block's signature using the proposer's public key
+        proposer_public_key.verify(&block_bytes, &signature)
     }
 
     fn verify_block_commit(&self, block: &QUPBlock) -> bool {
