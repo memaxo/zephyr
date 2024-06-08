@@ -1,8 +1,11 @@
 use crate::chain::block::Block;
 use crate::chain::transaction::Transaction;
+use crate::chain::block::Block;
+use crate::chain::transaction::Transaction;
 use crate::network::p2p::message::{Message, MessageType};
 use crate::network::p2p::peer::Peer;
 use crate::network::sync::state_sync::StateSyncMessage;
+use crate::qup::crypto::{QUPCrypto, QUPSignature};
 use log::{debug, error, info};
 
 pub trait Handler {
@@ -17,12 +20,14 @@ pub trait Handler {
 }
 
 pub struct HandlerImpl {
+    qup_crypto: QUPCrypto,
     // Add any necessary fields
 }
 
 impl HandlerImpl {
-    pub fn new() -> Self {
+    pub fn new(qup_crypto: QUPCrypto) -> Self {
         HandlerImpl {
+            qup_crypto,
             // Initialize any fields
         }
     }
@@ -57,7 +62,12 @@ impl Handler for HandlerImpl {
         }
     }
 
-    fn handle_block(&self, peer: &Peer, block: Block) {
+    fn handle_block(&self, peer: &Peer, block: Block, signature: QUPSignature) {
+        // Verify the block signature
+        if !self.verify_block_signature(&block, &signature) {
+            error!("Invalid block signature from peer: {}", peer.id);
+            return;
+        }
         info!("Received block from peer: {}", peer.id);
         
         // Validate the block
@@ -81,7 +91,12 @@ impl Handler for HandlerImpl {
         }
     }
     
-    fn handle_transaction(&self, peer: &Peer, transaction: Transaction) {
+    fn handle_transaction(&self, peer: &Peer, transaction: Transaction, signature: QUPSignature) {
+        // Verify the transaction signature
+        if !self.verify_transaction_signature(&transaction, &signature) {
+            error!("Invalid transaction signature from peer: {}", peer.id);
+            return;
+        }
         debug!("Received transaction from peer: {}", peer.id);
         
         // Validate the transaction
@@ -268,4 +283,14 @@ impl Handler for HandlerImpl {
             &block_commit.signature,
             &committer_public_key,
         )
+    }
+
+    fn verify_block_signature(&self, block: &Block, signature: &QUPSignature) -> bool {
+        let block_data = bincode::serialize(block).unwrap();
+        self.qup_crypto.verify(&block_data, signature)
+    }
+
+    fn verify_transaction_signature(&self, transaction: &Transaction, signature: &QUPSignature) -> bool {
+        let transaction_data = bincode::serialize(transaction).unwrap();
+        self.qup_crypto.verify(&transaction_data, signature)
     }
