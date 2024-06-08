@@ -18,11 +18,11 @@ pub trait Handler {
     fn handle_message(&self, peer: &Peer, message: Message);
     fn handle_block(&self, peer: &Peer, block: Block);
     fn handle_transaction(&self, peer: &Peer, transaction: Transaction);
-    fn handle_peer_discovery(&self, peer: &Peer, peer_addresses: Vec<String>) {
-    fn handle_state_sync(&self, peer: &Peer, state_sync_message: StateSyncMessage) {
-    fn handle_qup_message(&self, peer: &Peer, qup_message: QUPMessage) {
-    fn handle_useful_work_problem(&self, peer: &Peer, problem: UsefulWorkProblem) {
-    fn handle_useful_work_solution(&self, peer: &Peer, solution: UsefulWorkSolution) {
+    fn handle_peer_discovery(&self, peer: &Peer, peer_addresses: Vec<String>);
+    fn handle_state_sync(&self, peer: &Peer, state_sync_message: StateSyncMessage);
+    fn handle_qup_message(&self, peer: &Peer, qup_message: QUPMessage);
+    fn handle_useful_work_problem(&self, peer: &Peer, problem: UsefulWorkProblem);
+    fn handle_useful_work_solution(&self, peer: &Peer, solution: UsefulWorkSolution);
 }
 
 pub struct HandlerImpl {
@@ -65,6 +65,7 @@ impl Handler for HandlerImpl {
             MessageType::BlockCommit(block_commit) => self.handle_block_commit(peer, block_commit),
             MessageType::UsefulWorkProblem(useful_work_problem) => self.handle_useful_work_problem(peer, useful_work_problem),
             MessageType::UsefulWorkSolution(useful_work_solution) => self.handle_useful_work_solution(peer, useful_work_solution),
+            MessageType::QUPMessage(qup_message) => self.handle_qup_message(peer, qup_message),
             MessageType::BlockProposal(block_proposal) => self.handle_block_proposal(peer, block_proposal),
             MessageType::Vote(vote) => self.handle_vote(peer, vote),
             MessageType::BlockCommit(block_commit) => self.handle_block_commit(peer, block_commit),
@@ -190,19 +191,32 @@ impl Handler for HandlerImpl {
     fn handle_qup_message(&self, peer: &Peer, qup_message: QUPMessage) {
         debug!("Received QUP message from peer: {}", peer.id);
         // Process the QUP message
-        // ...
+        // Implement the logic to handle QUP-specific messages
+        match qup_message {
+            QUPMessage::BlockProposal(block_proposal) => self.handle_block_proposal(peer, block_proposal),
+            QUPMessage::Vote(vote) => self.handle_vote(peer, vote),
+            QUPMessage::BlockCommit(block_commit) => self.handle_block_commit(peer, block_commit),
+            QUPMessage::UsefulWorkProblem(problem) => self.handle_useful_work_problem(peer, problem),
+            QUPMessage::UsefulWorkSolution(solution) => self.handle_useful_work_solution(peer, solution),
+        }
     }
 
     fn handle_useful_work_problem(&self, peer: &Peer, problem: UsefulWorkProblem) {
         debug!("Received useful work problem from peer: {}", peer.id);
         // Process the useful work problem
-        // ...
+        // Implement the logic to handle useful work problems
+        if let Err(e) = self.consensus.process_useful_work_problem(problem) {
+            error!("Failed to process useful work problem from peer {}: {}", peer.id, e);
+        }
     }
 
     fn handle_useful_work_solution(&self, peer: &Peer, solution: UsefulWorkSolution) {
         debug!("Received useful work solution from peer: {}", peer.id);
         // Process the useful work solution
-        // ...
+        // Implement the logic to handle useful work solutions
+        if let Err(e) = self.consensus.process_useful_work_solution(solution) {
+            error!("Failed to process useful work solution from peer {}: {}", peer.id, e);
+        }
     }
     fn handle_block_proposal(&self, peer: &Peer, block_proposal: BlockProposal) {
         debug!("Received block proposal from peer: {}", peer.id);
