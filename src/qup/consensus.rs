@@ -51,13 +51,33 @@ impl QUPConsensus {
     }
 
     pub fn allocate_and_execute_task(&self, transaction: Transaction) -> Result<(), ConsensusError> {
-        // Scaffold method for allocating and executing tasks
-        unimplemented!()
+        if self.is_task_complex(&transaction) {
+            // Allocate the task to quantum nodes
+            self.handle_computational_task(&transaction)
+        } else {
+            // Execute the task on classical nodes
+            self.handle_standard_transaction(&transaction)
+        }
     }
 
     pub fn validate_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
-        // Scaffold method for validating useful work
-        unimplemented!()
+        match problem {
+            UsefulWorkProblem::Knapsack(knapsack_problem) => {
+                let total_weight: u64 = solution
+                    .as_knapsack()
+                    .selected_items
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &selected)| selected)
+                    .map(|(i, _)| knapsack_problem.weights[i])
+                    .sum();
+                total_weight <= knapsack_problem.capacity
+            }
+            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
+                let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
+                is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover)
+            }
+        }
     }
 
     pub fn synchronize_results(&self) {
@@ -65,21 +85,61 @@ impl QUPConsensus {
     }
 
     pub fn finalize_block(&self) -> Result<(), ConsensusError> {
-        // Scaffold method for finalizing blocks
-        unimplemented!()
+        // Get the latest block from the blockchain
+        let latest_block = self.blockchain.get_latest_block();
+
+        // Create a new block with the transactions from the transaction pool
+        let mut block = QUPBlock::new(
+            latest_block.height + 1,
+            self.state.get_block_timestamp()?,
+            latest_block.hash(),
+            self.transaction_storage.get_transactions()?,
+            None,
+            None,
+            Vec::new(),
+            &self.key_pair,
+        );
+
+        // Generate useful work problem and solution
+        let useful_work_problem = self.generate_useful_work_problem();
+        let useful_work_solution = self.solve_useful_work_problem(&useful_work_problem);
+
+        // Add useful work problem and solution to the block
+        block.useful_work_problem = Some(useful_work_problem);
+        block.useful_work_solution = Some(useful_work_solution);
+
+        // Sign the block
+        block.sign(&self.key_pair);
+
+        // Broadcast the block proposal
+        self.propose_block(block)
     }
 
     pub fn receive_task_from_classical_node(&self, task: &str) {
-        // Scaffold method for receiving tasks from classical nodes
+        // Parse the task into a transaction
+        let transaction: Transaction = serde_json::from_str(task).expect("Failed to parse task");
+
+        // Allocate and execute the task
+        self.allocate_and_execute_task(transaction).expect("Failed to allocate and execute task");
     }
 
     pub fn perform_useful_work_on_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
-        // Scaffold method for performing useful work on a problem
-        unimplemented!()
+        self.solve_useful_work_problem(problem)
     }
 
     pub fn submit_proof_to_classical_node(&self, proof: &[u8]) {
-        // Scaffold method for submitting proofs to classical nodes
+        // Deserialize the proof into a useful work solution
+        let solution: UsefulWorkSolution = bincode::deserialize(proof).expect("Failed to deserialize proof");
+
+        // Get the corresponding useful work problem
+        let problem = self.state.get_useful_work_problem(&solution).expect("Failed to get useful work problem");
+
+        // Validate and integrate the results
+        if self.validate_and_integrate_results(&problem, &solution) {
+            // Broadcast the solution to other nodes
+            let message = NetworkMessage::UsefulWorkSolution(solution);
+            self.communication_protocol.send_message(message).expect("Failed to send useful work solution");
+        }
     }
 
     pub fn validate_and_integrate_results(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
