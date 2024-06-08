@@ -1,7 +1,7 @@
 use crate::quantum_voting::quantum_state::QuantumState;
 use crate::qup::crypto::{QUPCrypto, QUPSignature};
 use crate::qup::crypto::{QUPCrypto, QUPSignature};
-use bincode;
+use rmp_serde as rmps;
 use capnp::{message::Builder, serialize};
 use serde::{Deserialize, Serialize};
 use zstd::stream::{decode_all, encode_all};
@@ -138,46 +138,19 @@ impl ProtocolMessage {
                 // ...
             }
         }
-        let serialized_data = serialize::write_message_to_words(&message);
-        let compressed_data = encode_all(&serialized_data[..], 3)
+        let serialized_data = rmps::to_vec_named(self)
+            .map_err(|e| ProtocolError::SerializationFailed(e.to_string()))?;
+        let compressed_data = encode_all(&serialized_data[..], 1)
             .map_err(|e| ProtocolError::CompressionFailed(e.to_string()))?;
-        let encrypted_data = crypto.encrypt(&compressed_data)
-            .map_err(|e| ProtocolError::EncryptionFailed(e.to_string()))?;
-        Ok(encrypted_data)
+        crypto.encrypt(&compressed_data)
+            .map_err(|e| ProtocolError::EncryptionFailed(e.to_string()))
     }
 
     pub fn deserialize(data: &[u8], crypto: &QUPCrypto) -> Result<Self, ProtocolError> {
         let decrypted_data = crypto.decrypt(data)
             .map_err(|e| ProtocolError::DecryptionFailed(e.to_string()))?;
-        let decompressed_data = decode_all(&decrypted_data)
-            .map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))?;
-        let message_reader = serialize::read_message_from_words(&decompressed_data[..])
-            .map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-        let root = message_reader
-            .get_root::<protocol_message::Reader>()
-            .map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-        match root.which() {
-            Ok(protocol_message::Ping(())) => Ok(ProtocolMessage::Ping),
-            Ok(protocol_message::Pong(())) => Ok(ProtocolMessage::Pong),
-            Ok(protocol_message::BlockProposal(block_proposal)) => {
-                let block = block_proposal.get_block().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-                let signature = block_proposal.get_signature().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-                Ok(ProtocolMessage::BlockProposal { block: block.to_vec(), signature: signature.to_vec() })
-            }
-            Ok(protocol_message::Vote(vote_msg)) => {
-                let vote = vote_msg.get_vote().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-                let signature = vote_msg.get_signature().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-                Ok(ProtocolMessage::Vote { vote: vote.to_vec(), signature: signature.to_vec() })
-            }
-            Ok(protocol_message::BlockCommit(block_commit)) => {
-                let block = block_commit.get_block().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-                let signature = block_commit.get_signature().map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))?;
-                Ok(ProtocolMessage::BlockCommit { block: block.to_vec(), signature: signature.to_vec() })
-            }
-            // Deserialization for other message types
-            // ...
-            Err(e) => Err(ProtocolError::DeserializationFailed(e.to_string())),
-        }
+        let decompressed_data = decode_all(&decrypted_data).map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))?;
+        rmps::from_slice(&decompressed_data).map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))
     }
 }
 
