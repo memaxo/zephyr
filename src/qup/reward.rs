@@ -12,6 +12,12 @@ impl RewardDistributor {
         RewardDistributor { config }
     }
 
+    fn calculate_performance_score(&self, block_header: &QUPBlockHeader) -> u64 {
+        // Implement the logic to calculate the performance score
+        // This can be based on various performance metrics
+        // For simplicity, let's assume a fixed performance score for now
+        100
+
     fn calculate_useful_work_contribution(&self, block_header: &QUPBlockHeader) -> u64 {
         // Implement the logic to calculate the contribution of useful work
         // This can be based on the complexity and correctness of the useful work solution
@@ -28,13 +34,24 @@ impl RewardDistributor {
 
     pub fn distribute_rewards(&self, state: &mut State, block_header: &QUPBlockHeader) {
         let total_reward = self.calculate_total_reward(block_header);
-        let useful_work_contribution = self.calculate_useful_work_contribution(block_header);
-        let poh_contribution = self.calculate_poh_contribution(block_header);
-
-        let total_contribution = useful_work_contribution + poh_contribution;
-
-        let validator_reward = self.calculate_validator_reward(total_reward, useful_work_contribution, total_contribution);
-        let delegator_reward = total_reward - validator_reward;
+        let (validator_reward, delegator_reward) = match self.config.reward_scheme {
+            RewardScheme::FixedReward(_) => {
+                let validator_reward = self.calculate_validator_reward(total_reward, 1, 1);
+                (validator_reward, total_reward - validator_reward)
+            }
+            RewardScheme::ProportionalReward { .. } => {
+                let useful_work_contribution = self.calculate_useful_work_contribution(block_header);
+                let poh_contribution = self.calculate_poh_contribution(block_header);
+                let total_contribution = useful_work_contribution + poh_contribution;
+                let validator_reward = self.calculate_validator_reward(total_reward, useful_work_contribution, total_contribution);
+                (validator_reward, total_reward - validator_reward)
+            }
+            RewardScheme::PerformanceBasedReward { .. } => {
+                let performance_score = self.calculate_performance_score(block_header);
+                let validator_reward = self.calculate_validator_reward(total_reward, performance_score, 1);
+                (validator_reward, total_reward - validator_reward)
+            }
+        };
 
         let validator_address = self.get_block_validator_address(block_header);
         self.distribute_validator_reward(state, &validator_address, validator_reward);
@@ -53,14 +70,9 @@ impl RewardDistributor {
         }
     }
 
-    fn calculate_validator_reward(&self, total_reward: u64, useful_work_contribution: u64, total_contribution: u64) -> u64 {
-        let useful_work_ratio = useful_work_contribution as f64 / total_contribution as f64;
-        let poh_ratio = 1.0 - useful_work_ratio;
-
-        let useful_work_reward = (total_reward as f64 * useful_work_ratio * self.config.validator_reward_ratio) as u64;
-        let poh_reward = (total_reward as f64 * poh_ratio * self.config.validator_reward_ratio) as u64;
-
-        useful_work_reward + poh_reward
+    fn calculate_validator_reward(&self, total_reward: u64, contribution: u64, total_contribution: u64) -> u64 {
+        let contribution_ratio = contribution as f64 / total_contribution as f64;
+        (total_reward as f64 * contribution_ratio * self.config.validator_reward_ratio) as u64
     }
 
     fn get_block_validator_address(&self, block_header: &QUPBlockHeader) -> Vec<u8> {
