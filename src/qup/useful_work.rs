@@ -16,14 +16,45 @@ pub struct VertexCoverSolution {
     pub vertex_cover: Vec<usize>,
 }
 
+pub struct TravelingSalesmanProblem {
+    pub cities: Vec<(f64, f64)>,
+}
+
+pub struct TravelingSalesmanSolution {
+    pub tour: Vec<usize>,
+}
+
+pub struct JobSchedulingProblem {
+    pub jobs: Vec<(u64, u64)>,
+}
+
+pub struct JobSchedulingSolution {
+    pub schedule: Vec<usize>,
+}
+
+pub struct BinPackingProblem {
+    pub capacity: u64,
+    pub items: Vec<u64>,
+}
+
+pub struct BinPackingSolution {
+    pub bins: Vec<Vec<usize>>,
+}
+
 pub enum UsefulWorkProblem {
     Knapsack(KnapsackProblem),
     VertexCover(VertexCoverProblem),
+    TravelingSalesman(TravelingSalesmanProblem),
+    JobScheduling(JobSchedulingProblem),
+    BinPacking(BinPackingProblem),
 }
 
 pub enum UsefulWorkSolution {
     Knapsack(KnapsackSolution),
     VertexCover(VertexCoverSolution),
+    TravelingSalesman(TravelingSalesmanSolution),
+    JobScheduling(JobSchedulingSolution),
+    BinPacking(BinPackingSolution),
 }
 
 impl UsefulWorkSolution {
@@ -40,6 +71,30 @@ impl UsefulWorkSolution {
             solution
         } else {
             panic!("Not a Vertex Cover solution");
+        }
+    }
+
+    pub fn as_traveling_salesman(&self) -> &TravelingSalesmanSolution {
+        if let UsefulWorkSolution::TravelingSalesman(solution) = self {
+            solution
+        } else {
+            panic!("Not a Traveling Salesman solution");
+        }
+    }
+
+    pub fn as_job_scheduling(&self) -> &JobSchedulingSolution {
+        if let UsefulWorkSolution::JobScheduling(solution) = self {
+            solution
+        } else {
+            panic!("Not a Job Scheduling solution");
+        }
+    }
+
+    pub fn as_bin_packing(&self) -> &BinPackingSolution {
+        if let UsefulWorkSolution::BinPacking(solution) = self {
+            solution
+        } else {
+            panic!("Not a Bin Packing solution");
         }
     }
 }
