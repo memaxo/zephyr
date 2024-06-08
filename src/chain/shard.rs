@@ -1,6 +1,7 @@
 use crate::chain::transaction::Transaction;
 use crate::secure_core::secure_vault::SecureVault;
 use crate::consensus::consensus_config::ConsensusConfig;
+use crate::consensus::qup::{QUPBlock, QUPBlockHeader, QUPUsefulWork, QUPVote};
 use crate::network::network_message::{NetworkMessage, ShardMessage};
 use crate::utils::compression::{compress_data, decompress_data, CompressionError, DecompressionError};
 use crate::utils::encryption::{EncryptionKey, EncryptionError, DecryptionError};
@@ -97,11 +98,74 @@ impl Shard {
                 NetworkMessage::ShardMessage(shard_message) => {
                     self.handle_shard_message(shard_message).await?;
                 }
+                NetworkMessage::QUPMessage(qup_message) => {
+                    self.handle_qup_message(qup_message).await?;
+                }
                 _ => {
                     debug!("Received unsupported network message type");
                 }
             }
         }
+        Ok(())
+    }
+
+    async fn handle_qup_message(&mut self, message: QUPMessage) -> Result<(), ShardError> {
+        match message {
+            QUPMessage::BlockProposal { block_header, transactions, useful_work, signature } => {
+                self.handle_qup_block_proposal(block_header, transactions, useful_work, signature).await?;
+            }
+            QUPMessage::BlockCommit { block_header, signature } => {
+                self.handle_qup_block_commit(block_header, signature).await?;
+            }
+            QUPMessage::Vote(vote) => {
+                self.handle_qup_vote(vote).await?;
+            }
+            QUPMessage::UsefulWork(useful_work) => {
+                self.handle_qup_useful_work(useful_work).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn handle_qup_block_proposal(
+        &mut self,
+        block_header: QUPBlockHeader,
+        transactions: Vec<Transaction>,
+        useful_work: QUPUsefulWork,
+        signature: QUPSignature,
+    ) -> Result<(), ShardError> {
+        // Verify the block proposal signature
+        // Process the block proposal
+        // ...
+
+        Ok(())
+    }
+
+    async fn handle_qup_block_commit(
+        &mut self,
+        block_header: QUPBlockHeader,
+        signature: QUPSignature,
+    ) -> Result<(), ShardError> {
+        // Verify the block commit signature
+        // Commit the block
+        // ...
+
+        Ok(())
+    }
+
+    async fn handle_qup_vote(&mut self, vote: QUPVote) -> Result<(), ShardError> {
+        // Verify the vote signature
+        // Process the vote
+        // ...
+
+        Ok(())
+    }
+
+    async fn handle_qup_useful_work(&mut self, useful_work: QUPUsefulWork) -> Result<(), ShardError> {
+        // Verify the useful work
+        // Process the useful work
+        // ...
+
         Ok(())
     }
 

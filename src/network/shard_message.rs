@@ -1,7 +1,7 @@
 use crate::chain::shard::ShardState;
 use crate::chain::transaction::Transaction;
+use crate::consensus::qup::{QUPBlock, QUPBlockHeader, QUPUsefulWork, QUPVote};
 use crate::qup::crypto::{QUPCrypto, QUPSignature};
-use crate::qup::types::{QUPBlockHeader, QUPUsefulWork, QUPVote};
 use crate::utils::error::NetworkError;
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
@@ -15,14 +15,9 @@ pub enum ShardMessage {
         shard_id: u64,
     },
     StateResponse(ShardState),
-    QUPShardBlockProposal {
-        block_header: QUPBlockHeader,
-        transactions: Vec<Transaction>,
-        useful_work: QUPUsefulWork,
-        signature: QUPSignature,
-    },
+    QUPShardBlockProposal(QUPBlock),
     QUPShardBlockCommit {
-        block_header: QUPBlockHeader,
+        block_hash: String,
         signature: QUPSignature,
     },
     QUPShardVote(QUPVote),
@@ -376,32 +371,14 @@ impl ShardMessageHandler {
         }
     }
 
-    async fn handle_qup_shard_block_proposal(
-        &mut self,
-        shard_id: u64,
-        block_header: QUPBlockHeader,
-        transactions: Vec<Transaction>,
-        useful_work: QUPUsefulWork,
-        signature: QUPSignature,
-    ) {
+    async fn handle_qup_shard_block_proposal(&mut self, shard_id: u64, block: QUPBlock) {
         // Verify the block proposal signature
-        if let Err(e) = self.crypto.verify_block_proposal_signature(
-            &block_header,
-            &transactions,
-            &useful_work,
-            &signature,
-        ) {
+        if let Err(e) = self.crypto.verify_block_proposal_signature(&block) {
             error!("QUP shard block proposal signature verification failed: {}", e);
             return;
         }
 
         // Process the block proposal
-        let block = QUPBlock {
-            header: block_header,
-            transactions,
-            useful_work,
-            signature,
-        };
         if let Err(e) = self.process_qup_shard_block(shard_id, block).await {
             error!("Processing QUP shard block proposal failed: {}", e);
         }
@@ -410,17 +387,17 @@ impl ShardMessageHandler {
     async fn handle_qup_shard_block_commit(
         &mut self,
         shard_id: u64,
-        block_header: QUPBlockHeader,
+        block_hash: String,
         signature: QUPSignature,
     ) {
         // Verify the block commit signature
-        if let Err(e) = self.crypto.verify_block_commit_signature(&block_header, &signature) {
+        if let Err(e) = self.crypto.verify_block_commit_signature(&block_hash, &signature) {
             error!("QUP shard block commit signature verification failed: {}", e);
             return;
         }
 
         // Commit the shard block
-        if let Err(e) = self.commit_qup_shard_block(shard_id, block_header).await {
+        if let Err(e) = self.commit_qup_shard_block(shard_id, block_hash).await {
             error!("Committing QUP shard block failed: {}", e);
         }
     }
