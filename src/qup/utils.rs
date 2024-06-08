@@ -41,6 +41,11 @@ pub fn verify_block_signature(
 }
 
 pub fn verify_vote_signature(vote: &QUPVote) -> bool {
+    // Input validation
+    if vote.block_hash.is_empty() || vote.voter.is_empty() || vote.signature.is_empty() {
+        return false;
+    }
+
     let message = vote.block_hash;
     let public_key = get_public_key_from_address(&vote.voter);
     Signature::verify(&message, &vote.signature, &public_key)
