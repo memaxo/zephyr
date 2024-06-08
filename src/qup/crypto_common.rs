@@ -1,6 +1,7 @@
-pub struct KeyPair<P, S> {
-    pub public_key: P,
-    pub secret_key: S,
+impl<P, S> KeyPair<P, S> {
+    pub fn new(public_key: P, secret_key: S) -> Self {
+        KeyPair { public_key, secret_key }
+    }
 }
 
 pub trait Encrypt {

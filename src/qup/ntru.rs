@@ -1,9 +1,5 @@
 use rand::Rng;
 
-pub struct NTRUKeyPair {
-    pub public_key: NTRUPublicKey,
-    pub secret_key: NTRUSecretKey,
-}
 
 pub struct NTRUPublicKey {
     // Define the fields for the public key

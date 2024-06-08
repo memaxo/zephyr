@@ -1,9 +1,5 @@
 use rand::Rng;
 
-pub struct McElieceKeyPair {
-    pub public_key: McEliecePublicKey,
-    pub secret_key: McElieceSecretKey,
-}
 
 pub struct McEliecePublicKey {
     // Define the fields for the public key

@@ -1,9 +1,5 @@
 use rand::Rng;
 
-pub struct PicnicKeyPair {
-    pub public_key: PicnicPublicKey,
-    pub secret_key: PicnicSecretKey,
-}
 
 pub struct PicnicPublicKey {
     // Define the fields for the public key
