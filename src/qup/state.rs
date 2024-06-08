@@ -9,6 +9,7 @@ use crate::storage::state_storage::StateStorage;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
+use rayon::prelude::*;
 
 pub struct QUPState {
     pub accounts: HashMap<String, Account>,
@@ -48,13 +49,19 @@ pub struct QUPState {
         // Prune old state before synchronizing
         let mut pruned_state = self.clone();
         pruned_state.prune_state(self.config.state_pruning_threshold);
+
+        // Collect state updates
+        let mut state_updates = Vec::new();
         let mut network_state = self.network_state.lock().unwrap();
         let other_network_state = other_state.network_state.lock().unwrap();
 
         // Synchronize accounts
         for (id, account) in &other_state.accounts {
-            self.accounts.entry(id.clone()).or_insert_with(|| account.clone());
+            state_updates.push((id.clone(), account.clone()));
         }
+
+        // Update state in parallel
+        pruned_state.update_state_parallel(&state_updates);
 
         // Synchronize blocks
         for block in &other_state.blocks {
@@ -123,12 +130,32 @@ impl QUPState {
         state
     }
 
+    pub fn execute_transactions_parallel(&mut self, transactions: &[Transaction]) {
+        let chunked_transactions = transactions.par_chunks(self.config.parallel_transaction_chunk_size);
+
+        chunked_transactions.for_each(|chunk| {
+            for transaction in chunk {
+                self.execute_transaction(transaction);
+            }
+        });
+    }
+
     pub fn add_account(&mut self, id: String, account: Account) {
         self.accounts.insert(id, account);
     }
 
     pub fn add_block(&mut self, block: QUPBlock) {
         self.blocks.push(block);
+    }
+
+    pub fn update_state_parallel(&mut self, updates: &[(String, Account)]) {
+        let chunked_updates = updates.par_chunks(self.config.parallel_state_update_chunk_size);
+
+        chunked_updates.for_each(|chunk| { 
+            for (id, account) in chunk {
+                self.accounts.insert(id.clone(), account.clone());
+            }
+        });
     }
 
     pub fn get_account(&self, id: &str) -> Option<&Account> {
