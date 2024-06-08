@@ -304,6 +304,38 @@ impl ShardMessageHandler {
         info!("Shard {} state synced successfully", shard_id);
     }
 
+    async fn handle_state_delta_request(&mut self, shard_id: u64, last_sync_hash: String) {
+        // Retrieve the shard state
+        let shard_state = self.get_shard_state(shard_id).await.unwrap();
+
+        // Calculate the state delta based on the last sync hash
+        let state_delta = self.calculate_state_delta(&shard_state, &last_sync_hash);
+
+        // Serialize the state delta
+        let serialized_delta = bincode::serialize(&state_delta).unwrap();
+
+        // Send the state delta response
+        self.send_state_delta_response(shard_id, serialized_delta).await.unwrap();
+    }
+
+    async fn send_state_delta_response(&mut self, shard_id: u64, serialized_delta: Vec<u8>) -> Result<(), StateSyncError> {
+        let state_delta_response = StateSyncMessage::StateDeltaResponse {
+            shard_id,
+            state_delta: serialized_delta,
+        };
+        self.state_sync_channel.0.send(state_delta_response).await.map_err(|e| StateSyncError::ChannelSendError(e.to_string()))
+    }
+
+    fn calculate_state_delta(&self, state: &ShardState, last_sync_hash: &str) -> ShardStateDelta {
+        // Calculate the state delta based on the last sync hash
+        // ...
+
+        ShardStateDelta {
+            transactions: Vec::new(),
+            blocks: Vec::new(),
+        }
+    }
+
     async fn handle_transaction_message(&mut self, shard_id: u64, transaction: Transaction) {
         info!("Received transaction message for shard {}", shard_id);
         // Process the transaction and update the shard state

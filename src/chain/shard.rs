@@ -316,8 +316,18 @@ impl Shard {
                     warn!("Received state response from unexpected shard: {}", state.shard_id);
                     return Ok(());
                 }
+                let decompressed_state = decompress_data(&state).map_err(ShardError::DecompressionError)?;
                 let mut transactions = self.transactions.write().map_err(|_| ShardError::SerializationError("Failed to acquire write lock for transactions".to_string()))?;
-                self.merge_state(&mut transactions, state);
+                self.merge_state(&mut transactions, decompressed_state);
+            }
+            ShardMessage::StateDeltaResponse(state_delta) => {
+                if state_delta.shard_id != self.shard_id {
+                    warn!("Received state delta response from unexpected shard: {}", state_delta.shard_id);
+                    return Ok(());
+                }
+                let decompressed_delta = decompress_data(&state_delta).map_err(ShardError::DecompressionError)?;
+                let mut transactions = self.transactions.write().map_err(|_| ShardError::SerializationError("Failed to acquire write lock for transactions".to_string()))?;
+                self.apply_state_delta(&mut transactions, decompressed_delta);
             }
             ShardMessage::CrossShardTransactionMessage {
                 transaction,
@@ -429,3 +439,16 @@ impl ShardState {
         "shard_state_hash".to_string()
     }
 }
+    fn apply_state_delta(&self, transactions: &mut VecDeque<Vec<u8>>, state_delta: ShardStateDelta) {
+        for transaction in state_delta.transactions {
+            let compressed_transaction = compress_data(&transaction).map_err(|e| {
+                warn!("Failed to compress transaction during delta application: {}", e);
+                ShardError::CompressionError(e)
+            }).unwrap();
+            if !transactions.contains(&compressed_transaction) {
+                transactions.push_back(compressed_transaction);
+            }
+        }
+        // Apply blocks from the state delta
+        // ...
+    }
