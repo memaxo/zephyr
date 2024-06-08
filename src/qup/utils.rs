@@ -342,15 +342,26 @@ fn get_public_key_from_address(address: &[u8]) -> Vec<u8> {
 // Add more utility functions as needed
 
 pub fn generate_proof_of_solution(solution: &UsefulWorkSolution) -> Vec<u8> {
-    // Placeholder for generating a cryptographic proof of the solution
-    // This should be replaced with the actual logic for generating the proof
-    vec![]
+    // Serialize the solution
+    let serialized_solution = bincode::serialize(solution).expect("Failed to serialize solution");
+
+    // Create a hash of the serialized solution as the proof
+    let mut hasher = Sha256::new();
+    hasher.update(&serialized_solution);
+    hasher.finalize().to_vec()
 }
 
 pub fn verify_proof_of_solution(solution: &UsefulWorkSolution, proof: &[u8]) -> bool {
-    // Placeholder for verifying the cryptographic proof of the solution
-    // This should be replaced with the actual logic for verifying the proof
-    true
+    // Serialize the solution
+    let serialized_solution = bincode::serialize(solution).expect("Failed to serialize solution");
+
+    // Create a hash of the serialized solution
+    let mut hasher = Sha256::new();
+    hasher.update(&serialized_solution);
+    let calculated_proof = hasher.finalize().to_vec();
+
+    // Compare the calculated proof with the provided proof
+    calculated_proof == proof
 }
 
 pub fn verify_vote_signature(vote: &QUPVote) -> bool {
