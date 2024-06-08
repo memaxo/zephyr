@@ -1,5 +1,11 @@
-use crate::chain::block::Block;
+use crate::chain::block::{Block, BlockProposal, BlockCommit};
 use crate::chain::transaction::Transaction;
+use crate::consensus::{Vote, UsefulWorkProblem, UsefulWorkSolution};
+use crate::network::p2p::message::{Message, MessageType};
+use crate::network::p2p::peer::Peer;
+use crate::network::sync::state_sync::StateSyncMessage;
+use crate::qup::crypto::{QUPCrypto, QUPSignature};
+use log::{debug, error, info, warn};
 use crate::chain::block::Block;
 use crate::chain::transaction::Transaction;
 use crate::network::p2p::message::{Message, MessageType};
@@ -59,10 +65,13 @@ impl Handler for HandlerImpl {
             MessageType::BlockCommit(block_commit) => self.handle_block_commit(peer, block_commit),
             MessageType::UsefulWorkProblem(useful_work_problem) => self.handle_useful_work_problem(peer, useful_work_problem),
             MessageType::UsefulWorkSolution(useful_work_solution) => self.handle_useful_work_solution(peer, useful_work_solution),
+            MessageType::BlockProposal(block_proposal) => self.handle_block_proposal(peer, block_proposal),
+            MessageType::Vote(vote) => self.handle_vote(peer, vote),
+            MessageType::BlockCommit(block_commit) => self.handle_block_commit(peer, block_commit),
         }
     }
 
-    fn handle_block(&self, peer: &Peer, block: Block, signature: QUPSignature) {
+    fn handle_block(&self, peer: &Peer, block: Block) {
         // Verify the block signature
         if !self.verify_block_signature(&block, &signature) {
             error!("Invalid block signature from peer: {}", peer.id);
@@ -91,7 +100,7 @@ impl Handler for HandlerImpl {
         }
     }
     
-    fn handle_transaction(&self, peer: &Peer, transaction: Transaction, signature: QUPSignature) {
+    fn handle_transaction(&self, peer: &Peer, transaction: Transaction) {
         // Verify the transaction signature
         if !self.verify_transaction_signature(&transaction, &signature) {
             error!("Invalid transaction signature from peer: {}", peer.id);
@@ -120,7 +129,7 @@ impl Handler for HandlerImpl {
         }
     }
     
-    fn handle_peer_discovery(&self, peer: &Peer, peer_addresses: Vec<String>) {
+    fn handle_peer_discovery(&self, peer: &Peer, peer_addresses: Vec<String>);
         debug!("Received peer discovery from peer: {}", peer.id);
         
         // Process the received peer addresses
@@ -137,7 +146,7 @@ impl Handler for HandlerImpl {
         self.connect_to_new_peers();
     }
     
-    fn handle_state_sync(&self, peer: &Peer, state_sync_message: StateSyncMessage) {
+    fn handle_state_sync(&self, peer: &Peer, state_sync_message: StateSyncMessage);
         debug!("Received state sync message from peer: {}", peer.id);
         
         match state_sync_message {
@@ -178,24 +187,24 @@ impl Handler for HandlerImpl {
         }
     }
 }
-    fn handle_qup_message(&self, peer: &Peer, qup_message: QUPMessage) {
+    fn handle_qup_message(&self, peer: &Peer, qup_message: QUPMessage);
         debug!("Received QUP message from peer: {}", peer.id);
         // Process the QUP message
         // ...
     }
 
-    fn handle_useful_work_problem(&self, peer: &Peer, problem: UsefulWorkProblem) {
+    fn handle_useful_work_problem(&self, peer: &Peer, problem: UsefulWorkProblem);
         debug!("Received useful work problem from peer: {}", peer.id);
         // Process the useful work problem
         // ...
     }
 
-    fn handle_useful_work_solution(&self, peer: &Peer, solution: UsefulWorkSolution) {
+    fn handle_useful_work_solution(&self, peer: &Peer, solution: UsefulWorkSolution);
         debug!("Received useful work solution from peer: {}", peer.id);
         // Process the useful work solution
         // ...
     }
-    fn handle_block_proposal(&self, peer: &Peer, block_proposal: BlockProposal) {
+    fn handle_block_proposal(&self, peer: &Peer, block_proposal: BlockProposal);
         debug!("Received block proposal from peer: {}", peer.id);
         // Verify the block proposal signature
         if !self.verify_block_proposal_signature(&block_proposal) {
@@ -216,7 +225,7 @@ impl Handler for HandlerImpl {
         }
     }
 
-    fn handle_vote(&self, peer: &Peer, vote: Vote) {
+    fn handle_vote(&self, peer: &Peer, vote: Vote);
         debug!("Received vote from peer: {}", peer.id);
         // Verify the vote signature
         if !self.verify_vote_signature(&vote) {
@@ -237,7 +246,7 @@ impl Handler for HandlerImpl {
         }
     }
 
-    fn handle_block_commit(&self, peer: &Peer, block_commit: BlockCommit) {
+    fn handle_block_commit(&self, peer: &Peer, block_commit: BlockCommit);
         debug!("Received block commit from peer: {}", peer.id);
         // Verify the block commit signature
         if !self.verify_block_commit_signature(&block_commit) {
@@ -258,7 +267,7 @@ impl Handler for HandlerImpl {
         }
     }
 
-    fn verify_block_proposal_signature(&self, block_proposal: &BlockProposal) -> bool {
+    fn verify_block_proposal_signature(&self, block_proposal: &BlockProposal) -> bool;
         let proposer_public_key = self.state.get_validator_public_key(&block_proposal.proposer).unwrap();
         self.qup_crypto.verify(
             &block_proposal.block,
@@ -267,7 +276,7 @@ impl Handler for HandlerImpl {
         )
     }
 
-    fn verify_vote_signature(&self, vote: &Vote) -> bool {
+    fn verify_vote_signature(&self, vote: &Vote) -> bool;
         let voter_public_key = self.state.get_validator_public_key(&vote.voter).unwrap();
         self.qup_crypto.verify(
             &vote.vote,
@@ -276,7 +285,7 @@ impl Handler for HandlerImpl {
         )
     }
 
-    fn verify_block_commit_signature(&self, block_commit: &BlockCommit) -> bool {
+    fn verify_block_commit_signature(&self, block_commit: &BlockCommit) -> bool;
         let committer_public_key = self.state.get_validator_public_key(&block_commit.committer).unwrap();
         self.qup_crypto.verify(
             &block_commit.block,
@@ -285,22 +294,22 @@ impl Handler for HandlerImpl {
         )
     }
 
-    fn verify_block_signature(&self, block: &Block, signature: &QUPSignature) -> bool {
+    fn verify_block_signature(&self, block: &Block, signature: &QUPSignature) -> bool;
         let block_data = bincode::serialize(block).unwrap();
         self.qup_crypto.verify(&block_data, signature)
     }
 
-    fn verify_transaction_signature(&self, transaction: &Transaction, signature: &QUPSignature) -> bool {
+    fn verify_transaction_signature(&self, transaction: &Transaction, signature: &QUPSignature) -> bool;
         let transaction_data = bincode::serialize(transaction).unwrap();
         self.qup_crypto.verify(&transaction_data, signature)
     }
 
-    fn verify_block_signature(&self, block: &Block, signature: &QUPSignature) -> bool {
+    fn verify_block_signature(&self, block: &Block, signature: &QUPSignature) -> bool;
         let block_data = bincode::serialize(block).unwrap();
         self.qup_crypto.verify(&block_data, signature)
     }
 
-    fn verify_transaction_signature(&self, transaction: &Transaction, signature: &QUPSignature) -> bool {
+    fn verify_transaction_signature(&self, transaction: &Transaction, signature: &QUPSignature) -> bool;
         let transaction_data = bincode::serialize(transaction).unwrap();
         self.qup_crypto.verify(&transaction_data, signature)
     }
