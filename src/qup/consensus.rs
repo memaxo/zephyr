@@ -20,7 +20,7 @@ pub struct QUPConsensus {
     pub state: Arc<QUPState>,
     pub key_pair: QUPKeyPair,
     pub hdc_model: HDCModel,
-    pub communication_protocol: CommunicationProtocol,
+    pub network: Arc<Network>,
     pub block_storage: Arc<BlockStorage>,
     pub transaction_storage: Arc<TransactionStorage>,
     pub qup_crypto: QUPCrypto,
@@ -42,7 +42,7 @@ impl QUPConsensus {
             state,
             key_pair,
             hdc_model,
-            communication_protocol: CommunicationProtocol::new(node_type),
+            network,
             blockchain,
             block_storage,
             transaction_storage,
@@ -473,11 +473,11 @@ impl QUPConsensus {
 
         // Request blocks from other nodes
         let message = NetworkMessage::BlockSyncRequest(current_height);
-        self.communication_protocol.send_message(message)?;
+        self.network.broadcast(message)?;
 
         // Receive and process blocks
         loop {
-            let message = self.communication_protocol.receive_message()?;
+            let message = self.network.receive()?;
             match message {
                 NetworkMessage::BlockSyncResponse(blocks) => {
                     for block in blocks {
@@ -632,7 +632,7 @@ fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
 
     // Broadcast the block to other validators
     let message = NetworkMessage::BlockProposal(block.clone());
-    self.communication_protocol.send_message(message)?;
+    self.network.send(peer, message)?;
 
     // Add the block to the local pool of proposed blocks
     self.state.add_proposed_block(block)?;
