@@ -11,6 +11,7 @@ pub struct QuantumNode {
     pub config: Arc<QUPConfig>,
     pub state: Arc<QUPState>,
     }
+}
 
     pub fn allocate_task(&self, task: &str) {
         // Scaffold method for allocating tasks to quantum nodes

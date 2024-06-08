@@ -124,6 +124,7 @@ pub fn generate_random_useful_work_problem() -> UsefulWorkProblem {
         }
     }
 }
+}
 
 pub fn generate_random_knapsack_problem() -> KnapsackProblem {
     let mut rng = rand::thread_rng();
