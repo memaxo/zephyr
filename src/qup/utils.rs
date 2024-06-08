@@ -468,3 +468,43 @@ pub fn solve_useful_work_problem(problem: &UsefulWorkProblem) -> UsefulWorkSolut
         }
     }
 }
+pub fn calculate_problem_difficulty(problem: &UsefulWorkProblem) -> u64 {
+    match problem {
+        UsefulWorkProblem::Knapsack(knapsack_problem) => {
+            knapsack_problem.capacity as u64 * knapsack_problem.weights.len() as u64
+        }
+        UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
+            vertex_cover_problem.graph.len() as u64 * vertex_cover_problem.graph.len() as u64
+        }
+        UsefulWorkProblem::TravelingSalesman(traveling_salesman_problem) => {
+            traveling_salesman_problem.distances.len() as u64 * traveling_salesman_problem.distances.len() as u64
+        }
+        UsefulWorkProblem::JobScheduling(job_scheduling_problem) => {
+            job_scheduling_problem.jobs.len() as u64 * job_scheduling_problem.jobs.len() as u64
+        }
+        UsefulWorkProblem::BinPacking(bin_packing_problem) => {
+            bin_packing_problem.bin_capacity as u64 * bin_packing_problem.item_sizes.len() as u64
+        }
+        UsefulWorkProblem::MaximumFlow(maximum_flow_problem) => {
+            maximum_flow_problem.capacity_matrix.len() as u64 * maximum_flow_problem.capacity_matrix.len() as u64
+        }
+        UsefulWorkProblem::ShortestPath(shortest_path_problem) => {
+            shortest_path_problem.graph.len() as u64 * shortest_path_problem.graph.len() as u64
+        }
+        UsefulWorkProblem::MinimumSpanningTree(minimum_spanning_tree_problem) => {
+            minimum_spanning_tree_problem.graph.len() as u64 * minimum_spanning_tree_problem.graph.len() as u64
+        }
+        UsefulWorkProblem::ResourceAllocation(resource_allocation_problem) => {
+            resource_allocation_problem.resources.len() as u64 * resource_allocation_problem.demands.len() as u64
+        }
+        UsefulWorkProblem::VehicleRouting(vehicle_routing_problem) => {
+            vehicle_routing_problem.distances.len() as u64 * vehicle_routing_problem.distances.len() as u64
+        }
+        UsefulWorkProblem::PortfolioOptimization(portfolio_optimization_problem) => {
+            portfolio_optimization_problem.expected_returns.len() as u64 * portfolio_optimization_problem.covariances.len() as u64
+        }
+        UsefulWorkProblem::MarketEquilibrium(market_equilibrium_problem) => {
+            market_equilibrium_problem.supply.len() as u64 * market_equilibrium_problem.demand.len() as u64
+        }
+    }
+}
