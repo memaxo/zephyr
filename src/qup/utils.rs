@@ -508,3 +508,21 @@ pub fn calculate_problem_difficulty(problem: &UsefulWorkProblem) -> u64 {
         }
     }
 }
+use crate::qup::types::QUPBlock;
+
+pub fn generate_history_proof(block: &QUPBlock, chain: &[QUPBlock]) -> Vec<Hash> {
+    let mut proof = Vec::new();
+    let mut current_block = block;
+
+    while let Some(prev_block_hash) = current_block.header.prev_block_hash {
+        if let Some(prev_block) = chain.iter().find(|b| calculate_block_hash(&b.header) == prev_block_hash) {
+            proof.push(calculate_block_hash(&prev_block.header));
+            current_block = prev_block;
+        } else {
+            break;
+        }
+    }
+
+    proof.reverse();
+    proof
+}
