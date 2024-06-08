@@ -11,6 +11,9 @@ pub trait Handler {
     fn handle_transaction(&self, peer: &Peer, transaction: Transaction);
     fn handle_peer_discovery(&self, peer: &Peer, peer_addresses: Vec<String>);
     fn handle_state_sync(&self, peer: &Peer, state_sync_message: StateSyncMessage);
+    fn handle_qup_message(&self, peer: &Peer, qup_message: QUPMessage);
+    fn handle_useful_work_problem(&self, peer: &Peer, problem: UsefulWorkProblem);
+    fn handle_useful_work_solution(&self, peer: &Peer, solution: UsefulWorkSolution);
 }
 
 pub struct HandlerImpl {
@@ -32,6 +35,9 @@ impl Handler for HandlerImpl {
             MessageType::Transaction(transaction) => self.handle_transaction(peer, transaction),
             MessageType::PeerDiscovery(peer_addresses) => self.handle_peer_discovery(peer, peer_addresses),
             MessageType::StateSync(state_sync_message) => self.handle_state_sync(peer, state_sync_message),
+            MessageType::QUPMessage(qup_message) => self.handle_qup_message(peer, qup_message),
+            MessageType::UsefulWorkProblem(problem) => self.handle_useful_work_problem(peer, problem),
+            MessageType::UsefulWorkSolution(solution) => self.handle_useful_work_solution(peer, solution),
         }
     }
 
@@ -141,3 +147,20 @@ impl Handler for HandlerImpl {
         }
     }
 }
+    fn handle_qup_message(&self, peer: &Peer, qup_message: QUPMessage) {
+        debug!("Received QUP message from peer: {}", peer.id);
+        // Process the QUP message
+        // ...
+    }
+
+    fn handle_useful_work_problem(&self, peer: &Peer, problem: UsefulWorkProblem) {
+        debug!("Received useful work problem from peer: {}", peer.id);
+        // Process the useful work problem
+        // ...
+    }
+
+    fn handle_useful_work_solution(&self, peer: &Peer, solution: UsefulWorkSolution) {
+        debug!("Received useful work solution from peer: {}", peer.id);
+        // Process the useful work solution
+        // ...
+    }
