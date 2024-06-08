@@ -255,7 +255,58 @@ impl Shard {
                 let mut transactions = self.transactions.write().map_err(|_| ShardError::SerializationError("Failed to acquire write lock for transactions".to_string()))?;
                 self.merge_state(&mut transactions, state);
             }
+            ShardMessage::CrossShardTransactionMessage {
+                transaction,
+                source_shard_id,
+                target_shard_id,
+            } => {
+                if target_shard_id != self.shard_id {
+                    warn!("Received cross-shard transaction for unexpected shard: {}", target_shard_id);
+                    return Ok(());
+                }
+                self.process_cross_shard_transaction(transaction, source_shard_id).await?;
+            }
+            ShardMessage::ShardBlockProposalMessage { block, shard_id } => {
+                if shard_id != self.shard_id {
+                    warn!("Received shard block proposal for unexpected shard: {}", shard_id);
+                    return Ok(());
+                }
+                self.process_shard_block_proposal(block).await?;
+            }
+            ShardMessage::ShardBlockCommitMessage { block_hash, shard_id } => {
+                if shard_id != self.shard_id {
+                    warn!("Received shard block commit for unexpected shard: {}", shard_id);
+                    return Ok(());
+                }
+                self.commit_shard_block(block_hash).await?;
+            }
         }
+        Ok(())
+    }
+
+    async fn process_cross_shard_transaction(
+        &mut self,
+        transaction: Transaction,
+        source_shard_id: u64,
+    ) -> Result<(), ShardError> {
+        // Validate and apply the cross-shard transaction to the shard state
+        // ...
+
+        Ok(())
+    }
+
+    async fn process_shard_block_proposal(&mut self, block: Block) -> Result<(), ShardError> {
+        // Validate and process the proposed shard block
+        // ...
+
+        Ok(())
+    }
+
+    async fn commit_shard_block(&mut self, block_hash: String) -> Result<(), ShardError> {
+        // Retrieve the block from the local storage
+        // Validate and commit the shard block
+        // ...
+
         Ok(())
     }
 }

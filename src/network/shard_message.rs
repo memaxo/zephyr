@@ -40,6 +40,19 @@ pub enum ShardMessage {
         shard_id: u64,
         sync_data: Vec<u8>,
     },
+    CrossShardTransactionMessage {
+        transaction: Transaction,
+        source_shard_id: u64,
+        target_shard_id: u64,
+    },
+    ShardBlockProposalMessage {
+        block: Block,
+        shard_id: u64,
+    },
+    ShardBlockCommitMessage {
+        block_hash: String,
+        shard_id: u64,
+    },
 }
 
 impl ShardMessage {
@@ -198,8 +211,70 @@ impl ShardMessageHandler {
                 ShardMessage::ShardSyncResponse { shard_id, sync_data } => {
                     self.handle_shard_sync_response(shard_id, sync_data).await;
                 }
+                ShardMessage::CrossShardTransactionMessage {
+                    transaction,
+                    source_shard_id,
+                    target_shard_id,
+                } => {
+                    self.handle_cross_shard_transaction(transaction, source_shard_id, target_shard_id)
+                        .await;
+                }
+                ShardMessage::ShardBlockProposalMessage { block, shard_id } => {
+                    self.handle_shard_block_proposal(block, shard_id).await;
+                }
+                ShardMessage::ShardBlockCommitMessage { block_hash, shard_id } => {
+                    self.handle_shard_block_commit(block_hash, shard_id).await;
+                }
             }
         }
+
+    async fn handle_cross_shard_transaction(
+        &mut self,
+        transaction: Transaction,
+        source_shard_id: u64,
+        target_shard_id: u64,
+    ) {
+        // Validate and process the cross-shard transaction
+        // ...
+
+        // Forward the transaction to the target shard
+        let message = ShardMessage::CrossShardTransactionMessage {
+            transaction,
+            source_shard_id,
+            target_shard_id,
+        };
+        if let Err(e) = self.send_message(target_shard_id, message).await {
+            error!("Failed to forward cross-shard transaction: {}", e);
+        }
+    }
+
+    async fn handle_shard_block_proposal(&mut self, block: Block, shard_id: u64) {
+        // Validate and process the proposed shard block
+        // ...
+
+        // Propagate the block to other nodes in the shard
+        let message = ShardMessage::ShardBlockProposalMessage {
+            block,
+            shard_id,
+        };
+        if let Err(e) = self.broadcast_message_within_shard(shard_id, message).await {
+            error!("Failed to propagate shard block proposal: {}", e);
+        }
+    }
+
+    async fn handle_shard_block_commit(&mut self, block_hash: String, shard_id: u64) {
+        // Validate and commit the shard block
+        // ...
+
+        // Propagate the block commit to other nodes in the shard
+        let message = ShardMessage::ShardBlockCommitMessage {
+            block_hash,
+            shard_id,
+        };
+        if let Err(e) = self.broadcast_message_within_shard(shard_id, message).await {
+            error!("Failed to propagate shard block commit: {}", e);
+        }
+    }
 
     async fn handle_shard_sync_request(&mut self, shard_id: u64, sync_hash: String) {
         // Retrieve the shard state
