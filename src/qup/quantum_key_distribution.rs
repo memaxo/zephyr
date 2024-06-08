@@ -9,6 +9,45 @@ pub struct QuantumKeyDistribution {
     // Implementation details
 }
 
+trait RandomData {
+    fn generate(rng: &mut rand::rngs::ThreadRng) -> Self;
+}
+
+impl RandomData for Qubit {
+    fn generate(rng: &mut rand::rngs::ThreadRng) -> Self {
+        let basis = rng.gen_range(0..=1);
+        let value = rng.gen_range(0..=1);
+
+        match (basis, value) {
+            (0, 0) => Qubit::Zero,
+            (0, 1) => Qubit::One,
+            (1, 0) => Qubit::Plus,
+            (1, 1) => Qubit::Minus,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl RandomData for Basis {
+    fn generate(rng: &mut rand::rngs::ThreadRng) -> Self {
+        match rng.gen_range(0..=1) {
+            0 => Basis::Standard,
+            1 => Basis::Hadamard,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl RandomData for Intensity {
+    fn generate(rng: &mut rand::rngs::ThreadRng) -> Self {
+        match rng.gen_range(0..=1) {
+            0 => Intensity::Signal,
+            1 => Intensity::Decoy,
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl QuantumKeyDistribution {
     pub fn new() -> Self {
         QuantumKeyDistribution {
@@ -38,13 +77,13 @@ impl QuantumKeyDistribution {
         let bob_auth_key = self.generate_authentication_key();
 
         // 1. Alice generates a random sequence of qubits
-        let alice_qubits = self.generate_random_qubits(key_size);
+        let alice_qubits = self.generate_random_data::<Qubit>(key_size);
 
         // 2. Alice chooses a random sequence of bases (+ or x) for each qubit
-        let alice_bases = self.generate_random_bases(key_size);
+        let alice_bases = self.generate_random_data::<Basis>(key_size);
 
         // 3. Alice chooses a random sequence of intensity levels (signal or decoy) for each qubit
-        let alice_intensities = self.generate_random_intensities(key_size);
+        let alice_intensities = self.generate_random_data::<Intensity>(key_size);
 
         // 4. Alice prepares the qubits according to the chosen bases and intensity levels
         let prepared_qubits = self.prepare_qubits(&alice_qubits, &alice_bases, &alice_intensities);
@@ -53,7 +92,7 @@ impl QuantumKeyDistribution {
         let bob_qubits = self.send_qubits(&prepared_qubits);
 
         // 6. Bob measures each qubit in a randomly chosen basis (+ or x)
-        let bob_bases = self.generate_random_bases(key_size);
+        let bob_bases = self.generate_random_data::<Basis>(key_size);
         let bob_measurements = self.measure_qubits(&bob_qubits, &bob_bases);
 
         // 7. Bob publicly announces his measurement bases and the positions of the decoy states
@@ -145,60 +184,18 @@ impl QuantumKeyDistribution {
         reconciled_key_auth.to_vec()
     }
 
-    fn generate_random_qubits(&self, size: usize) -> Vec<Qubit> {
+    fn generate_random_data<T>(&self, size: usize) -> Vec<T>
+    where
+        T: RandomData,
+    {
         let mut rng = rand::thread_rng();
-        let mut qubits = Vec::with_capacity(size);
+        let mut data = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let basis = rng.gen_range(0..=1);
-            let value = rng.gen_range(0..=1);
-
-            let qubit = match (basis, value) {
-                (0, 0) => Qubit::Zero,
-                (0, 1) => Qubit::One,
-                (1, 0) => Qubit::Plus,
-                (1, 1) => Qubit::Minus,
-                _ => unreachable!(),
-            };
-
-            qubits.push(qubit);
+            data.push(T::generate(&mut rng));
         }
 
-        qubits
-    }
-
-    fn generate_random_bases(&self, size: usize) -> Vec<Basis> {
-        let mut rng = rand::thread_rng();
-        let mut bases = Vec::with_capacity(size);
-
-        for _ in 0..size {
-            let basis = match rng.gen_range(0..=1) {
-                0 => Basis::Standard,
-                1 => Basis::Hadamard,
-                _ => unreachable!(),
-            };
-
-            bases.push(basis);
-        }
-
-        bases
-    }
-
-    fn generate_random_intensities(&self, size: usize) -> Vec<Intensity> {
-        let mut rng = rand::thread_rng();
-        let mut intensities = Vec::with_capacity(size);
-
-        for _ in 0..size {
-            let intensity = match rng.gen_range(0..=1) {
-                0 => Intensity::Signal,
-                1 => Intensity::Decoy,
-                _ => unreachable!(),
-            };
-
-            intensities.push(intensity);
-        }
-
-        intensities
+        data
     }
 
     fn prepare_qubits(
@@ -608,6 +605,8 @@ impl QuantumKeyDistribution {
         }
     }
 }
+
+use rand::Rng;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Qubit {
