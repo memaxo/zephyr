@@ -1,7 +1,7 @@
 use crate::qup::block::QUPBlock;
 use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, verify_signature, hash_data};
 use crate::qup::state::QUPState;
-use crate::network::{NetworkMessage, NetworkSender, NetworkReceiver, discover_peers, connect_to_peer, disconnect_from_peer};
+use crate::network::{NetworkMessage, QUPMessage, UsefulWorkProblem, UsefulWorkSolution, NetworkSender, NetworkReceiver, discover_peers, connect_to_peer, disconnect_from_peer};
 use crate::error::ConsensusError;
 use std::sync::Arc;
 
@@ -49,18 +49,23 @@ impl CommunicationProtocol {
         Ok(())
     }
 
-    pub async fn send_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        let serialized_message = bincode::serialize(&message)?;
+    pub async fn send_message(&self, message: QUPMessage) -> Result<(), ConsensusError> {
+        let network_message = NetworkMessage::QUPMessage(message);
+        let serialized_message = bincode::serialize(&network_message)?;
         self.sender.send(serialized_message).await?;
         Ok(())
     }
 
-    pub async fn receive_message(&self) -> Result<NetworkMessage, ConsensusError> {
+    pub async fn receive_message(&self) -> Result<QUPMessage, ConsensusError> {
         let serialized_message = self.receiver.receive().await?;
-        let message: NetworkMessage = bincode::deserialize(&serialized_message)?;
-        self.authenticate_message(&message)?;
-        self.verify_message_integrity(&message)?;
-        Ok(message)
+        let network_message: NetworkMessage = bincode::deserialize(&serialized_message)?;
+        if let NetworkMessage::QUPMessage(qup_message) = network_message {
+            self.authenticate_message(&qup_message)?;
+            self.verify_message_integrity(&qup_message)?;
+            Ok(qup_message)
+        } else {
+            Err(ConsensusError::InvalidMessage)
+        }
     }
 
     pub fn send_proof(&self, proof: &[u8], recipient: &str) -> Result<(), ConsensusError> {
@@ -101,34 +106,36 @@ impl CommunicationProtocol {
         }
     }
 
-    fn authenticate_message(&self, message: &NetworkMessage) -> Result<(), ConsensusError> {
+    fn authenticate_message(&self, message: &QUPMessage) -> Result<(), ConsensusError> {
         match message {
-            NetworkMessage::Proof { proof, signature } => {
-                let hashed_proof = hash_data(proof)?;
-                verify_signature(&hashed_proof, signature, &self.key_pair)
+            QUPMessage::UsefulWorkProblem(problem) => {
+                let serialized_problem = bincode::serialize(problem)?;
+                let hashed_problem = hash_data(&serialized_problem)?;
+                verify_signature(&hashed_problem, &problem.signature, &self.key_pair)
             }
-            NetworkMessage::Result { result, signature } => {
-                let hashed_result = hash_data(result)?;
-                verify_signature(&hashed_result, signature, &self.key_pair)
+            QUPMessage::UsefulWorkSolution(solution) => {
+                let serialized_solution = bincode::serialize(solution)?;
+                let hashed_solution = hash_data(&serialized_solution)?;
+                verify_signature(&hashed_solution, &solution.signature, &self.key_pair)
             }
             _ => Ok(()),
         }
     }
 
-    fn verify_message_integrity(&self, message: &NetworkMessage) -> Result<(), ConsensusError> {
+    fn verify_message_integrity(&self, message: &QUPMessage) -> Result<(), ConsensusError> {
         match message {
-            NetworkMessage::Proof { proof, .. } => {
-                let decrypted_proof = decrypt_data(proof, &self.key_pair)?;
-                let hashed_proof = hash_data(&decrypted_proof)?;
-                if hashed_proof != *proof {
+            QUPMessage::UsefulWorkProblem(problem) => {
+                let serialized_problem = bincode::serialize(problem)?;
+                let hashed_problem = hash_data(&serialized_problem)?;
+                if hashed_problem != problem.hash {
                     return Err(ConsensusError::MessageIntegrityError);
                 }
                 Ok(())
             }
-            NetworkMessage::Result { result, .. } => {
-                let decrypted_result = decrypt_data(result, &self.key_pair)?;
-                let hashed_result = hash_data(&decrypted_result)?;
-                if hashed_result != *result {
+            QUPMessage::UsefulWorkSolution(solution) => {
+                let serialized_solution = bincode::serialize(solution)?;
+                let hashed_solution = hash_data(&serialized_solution)?;
+                if hashed_solution != solution.hash {
                     return Err(ConsensusError::MessageIntegrityError);
                 }
                 Ok(())
