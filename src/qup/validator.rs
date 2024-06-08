@@ -98,8 +98,17 @@ impl QUPValidator {
     }
 
     fn sign_block(&self, block: &QUPBlock) -> QUPSignature {
-        // Implement the logic to sign the block
-        QUPSignature::new()
+        // Retrieve the validator's key pair
+        let key_pair = QUPKeyPair::new(); // Replace with actual key retrieval logic
+
+        // Serialize the block to bytes
+        let block_bytes = block.to_bytes();
+
+        // Sign the block bytes
+        let signature = key_pair.sign(&block_bytes);
+
+        // Return the signature
+        QUPSignature::from(signature)
     }
 
     fn sign_vote(&self, vote: &Vote) -> QUPSignature {
