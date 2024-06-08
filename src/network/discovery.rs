@@ -1,5 +1,5 @@
 use crate::error_handling::network_error::NetworkError;
-use crate::qup::qup_message::QUPMessage;
+use crate::qup::{qup_message::QUPMessage, node::NodeType};
 use crate::network::p2p::peer::Peer;
 use crate::network::protocol::ProtocolMessage;
 use crate::quantum_voting::quantum_communication::{
@@ -28,6 +28,7 @@ pub struct Discovery {
     crypto: QUPCrypto,
     quantum_channel: QuantumChannel,
     quantum_key_distribution: QuantumKeyDistribution,
+    node_type: NodeType,
 }
 
 impl Discovery {
@@ -35,6 +36,7 @@ impl Discovery {
         local_key: Keypair,
         bootstrap_nodes: Vec<Multiaddr>,
         crypto: QUPCrypto,
+        node_type: NodeType,
     ) -> Result<Self, NetworkError> {
         let local_peer_id = PeerId::from(local_key.public());
         info!("Local peer ID: {}", local_peer_id);
@@ -64,6 +66,7 @@ impl Discovery {
             crypto,
             quantum_channel,
             quantum_key_distribution,
+            node_type,
         })
     }
 
@@ -149,11 +152,17 @@ impl Discovery {
     }
 
     async fn is_qup_node(&mut self, peer_id: &PeerId) -> bool {
-        // Check if the peer supports the QUP protocol
-        // This can be done by sending a QUP-specific message and waiting for a valid response
-        // Return true if the peer is a QUP node, false otherwise
-        // ...
-        true // Placeholder implementation
+        // Send a QUP-specific message to the peer and wait for a valid response
+        let request = QUPMessage::NodeTypeRequest;
+        let response = self.send_qup_message(peer_id, request).await;
+
+        match response {
+            Ok(QUPMessage::NodeTypeResponse(node_type)) => match node_type {
+                NodeType::QuantumNode => true,
+                NodeType::ClassicalNode => false,
+            },
+            _ => false,
+        }
     }
 
     async fn remove_peer(&mut self, peer_id: &PeerId) {
