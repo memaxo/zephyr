@@ -556,38 +556,42 @@ pub fn validate_useful_work_proof(
 }
 
 pub fn solve_useful_work_problem(problem: &UsefulWorkProblem) -> UsefulWorkSolution {
-    // Solve the useful work problem
-    // This can be customized based on the specific requirements of the useful work problem
     match problem {
         UsefulWorkProblem::Knapsack(knapsack_problem) => {
-            // Implement a simple greedy algorithm to solve the knapsack problem
-            let mut total_weight = 0;
-            let mut selected_items = vec![false; knapsack_problem.weights.len()];
-
-            for (i, &weight) in knapsack_problem.weights.iter().enumerate() {
-                if total_weight + weight <= knapsack_problem.capacity {
-                    total_weight += weight;
-                    selected_items[i] = true;
-                }
-            }
-
-            UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
+            UsefulWorkSolution::Knapsack(solve_knapsack_problem(knapsack_problem))
         }
         UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-            // Implement a simple greedy algorithm to solve the vertex cover problem
-            let mut vertex_cover = Vec::new();
-            let mut covered_edges = vec![false; vertex_cover_problem.graph.len()];
-
-            for (vertex, edges) in vertex_cover_problem.graph.iter().enumerate() {
-                if !covered_edges[vertex] {
-                    vertex_cover.push(*vertex);
-                    for &edge in edges {
-                        covered_edges[edge] = true;
-                    }
-                }
-            }
-
-            UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
+            UsefulWorkSolution::VertexCover(solve_vertex_cover_problem(vertex_cover_problem))
+        }
+        UsefulWorkProblem::TravelingSalesman(traveling_salesman_problem) => {
+            UsefulWorkSolution::TravelingSalesman(solve_traveling_salesman_problem(traveling_salesman_problem))
+        }
+        UsefulWorkProblem::JobScheduling(job_scheduling_problem) => {
+            UsefulWorkSolution::JobScheduling(solve_job_scheduling_problem(job_scheduling_problem))
+        }
+        UsefulWorkProblem::BinPacking(bin_packing_problem) => {
+            UsefulWorkSolution::BinPacking(solve_bin_packing_problem(bin_packing_problem))
+        }
+        UsefulWorkProblem::MaximumFlow(maximum_flow_problem) => {
+            UsefulWorkSolution::MaximumFlow(solve_maximum_flow_problem(maximum_flow_problem))
+        }
+        UsefulWorkProblem::ShortestPath(shortest_path_problem) => {
+            UsefulWorkSolution::ShortestPath(solve_shortest_path_problem(shortest_path_problem))
+        }
+        UsefulWorkProblem::MinimumSpanningTree(minimum_spanning_tree_problem) => {
+            UsefulWorkSolution::MinimumSpanningTree(solve_minimum_spanning_tree_problem(minimum_spanning_tree_problem))
+        }
+        UsefulWorkProblem::ResourceAllocation(resource_allocation_problem) => {
+            UsefulWorkSolution::ResourceAllocation(solve_resource_allocation_problem(resource_allocation_problem))
+        }
+        UsefulWorkProblem::VehicleRouting(vehicle_routing_problem) => {
+            UsefulWorkSolution::VehicleRouting(solve_vehicle_routing_problem(vehicle_routing_problem))
+        }
+        UsefulWorkProblem::PortfolioOptimization(portfolio_optimization_problem) => {
+            UsefulWorkSolution::PortfolioOptimization(solve_portfolio_optimization_problem(portfolio_optimization_problem))
+        }
+        UsefulWorkProblem::MarketEquilibrium(market_equilibrium_problem) => {
+            UsefulWorkSolution::MarketEquilibrium(solve_market_equilibrium_problem(market_equilibrium_problem))
         }
     }
 }
