@@ -721,7 +721,7 @@ pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError>
 
     // Broadcast the optimized block to other nodes
     let message = NetworkMessage::BlockCommit(optimized_block);
-    self.communication_protocol.send_message(message)?;
+    self.network.broadcast(message)?;
 
     Ok(())
 }
@@ -741,7 +741,7 @@ pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
 
     // Broadcast the vote to other validators
     let message = NetworkMessage::Vote(vote.clone());
-    self.communication_protocol.send_message(message)?;
+    self.network.broadcast(message)?;
 
     Ok(vote)
 }
@@ -824,7 +824,7 @@ pub fn propose_block(
 
     // Broadcast the block proposal to other validators
     let message = NetworkMessage::BlockProposal(block.clone());
-    self.communication_protocol.send_message(message)?;
+    self.network.broadcast(message)?;
 
     Ok(block)
 }
