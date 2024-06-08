@@ -352,24 +352,47 @@ impl Utils {
         Signature::verify(&message, &transaction.signature, &public_key)
     }
 
-    pub fn verify_block_signature() {
-        // Scaffold method for verifying block signature
-        unimplemented!()
+    pub fn verify_block_signature(
+        block_header: &QUPBlockHeader,
+        signature: &Signature,
+        public_key: &[u8],
+    ) -> bool {
+        let message = calculate_block_hash(block_header);
+        Signature::verify(&message, signature, public_key)
     }
 
-    pub fn verify_vote_signature() {
-        // Scaffold method for verifying vote signature
-        unimplemented!()
+    pub fn verify_vote_signature(vote: &QUPVote) -> bool {
+        // Input validation
+        if vote.block_hash.is_empty() || vote.voter.is_empty() || vote.signature.is_empty() {
+            return false;
+        }
+
+        let message = vote.block_hash;
+        let public_key = get_public_key_from_address(&vote.voter);
+        Signature::verify(&message, &vote.signature, &public_key)
     }
 
-    pub fn generate_proof_of_solution() {
-        // Scaffold method for generating proof of solution
-        unimplemented!()
+    pub fn generate_proof_of_solution(solution: &UsefulWorkSolution) -> Vec<u8> {
+        // Serialize the solution
+        let serialized_solution = bincode::serialize(solution).expect("Failed to serialize solution");
+
+        // Create a hash of the serialized solution as the proof
+        let mut hasher = Sha256::new();
+        hasher.update(&serialized_solution);
+        hasher.finalize().to_vec()
     }
 
-    pub fn verify_proof_of_solution() {
-        // Scaffold method for verifying proof of solution
-        unimplemented!()
+    pub fn verify_proof_of_solution(solution: &UsefulWorkSolution, proof: &[u8]) -> bool {
+        // Serialize the solution
+        let serialized_solution = bincode::serialize(solution).expect("Failed to serialize solution");
+
+        // Create a hash of the serialized solution
+        let mut hasher = Sha256::new();
+        hasher.update(&serialized_solution);
+        let calculated_proof = hasher.finalize().to_vec();
+
+        // Compare the calculated proof with the provided proof
+        calculated_proof == proof
     }
 }
 
