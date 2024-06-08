@@ -5,19 +5,101 @@ use rmp_serde as rmps;
 use capnp::{message::Builder, serialize};
 use serde::{Deserialize, Serialize};
 use zstd::stream::{decode_all, encode_all};
+use priority_queue::PriorityQueue;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use zstd::stream::{decode_all, encode_all};
 
 pub const PROTOCOL_VERSION: u32 = 2;
 // Quantum-resistant protocol version
-pub const MAX_MESSAGE_SIZE: usize = 1024 * 1024;
-// 1 MB
+pub const MAX_MESSAGE_SIZE: usize = 1024 * 1024; // 1 MB
+pub const MAX_INFLIGHT_MESSAGES: usize = 100; 
+pub const FLOW_CONTROL_WINDOW: usize = 10;
 pub const PING_INTERVAL: u64 = 60;
 // 60 seconds
 pub const PONG_TIMEOUT: u64 = 30;
 // 30 seconds
 pub const HANDSHAKE_TIMEOUT: u64 = 10; // 10 seconds
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ProtocolMessage {
+    // Existing message types...
+
+    // New flow control message types
+    FlowControlCredit { 
+        credit: usize 
+    },
+    FlowControlAck,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct PrioritizedMessage {
+    pub priority: u8,
+    pub message: ProtocolMessage,
+}
+
+impl PartialOrd for PrioritizedMessage {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        other.priority.partial_cmp(&self.priority)
+    }
+}
+
+impl Ord for PrioritizedMessage {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other.priority.cmp(&self.priority)
+    }
+}
+
+pub struct MessageQueue {
+    outbound: Arc<Mutex<PriorityQueue<PrioritizedMessage>>>,
+    inbound: Arc<Mutex<PriorityQueue<PrioritizedMessage>>>,
+    outbound_credit: usize,
+    inbound_window: usize,
+}
+
+impl MessageQueue {
+    pub fn new() -> Self {
+        MessageQueue {
+            outbound: Arc::new(Mutex::new(PriorityQueue::new())),
+            inbound: Arc::new(Mutex::new(PriorityQueue::new())),
+            outbound_credit: MAX_INFLIGHT_MESSAGES,
+            inbound_window: FLOW_CONTROL_WINDOW,
+        }
+    }
+
+    pub async fn enqueue_outbound(&mut self, message: ProtocolMessage, priority: u8) {
+        if self.outbound_credit > 0 {
+            self.outbound.lock().await.push(PrioritizedMessage { priority, message });
+            self.outbound_credit -= 1;
+        }
+    }
+
+    pub async fn dequeue_outbound(&mut self) -> Option<ProtocolMessage> {
+        self.outbound.lock().await.pop().map(|p| p.message)
+    }
+
+    pub async fn enqueue_inbound(&mut self, message: ProtocolMessage, priority: u8) {
+        self.inbound.lock().await.push(PrioritizedMessage { priority, message });
+        if self.inbound.lock().await.len() >= self.inbound_window {
+            self.send_flow_control().await;
+        }
+    }
+
+    pub async fn dequeue_inbound(&mut self) -> Option<ProtocolMessage> {
+        self.inbound.lock().await.pop().map(|p| p.message)  
+    }
+
+    async fn send_flow_control(&mut self) {
+        let credit = self.inbound_window - self.inbound.lock().await.len();
+        if credit > 0 {
+            self.enqueue_outbound(ProtocolMessage::FlowControlCredit { credit }, 0).await;
+        }
+    }
+
+    pub fn receive_flow_control(&mut self, credit: usize) {
+        self.outbound_credit += credit;
+    }
+}
     Ping,
     Pong,
     Handshake {
@@ -140,6 +222,8 @@ impl ProtocolMessage {
         }
         let serialized_data = rmps::to_vec_named(self)
             .map_err(|e| ProtocolError::SerializationFailed(e.to_string()))?;
+        let compressed_data = encode_all(&serialized_data[..], 1)  
+            .map_err(|e| ProtocolError::CompressionFailed(e.to_string()))?;
         let compressed_data = encode_all(&serialized_data[..], 1)
             .map_err(|e| ProtocolError::CompressionFailed(e.to_string()))?;
         crypto.encrypt(&compressed_data)
@@ -168,6 +252,10 @@ pub enum ProtocolError {
     EncryptionFailed(String),
     #[error("Decryption failed: {0}")]
     DecryptionFailed(String),
+    #[error("Compression failed: {0}")]
+    CompressionFailed(String),
+    #[error("Decompression failed: {0}")]  
+    DecompressionFailed(String),
     #[error("Quantum key distribution failed: {0}")]
     QKDFailed(String),
     #[error("Quantum state distribution failed: {0}")]
