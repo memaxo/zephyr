@@ -244,11 +244,49 @@ impl QUPConsensus {
         Ok(UsefulWorkResult { problem, solution })
     }
 
-    fn synchronize_and_validate(&self, result: UsefulWorkResult) -> Result<(), ConsensusError> {
-        // Synchronize and validate the results between classical and quantum nodes
-        self.communication_protocol.send_message(NetworkMessage::UsefulWorkResult(result.clone()))?;
-        self.validate_useful_work_solution(&result.problem, &result.solution)?;
+    fn synchronize_and_validate_results(&self, results: Vec<UsefulWorkResult>) -> Result<(), ConsensusError> {
+        // Synchronize the results between classical and quantum nodes
+        for result in &results {
+            self.communication_protocol.send_message(NetworkMessage::UsefulWorkResult(result.clone()))?;
+        }
+
+        // Wait for a certain number of confirmations from other nodes
+        let confirmations = self.wait_for_confirmations(results.len())?;
+
+        // Validate the results
+        for result in &results {
+            if !self.validate_useful_work_solution(&result.problem, &result.solution)? {
+                return Err(ConsensusError::InvalidUsefulWorkSolution);
+            }
+        }
+
+        // Check if the number of confirmations meets the threshold
+        if confirmations < self.config.confirmation_threshold {
+            return Err(ConsensusError::InsufficientConfirmations);
+        }
+
+        // Integrate the validated results into the blockchain
+        for result in results {
+            self.integrate_results(&result.problem, &result.solution);
+        }
+
         Ok(())
+    }
+
+    fn wait_for_confirmations(&self, num_results: usize) -> Result<usize, ConsensusError> {
+        let mut confirmations = 0;
+        let timeout = self.config.confirmation_timeout;
+        let start_time = Instant::now();
+
+        while confirmations < num_results && start_time.elapsed() < timeout {
+            if let Ok(message) = self.communication_protocol.receive_message_timeout(timeout - start_time.elapsed()) {
+                if let NetworkMessage::UsefulWorkConfirmation(_) = message {
+                    confirmations += 1;
+                }
+            }
+        }
+
+        Ok(confirmations)
     }
 
     pub fn process_qup_message(&mut self, message: QUPMessage) -> Result<(), ConsensusError> {
