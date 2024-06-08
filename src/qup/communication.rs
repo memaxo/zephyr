@@ -28,16 +28,16 @@ impl CommunicationProtocol {
     }
 
     fn send_classical_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        // Implement classical message sending logic
-        match classical_send(message) {
+        let serialized_message = bincode::serialize(&message)?;
+        match send_message(serialized_message) {
             Ok(_) => Ok(()),
             Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send classical message: {}", e))),
         }
     }
 
     fn send_quantum_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        // Implement quantum message sending logic
-        match quantum_send(message) {
+        let serialized_message = bincode::serialize(&message)?;
+        match send_quantum_message(serialized_message) {
             Ok(_) => Ok(()),
             Err(e) => Err(ConsensusError::CommunicationError(format!("Failed to send quantum message: {}", e))),
         }
@@ -51,12 +51,18 @@ impl CommunicationProtocol {
     }
 
     fn receive_classical_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        // Implement classical message receiving logic
+        let serialized_message = receive_message()?;
+        let message: NetworkMessage = bincode::deserialize(&serialized_message)?;
+        self.authenticate_message(&message)?;
+        self.verify_message_integrity(&message)?;
         Ok(())
     }
 
     fn receive_quantum_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
-        // Implement quantum message receiving logic
+        let serialized_message = receive_quantum_message()?;
+        let message: NetworkMessage = bincode::deserialize(&serialized_message)?;
+        self.authenticate_message(&message)?;
+        self.verify_message_integrity(&message)?;
         Ok(())
     }
 
