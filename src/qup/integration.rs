@@ -2,6 +2,8 @@ use crate::network::{Network, ProtocolMessage};
 use crate::storage::{Storage, QUPStorage};
 use crate::smart_contracts::{SmartContract, SmartContractExecutor};
 use crate::qup::{QUPCrypto, QUPState, QUPBlock};
+use std::net::{TcpStream, TcpListener};
+use std::io::{Read, Write};
 
 pub struct QUPIntegration {
     network: Network,
@@ -51,5 +53,35 @@ impl QUPIntegration {
 
     pub fn update_state(&mut self, new_state: QUPState) {
         self.qup_state = new_state;
+    }
+
+    // New methods for seamless communication and data exchange with external systems
+
+    pub fn send_data_to_external_system(&self, address: &str, data: &[u8]) -> Result<(), String> {
+        match TcpStream::connect(address) {
+            Ok(mut stream) => {
+                stream.write_all(data).map_err(|e| e.to_string())
+            },
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    pub fn receive_data_from_external_system(&self, address: &str) -> Result<Vec<u8>, String> {
+        match TcpListener::bind(address) {
+            Ok(listener) => {
+                for stream in listener.incoming() {
+                    match stream {
+                        Ok(mut stream) => {
+                            let mut buffer = Vec::new();
+                            stream.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
+                            return Ok(buffer);
+                        },
+                        Err(e) => return Err(e.to_string()),
+                    }
+                }
+                Err("No incoming connections".to_string())
+            },
+            Err(e) => Err(e.to_string()),
+        }
     }
 }
