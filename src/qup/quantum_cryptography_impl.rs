@@ -12,42 +12,41 @@ pub struct QuantumCryptographyImpl;
 
 impl QuantumCryptography for QuantumCryptographyImpl {
     fn encrypt_vote(&self, vote: &Vote, quantum_key: &QuantumKey) -> Result<EncryptedVote, VotingError> {
-        let key = Key::from_slice(&quantum_key.public_key);
-        let cipher = Aes256GcmSiv::new(key);
-        let nonce = Nonce::from_slice(b"unique nonce"); // Use a unique nonce for each encryption
-        let ciphertext = cipher.encrypt(nonce, vote.to_bytes().as_ref())
-            .map_err(|_| VotingError::EncryptionFailed)?;
+        // Implement quantum-resistant encryption using the quantum_key
+        // Example using a post-quantum encryption scheme like NTRU:
+        let ntru = Ntru::new(quantum_key)?;
+        let ciphertext = ntru.encrypt(&vote.to_bytes())?;
         Ok(EncryptedVote { ciphertext })
     }
 
     fn decrypt_vote(&self, encrypted_vote: &EncryptedVote, quantum_key: &QuantumKey) -> Result<Vote, VotingError> {
-        let key = Key::from_slice(&quantum_key.secret_key);
-        let cipher = Aes256GcmSiv::new(key);
-        let nonce = Nonce::from_slice(b"unique nonce"); // Use the same nonce as used during encryption
-        let plaintext = cipher.decrypt(nonce, encrypted_vote.ciphertext.as_ref())
-            .map_err(|_| VotingError::DecryptionFailed)?;
+        // Implement quantum-resistant decryption using the quantum_key
+        // Example using a post-quantum encryption scheme like NTRU:
+        let ntru = Ntru::new(quantum_key)?;
+        let plaintext = ntru.decrypt(&encrypted_vote.ciphertext)?;
         Vote::from_bytes(&plaintext)
     }
 
     fn sign_vote(&self, vote: &Vote, quantum_key: &QuantumKey) -> Result<QuantumDigitalSignature, VotingError> {
-        let secret_key = SecretKey::from_bytes(&quantum_key.secret_key)
-            .map_err(|_| VotingError::InvalidKey)?;
-        let keypair = Keypair { secret: secret_key, public: PublicKey::from(&secret_key) };
-        let signature = keypair.sign(&vote.to_bytes());
-        Ok(QuantumDigitalSignature { signature: signature.to_bytes().to_vec() })
+        // Implement quantum-resistant digital signature using the quantum_key
+        // Example using a post-quantum signature scheme like SPHINCS+:
+        let sphincs = Sphincs::new(quantum_key)?;
+        let signature = sphincs.sign(&vote.to_bytes())?;
+        Ok(QuantumDigitalSignature { signature })
     }
 
     fn verify_vote_signature(&self, vote: &Vote, signature: &QuantumDigitalSignature, quantum_key: &QuantumKey) -> Result<bool, VotingError> {
-        let public_key = PublicKey::from_bytes(&quantum_key.public_key)
-            .map_err(|_| VotingError::InvalidKey)?;
-        let signature = Signature::from_bytes(&signature.signature)
-            .map_err(|_| VotingError::InvalidSignature)?;
-        Ok(public_key.verify(&vote.to_bytes(), &signature).is_ok())
+        // Implement quantum-resistant signature verification using the quantum_key
+        // Example using a post-quantum signature scheme like SPHINCS+:
+        let sphincs = Sphincs::new(quantum_key)?;
+        let is_valid = sphincs.verify(&vote.to_bytes(), &signature.signature)?;
+        Ok(is_valid)
     }
 
     fn hash_vote(&self, vote: &Vote) -> Result<QuantumHash, VotingError> {
-        let mut hasher = Blake3Hasher::new();
-        hasher.update(&vote.to_bytes());
-        Ok(QuantumHash { hash: hasher.finalize().as_bytes().to_vec() })
+        // Implement quantum-resistant hashing using a post-quantum hash function
+        // Example using a post-quantum hash function like SHAKE256:
+        let hash = shake256(&vote.to_bytes())?;
+        Ok(QuantumHash { hash })
     }
 }
