@@ -14,7 +14,6 @@ pub fn calculate_block_hash(block_header: &QUPBlockHeader) -> Hash {
     hasher.update(&block_header.difficulty.to_le_bytes());
     hasher.update(&block_header.nonce.to_le_bytes());
     hasher.finalize()
-}
 
 pub fn calculate_transaction_hash(transaction: &QUPTransaction) -> Hash {
     let mut hasher = Hasher::new();
@@ -493,6 +492,7 @@ pub fn validate_useful_work_proof(
     Ok(&deserialized_solution == solution)
 }
 
+pub fn solve_useful_work_problem(problem: &UsefulWorkProblem) -> UsefulWorkSolution {
 pub fn solve_useful_work_problem(problem: &UsefulWorkProblem) -> UsefulWorkSolution {
     match problem {
         UsefulWorkProblem::Knapsack(knapsack_problem) => {
