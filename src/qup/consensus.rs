@@ -9,6 +9,7 @@ use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{verify_signature, QUPKeyPair, QUPCrypto};
 use crate::qup::state::QUPState;
+use crate::utils::validate_useful_work_solution;
 use std::sync::Arc;
 
 use crate::chain::blockchain::Blockchain;
@@ -248,32 +249,8 @@ fn validate_useful_work_solution(
     problem: &UsefulWorkProblem,
     solution: &UsefulWorkSolution,
 ) -> Result<bool, ConsensusError> {
-    // Implement the logic to validate the useful work solution
-    match problem {
-        UsefulWorkProblem::Knapsack(knapsack_problem) => {
-            // Validate the knapsack solution
-            let total_weight: u64 = solution
-                .as_knapsack()
-                .selected_items
-                .iter()
-                .enumerate()
-                .filter(|(_, &selected)| selected)
-                .map(|(i, _)| knapsack_problem.weights[i])
-                .sum();
-            if total_weight > knapsack_problem.capacity {
-                return Ok(false);
-            }
-            Ok(true)
-        }
-        UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-            // Validate the vertex cover solution
-            let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
-            if !is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover) {
-                return Ok(false);
-            }
-            Ok(true)
-        }
-    }
+    // Use the implementation from utils.rs
+    Ok(validate_useful_work_solution(problem, solution))
 }
 
 fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
@@ -534,13 +511,6 @@ fn generate_useful_work_proof(&self, solution: &UsefulWorkSolution) -> Vec<u8> {
     bincode::serialize(solution).expect("Failed to serialize useful work solution")
 }
 
-fn verify_useful_work_proof(&self, proof: &[u8], solution: &UsefulWorkSolution) -> Result<bool, ConsensusError> {
-    // Verify the proof of useful work
-    // This can be customized based on the specific requirements of the proof
-    // For simplicity, we will deserialize the proof and compare it with the solution
-    let deserialized_solution: UsefulWorkSolution = bincode::deserialize(proof).expect("Failed to deserialize useful work proof");
-    Ok(&deserialized_solution == solution)
-}
 
 pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
     self.communication_protocol.receive_message(message.clone())?;
