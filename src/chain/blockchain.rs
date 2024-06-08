@@ -19,6 +19,7 @@ use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
 use crate::secure_storage::SecureStorage;
 use crate::zkp_crate;
+use crate::qup::reward::RewardDistributor;
 
 #[derive(Error, Debug)]
 pub enum BlockchainError {
@@ -128,6 +129,10 @@ impl Blockchain {
         self.state_transition.apply_block(&block)?;
 
         debug!("Block added to the blockchain");
+
+        // Distribute rewards
+        let reward_distributor = RewardDistributor::new(self.qup_config.clone());
+        reward_distributor.distribute_rewards(&mut self.state.write(), &block.header);
         Ok(())
     }
 
