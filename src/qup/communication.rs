@@ -1,7 +1,7 @@
 use crate::qup::block::QUPBlock;
 use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, verify_signature, hash_data};
 use crate::qup::state::QUPState;
-use crate::network::{NetworkMessage, send_message, receive_message};
+use crate::network::{NetworkMessage, send_message, receive_message, discover_peers, connect_to_peer, disconnect_from_peer};
 use crate::error::ConsensusError;
 use std::sync::Arc;
 
@@ -13,11 +13,36 @@ pub enum NodeType {
 pub struct CommunicationProtocol {
     pub node_type: NodeType,
     pub key_pair: QUPKeyPair,
+    pub peers: Vec<String>,
 }
 
 impl CommunicationProtocol {
     pub fn new(node_type: NodeType, key_pair: QUPKeyPair) -> Self {
-        CommunicationProtocol { node_type, key_pair }
+        CommunicationProtocol { 
+            node_type, 
+            key_pair,
+            peers: Vec::new(),
+        }
+    }
+
+    pub fn discover_peers(&mut self) -> Result<(), ConsensusError> {
+        let discovered_peers = discover_peers()?;
+        self.peers.extend(discovered_peers);
+        Ok(())
+    }
+
+    pub fn connect_to_peer(&mut self, peer: &str) -> Result<(), ConsensusError> {
+        connect_to_peer(peer)?;
+        if !self.peers.contains(&peer.to_string()) {
+            self.peers.push(peer.to_string());
+        }
+        Ok(())
+    }
+
+    pub fn disconnect_from_peer(&mut self, peer: &str) -> Result<(), ConsensusError> {
+        disconnect_from_peer(peer)?;
+        self.peers.retain(|p| p != peer);
+        Ok(())
     }
 
     pub fn send_message(&self, message: NetworkMessage) -> Result<(), ConsensusError> {
