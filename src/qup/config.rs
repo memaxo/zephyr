@@ -21,6 +21,42 @@ pub struct QUPConfig {
     pub contract_storage_path: String,
 }
 
+/// Configuration settings for quantum nodes.
+pub struct QuantumNodeSettings {
+    pub max_qubits: u32,
+    pub error_rate: f64,
+}
+
+impl QuantumNodeSettings {
+    pub fn new(max_qubits: u32, error_rate: f64) -> Self {
+        QuantumNodeSettings {
+            max_qubits,
+            error_rate,
+        }
+    }
+}
+
+/// Types of useful work problems that can be configured.
+pub enum UsefulWorkProblemType {
+    Optimization,
+    Simulation,
+    DataAnalysis,
+}
+
+/// Cryptographic parameters for the QUP network.
+pub struct CryptographicParameters {
+    pub hash_algorithm: String,
+    pub key_size: u32,
+}
+
+impl CryptographicParameters {
+    pub fn new(hash_algorithm: String, key_size: u32) -> Self {
+        CryptographicParameters {
+            hash_algorithm,
+            key_size,
+        }
+    }
+
 impl QUPConfig {
     pub fn new(
         consensus_config: ConsensusConfig,
@@ -37,6 +73,9 @@ impl QUPConfig {
         transaction_storage_path: String,
         state_storage_path: String,
         contract_storage_path: String,
+        quantum_node_settings: QuantumNodeSettings,
+        useful_work_problem_types: Vec<UsefulWorkProblemType>,
+        cryptographic_parameters: CryptographicParameters,
     ) -> Self {
         QUPConfig {
             consensus_config,
@@ -45,6 +84,9 @@ impl QUPConfig {
             validator_reward_ratio,
             useful_work_config,
             reward_scheme,
+            quantum_node_settings,
+            useful_work_problem_types,
+            cryptographic_parameters,
         }
     }
 
