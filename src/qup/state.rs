@@ -19,6 +19,43 @@ pub struct QUPState {
     pub hdc_models: Arc<QUPHDCModels>,
     pub state_storage: Arc<StateStorage>,
     pub network_state: Mutex<NetworkState>,
+    pub fn synchronize_state(&self, other_state: &QUPState) {
+        let mut network_state = self.network_state.lock().unwrap();
+        let other_network_state = other_state.network_state.lock().unwrap();
+
+        // Synchronize accounts
+        for (id, account) in &other_state.accounts {
+            self.accounts.entry(id.clone()).or_insert_with(|| account.clone());
+        }
+
+        // Synchronize blocks
+        for block in &other_state.blocks {
+            if !self.blocks.contains(block) {
+                self.blocks.push(block.clone());
+            }
+        }
+
+        // Synchronize network state
+        network_state.node_count = network_state.node_count.max(other_network_state.node_count);
+        network_state.active_nodes = network_state.active_nodes.iter().chain(other_network_state.active_nodes.iter()).cloned().collect();
+        network_state.task_distribution.extend(other_network_state.task_distribution.clone());
+    }
+
+    pub fn ensure_consistency(&self) {
+        let mut network_state = self.network_state.lock().unwrap();
+
+        // Ensure all active nodes are unique
+        network_state.active_nodes.sort();
+        network_state.active_nodes.dedup();
+
+        // Ensure task distribution is balanced
+        let total_tasks: usize = network_state.task_distribution.values().sum();
+        let average_tasks = total_tasks / network_state.node_count.max(1);
+
+        for tasks in network_state.task_distribution.values_mut() {
+            *tasks = average_tasks;
+        }
+    }
 }
 
 impl QUPState {
