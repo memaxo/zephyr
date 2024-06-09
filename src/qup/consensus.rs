@@ -186,7 +186,21 @@ impl QUPConsensus {
     }
 
     pub fn synchronize_results(&self) {
-        // Scaffold method for synchronizing results
+        // Collect results from all nodes
+        let results = self.collect_results_from_nodes();
+
+        // Validate and integrate results
+        for (problem, solution) in results {
+            if self.validate_useful_work(&problem, &solution) {
+                self.integrate_results(&problem, &solution);
+            }
+        }
+    }
+
+    fn collect_results_from_nodes(&self) -> Vec<(UsefulWorkProblem, UsefulWorkSolution)> {
+        // Placeholder for collecting results from nodes
+        // This can be customized based on the specific communication protocol
+        vec![]
     }
 
     pub fn finalize_block(&self) -> Result<(), ConsensusError> {
@@ -260,6 +274,16 @@ impl QUPConsensus {
     fn integrate_results(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) {
         // Integrate the useful work results into the blockchain
         // This can be customized based on the specific requirements of the useful work problem and solution
+        match problem {
+            UsefulWorkProblem::Knapsack(_) => {
+                // Example: Update state with knapsack solution
+                self.state.update_with_knapsack_solution(solution.as_knapsack());
+            }
+            UsefulWorkProblem::VertexCover(_) => {
+                // Example: Update state with vertex cover solution
+                self.state.update_with_vertex_cover_solution(solution.as_vertex_cover());
+            }
+        }
     }
 
     fn is_task_complex(&self, transaction: &Transaction) -> bool {
