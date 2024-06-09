@@ -25,6 +25,9 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
+    pub consensus_mechanism: ConsensusMechanism,
+    pub useful_work_generator: Box<dyn UsefulWorkGenerator>,
+    pub communication_protocol: Box<dyn CommunicationProtocol>,
 }
 
 pub enum ConsensusMechanism {
@@ -68,6 +71,9 @@ impl QUPConsensus {
             block_storage,
             transaction_storage,
             qup_crypto: QUPCrypto::new(),
+            consensus_mechanism: ConsensusMechanism::Standard,
+            useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
+            communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
         }
     }
 }
