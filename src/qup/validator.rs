@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 pub struct QUPValidator {
     config: Arc<QUPConfig>,
-    state: Arc<QUPState>,
+    state_manager: Arc<StateManager>,
     hdc_models: QUPHDCModels,
     stakes: HashMap<String, u64>, // Validator stakes
     weights: HashMap<String, f64>, // Validator weights
@@ -178,9 +178,7 @@ impl QUPValidator {
     }
 }
 impl QUPValidator {
-    pub fn get_stake(&self, voter: &[u8]) -> Result<u64, ConsensusError> {
-        // Implement the logic to get the stake for the given voter
-        // Placeholder implementation
-        Ok(0)
+    pub fn get_account(&self, address: &str) -> Option<Account> {
+        self.state_manager.get_account(address)
     }
 }
