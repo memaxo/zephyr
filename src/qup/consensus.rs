@@ -25,9 +25,6 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
-    pub consensus_mechanism: ConsensusMechanism,
-    pub useful_work_generator: Box<dyn UsefulWorkGenerator>,
-    pub communication_protocol: Box<dyn CommunicationProtocol>,
 }
 
 pub enum ConsensusMechanism {
@@ -543,8 +540,6 @@ impl QUPConsensus {
 
         history_proof
     }
-
-}
 
 fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
     // Solve the useful work problem
