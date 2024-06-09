@@ -245,23 +245,20 @@ impl QUPState {
     }
     pub fn new(
         config: Arc<QUPConfig>,
-        state_db: Arc<StateDB>,
+        state_manager: Arc<StateManager>,
         delegator: Arc<QUPDelegator>,
         validator: Arc<QUPValidator>,
         hdc_models: Arc<QUPHDCModels>,
-        state_storage: Arc<StateStorage>,
         classical_node: Arc<ClassicalNode>,
         quantum_node: Arc<QuantumNode>,
     ) -> Self {
         let mut state = QUPState {
-            accounts: HashMap::new(),
+            accounts: state_manager,
             blocks: Vec::new(),
             config: config.clone(),
-            state_db: state_db.clone(),
             delegator: delegator.clone(),
             validator: validator.clone(),
             hdc_models: hdc_models.clone(),
-            state_storage: state_storage.clone(),
             network_state: Mutex::new(NetworkState::default()),
             classical_node,
             quantum_node,
