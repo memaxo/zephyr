@@ -1,10 +1,29 @@
-use crate::chain::block::Block;
 use crate::state::account::Account;
+use crate::chain::block::Block;
 use crate::state::state_manager::StateManager;
 use crate::chain::transaction::Transaction;
-use crate::qup::crypto::QUPCrypto;
-use crate::qup::state::QUPState;
 use std::sync::Arc;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum StateTransitionError {
+    #[error("Sender account not found: {0}")]
+    SenderAccountNotFound(String),
+    #[error("Receiver account not found: {0}")]
+    ReceiverAccountNotFound(String),
+    #[error("Insufficient balance. Sender: {0}, Balance: {1}, Transaction amount: {2}")]
+    InsufficientBalance(String, u64, u64),
+    #[error("Invalid transaction nonce. Expected: {0}, Actual: {1}")]
+    InvalidTransactionNonce(u64, u64),
+    #[error("State update error: {0}")]
+    StateUpdateError(String),
+    #[error("Block validation failed: {0}")]
+    BlockValidationFailed(String),
+    #[error("Sender and receiver cannot be the same address: {0}")]
+    SenderReceiverSameAddress(String),
+    #[error("State update failed due to an inconsistent state")]
+    InconsistentStateError,
+}
 
 pub struct StateTransition {
     state_manager: Arc<StateManager>,
@@ -13,39 +32,70 @@ pub struct StateTransition {
 }
 
 impl StateTransition {
-    pub fn new(
-        state_manager: Arc<StateManager>,
-        qup_state: Arc<QUPState>,
-        qup_crypto: Arc<QUPCrypto>,
-    ) -> Self {
-        StateTransition {
-            state_manager,
-            qup_state,
-            qup_crypto,
-        }
+    pub fn new(state_manager: Arc<StateManager>, qup_state: Arc<QUPState>, qup_crypto: Arc<QUPCrypto>) -> Self {
+        StateTransition { state_manager, qup_state, qup_crypto }
     }
 
-    pub fn apply(&self, transaction: &Transaction) -> Result<(), String> {
-        // Retrieve the sender and receiver accounts from the QUPState
+    pub fn apply(&self, transaction: &Transaction) -> Result<(), StateTransitionError> {
         let sender_address = &transaction.sender;
         let receiver_address = &transaction.receiver;
 
-        let (mut sender_account, mut receiver_account) = self.qup_state.get_accounts(sender_address, receiver_address)?;
+        if sender_address == receiver_address {
+            return Err(StateTransitionError::SenderReceiverSameAddress(
+                sender_address.clone(),
+            ));
+        }
 
-        // Validate the transaction using post-quantum cryptography
+        let mut sender_account = self
+            .state_manager
+            .get_account(sender_address)
+            .ok_or_else(|| StateTransitionError::SenderAccountNotFound(sender_address.clone()))?;
+
+        let mut receiver_account = self
+            .state_manager
+            .get_account(receiver_address)
+            .ok_or_else(|| {
+                StateTransitionError::ReceiverAccountNotFound(receiver_address.clone())
+            })?;
+
         self.validate_transaction(&sender_account, transaction)?;
 
-        // Apply the state transition
-        sender_account.apply_transaction(transaction)?;
-        receiver_account.receive_transaction(transaction)?;
+        sender_account.balance -= transaction.amount;
+        receiver_account.balance += transaction.amount;
+        sender_account.nonce += 1;
 
-        // Batch update the accounts in the QUPState and local state
-        self.qup_state.update_accounts(&[&sender_account, &receiver_account]);
-        self.state_manager.update_accounts(&[&sender_account, &receiver_account]);
+        self.state_manager
+            .update_accounts(&[&sender_account, &receiver_account])
+            .map_err(|_| StateTransitionError::InconsistentStateError)?;
 
         // Apply QUP-specific state changes
-        self.qup_state.apply_state_changes(transaction)?;
+        self.apply_qup_state_changes(transaction)?;
+        // Revert QUP-specific state changes
+        self.revert_qup_state_changes(transaction)?;
+        // Validate QUP-specific state changes
+        self.validate_qup_state_changes(block)?;
+        // Revert QUP-specific state changes
+        self.revert_qup_block_state_changes(block)?;
+        Ok(())
+    }
 
+    fn revert_qup_block_state_changes(&self, block: &Block) -> Result<(), StateTransitionError> {
+        // Implement the logic to revert QUP-specific state changes for a block
+        Ok(())
+    }
+
+    fn validate_qup_state_changes(&self, block: &Block) -> Result<(), StateTransitionError> {
+        // Implement the logic to validate QUP-specific state changes
+        Ok(())
+    }
+
+    fn revert_qup_state_changes(&self, transaction: &Transaction) -> Result<(), StateTransitionError> {
+        // Implement the logic to revert QUP-specific state changes
+        Ok(())
+    }
+
+    fn apply_qup_state_changes(&self, transaction: &Transaction) -> Result<(), StateTransitionError> {
+        // Implement the logic to apply QUP-specific state changes
         Ok(())
     }
 
@@ -53,70 +103,111 @@ impl StateTransition {
         &self,
         sender_account: &Account,
         transaction: &Transaction,
-    ) -> Result<(), String> {
-        // Check if the sender has sufficient balance
+    ) -> Result<(), StateTransitionError> {
         if sender_account.balance < transaction.amount {
-            return Err(format!(
-                "Insufficient balance. Sender: {}, Balance: {}, Transaction amount: {}",
-                sender_account.address, sender_account.balance, transaction.amount
+            return Err(StateTransitionError::InsufficientBalance(
+                sender_account.address.clone(),
+                sender_account.balance,
+                transaction.amount,
             ));
         }
 
-        // Check if the transaction nonce matches the sender's nonce
         if transaction.nonce != sender_account.nonce {
-            return Err(format!(
-                "Invalid transaction nonce. Expected: {}, Actual: {}",
-                sender_account.nonce, transaction.nonce
+            return Err(StateTransitionError::InvalidTransactionNonce(
+                sender_account.nonce,
+                transaction.nonce,
             ));
         }
 
-        // Verify the transaction signature using post-quantum cryptography
-        if !self.qup_crypto.verify_transaction_signature(transaction)? {
-            return Err("Invalid transaction signature".to_string());
-        }
-
-        // Add more validation checks as needed
-
         Ok(())
     }
 
-    pub fn apply_block(&self, block: &Block) -> Result<(), String> {
-        // Apply state transitions for each transaction in the block
+    pub fn apply_block(&self, block: &Block) -> Result<(), StateTransitionError> {
         for transaction in &block.transactions {
-            self.apply(transaction)?;
+            self.apply(transaction).map_err(|e| {
+                StateTransitionError::StateUpdateError(format!(
+                    "Failed to apply transaction: {}",
+                    e
+                ))
+            })?;
         }
 
-        // Update the state root in the block header
         let state_root = self.state_manager.get_state_root();
-        block.header.state_root = state_root;
-
-        Ok(())
-    }
-
-    pub fn revert_block(&self, block: &Block) -> Result<(), String> {
-        // Revert state transitions for each transaction in the block (in reverse order)
-        for transaction in block.transactions.iter().rev() {
-            self.revert(transaction)?;
+        if block.header.state_root != state_root {
+            // Revert the applied transactions if the state root doesn't match
+            self.revert_block(block)?;
+            return Err(StateTransitionError::BlockValidationFailed(
+                "State root mismatch".to_string(),
+            ));
         }
 
         Ok(())
     }
 
-    fn revert(&self, transaction: &Transaction) -> Result<(), String> {
-        // Retrieve the sender and receiver accounts from the QUPState
+    pub fn revert_block(&self, block: &Block) -> Result<(), StateTransitionError> {
+        for transaction in block.transactions.iter().rev() {
+            self.revert(transaction).map_err(|e| {
+                StateTransitionError::StateUpdateError(format!(
+                    "Failed to revert transaction: {}",
+                    e
+                ))
+            })?;
+        }
+
+        Ok(())
+    }
+
+
+    fn revert(&self, transaction: &Transaction) -> Result<(), StateTransitionError> {
         let sender_address = &transaction.sender;
         let receiver_address = &transaction.receiver;
 
-        let (mut sender_account, mut receiver_account) = self.qup_state.get_accounts(sender_address, receiver_address)?;
+        let mut sender_account = self
+            .state_manager
+            .get_account(sender_address)
+            .ok_or_else(|| StateTransitionError::SenderAccountNotFound(sender_address.clone()))?;
 
-        // Revert the state transition
-        sender_account.revert_transaction(transaction)?;
-        receiver_account.revert_receive_transaction(transaction)?;
+        let mut receiver_account = self
+            .state_manager
+            .get_account(receiver_address)
+            .ok_or_else(|| {
+                StateTransitionError::ReceiverAccountNotFound(receiver_address.clone())
+            })?;
 
-        // Batch update the accounts in the QUPState and local state
-        self.qup_state.update_accounts(&[&sender_account, &receiver_account]);
-        self.state_manager.update_accounts(&[&sender_account, &receiver_account]);
+        sender_account.balance += transaction.amount;
+        receiver_account.balance -= transaction.amount;
+        sender_account.nonce -= 1;
+
+        self.state_manager
+            .update_accounts(&[&sender_account, &receiver_account])
+            .map_err(|_| StateTransitionError::InconsistentStateError)?;
 
         Ok(())
     }
+}
+
+// Separate module for state transition-related functionality
+pub(crate) mod state_transition_utils {
+    use super::*;
+
+    pub fn validate_block_transactions(
+        state_transition: &StateTransition,
+        block: &Block,
+    ) -> Result<(), StateTransitionError> {
+        for transaction in &block.transactions {
+            let sender_address = &transaction.sender;
+            let sender_account = state_transition
+                .state_manager
+                .get_account(sender_address)
+                .ok_or_else(|| {
+                    StateTransitionError::SenderAccountNotFound(sender_address.clone())
+                })?;
+
+            state_transition.validate_transaction(&sender_account, transaction)?;
+        }
+
+        Ok(())
+    }
+
+    // Add more utility functions as needed
 }
