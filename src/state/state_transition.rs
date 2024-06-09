@@ -1,7 +1,7 @@
 use crate::state::account::Account;
-use crate::chain::block::Block;
+use crate::state::block::Block;
 use crate::state::state_manager::StateManager;
-use crate::chain::transaction::Transaction;
+use crate::state::transaction::Transaction;
 use std::sync::Arc;
 use thiserror::Error;
 
