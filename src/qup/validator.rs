@@ -177,3 +177,10 @@ impl QUPValidator {
         }
     }
 }
+impl QUPValidator {
+    pub fn get_stake(&self, voter: &[u8]) -> Result<u64, ConsensusError> {
+        // Implement the logic to get the stake for the given voter
+        // Placeholder implementation
+        Ok(0)
+    }
+}
