@@ -1,6 +1,10 @@
 use crate::error_handling::Error;
 use std::fmt;
 
+fn format_error(f: &mut fmt::Formatter, error_type: &str, msg: &str) -> fmt::Result {
+    write!(f, "{}: {}", error_type, msg)
+}
+
 #[derive(Debug)]
 pub enum QUPError {
     InvalidBlock(String),
@@ -16,17 +20,14 @@ pub enum QUPError {
 impl fmt::Display for QUPError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            QUPError::InvalidBlock(msg) => write!(f, "Invalid block: {}", msg),
-            QUPError::InvalidTransaction(msg) => write!(f, "Invalid transaction: {}", msg),
-            QUPError::InvalidSignature(msg) => write!(f, "Invalid signature: {}", msg),
-            QUPError::InvalidUsefulWork(msg) => write!(f, "Invalid useful work: {}", msg),
-            QUPError::InsufficientStake(msg) => write!(f, "Insufficient stake: {}", msg),
-            QUPError::InsufficientDelegatedStake(msg) => {
-                write!(f, "Insufficient delegated stake: {}", msg)
-            }
-            QUPError::InvalidConsensusMessage(msg) => {
-                write!(f, "Invalid consensus message: {}", msg)
-            } // Add more error variant formatting as needed
+            QUPError::InvalidBlock(msg) => format_error(f, "Invalid block", msg),
+            QUPError::InvalidTransaction(msg) => format_error(f, "Invalid transaction", msg),
+            QUPError::InvalidSignature(msg) => format_error(f, "Invalid signature", msg),
+            QUPError::InvalidUsefulWork(msg) => format_error(f, "Invalid useful work", msg),
+            QUPError::InsufficientStake(msg) => format_error(f, "Insufficient stake", msg),
+            QUPError::InsufficientDelegatedStake(msg) => format_error(f, "Insufficient delegated stake", msg),
+            QUPError::InvalidConsensusMessage(msg) => format_error(f, "Invalid consensus message", msg),
+            // Add more error variant formatting as needed
         }
     }
 }
@@ -44,15 +45,10 @@ pub enum UsefulWorkError {
 impl fmt::Display for UsefulWorkError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            UsefulWorkError::InvalidProblem(msg) => {
-                write!(f, "Invalid useful work problem: {}", msg)
-            }
-            UsefulWorkError::InvalidSolution(msg) => {
-                write!(f, "Invalid useful work solution: {}", msg)
-            }
-            UsefulWorkError::VerificationFailed(msg) => {
-                write!(f, "Useful work verification failed: {}", msg)
-            } // Add more error variant formatting as needed
+            UsefulWorkError::InvalidProblem(msg) => format_error(f, "Invalid useful work problem", msg),
+            UsefulWorkError::InvalidSolution(msg) => format_error(f, "Invalid useful work solution", msg),
+            UsefulWorkError::VerificationFailed(msg) => format_error(f, "Useful work verification failed", msg),
+            // Add more error variant formatting as needed
         }
     }
 }
