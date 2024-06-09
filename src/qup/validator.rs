@@ -20,7 +20,7 @@ impl QUPValidator {
     pub fn new(config: Arc<QUPConfig>, state: Arc<QUPState>, hdc_models: QUPHDCModels) -> Self {
         QUPValidator {
             config,
-            state,
+            state_manager,
             hdc_models,
             stakes: HashMap::new(),
             weights: HashMap::new(),
