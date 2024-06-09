@@ -13,11 +13,12 @@ pub struct StateManager {
 }
 
 impl StateManager {
-    pub fn new(state_db: StateDB, chain_state: Arc<RwLock<ChainState>>) -> Self {
+    pub fn new(state_db: StateDB, chain_state: Arc<RwLock<ChainState>>, qup_state: Arc<QUPState>) -> Self {
         StateManager {
             state_db: Arc::new(RwLock::new(state_db)),
             account_cache: RwLock::new(HashMap::new()),
             chain_state,
+            qup_state,
         }
     }
 
@@ -120,3 +121,7 @@ impl StateManager {
         self.account_cache.write().unwrap().clear();
     }
 }
+use crate::qup::state::QUPState;
+    pub fn get_qup_state(&self) -> Arc<QUPState> {
+        self.qup_state.clone()
+    }

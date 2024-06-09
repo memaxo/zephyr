@@ -355,7 +355,7 @@ impl QUPState {
     }
 
     pub fn get_account(&self, address: &str) -> Option<Account> {
-        self.state_db.get_account(address)
+        self.state_manager.get_account(address)
     }
 
     pub fn get_latest_block(&self) -> Option<&QUPBlock> {

@@ -4,21 +4,24 @@ use crate::qup::crypto::{hash, QUPSignature, Hash};
 use crate::storage::block_storage::BlockStorage;
 use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
+use crate::qup::classical_node::ClassicalNode;
+use crate::qup::quantum_node::QuantumNode;
 use crate::storage::block_storage::BlockStorageError;
 use crate::qup::types::{UsefulWorkProblem, UsefulWorkSolution};
 use crate::qup::error::Error;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use smallvec::SmallVec;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct QUPBlock {
     pub height: u64,
     pub timestamp: u64,
     pub prev_block_hash: Hash,
-    pub transactions: Vec<Transaction>,
-    pub useful_work_problem: Option<UsefulWorkProblem>,
-    pub useful_work_solution: Option<UsefulWorkSolution>,
-    pub history_proof: Vec<Hash>,
+    pub transactions: Arc<SmallVec<[Transaction; 4]>>,
+    pub useful_work_problem: Option<Box<UsefulWorkProblem>>,
+    pub useful_work_solution: Option<Box<UsefulWorkSolution>>,
+    pub history_proof: Arc<SmallVec<[Hash; 4]>>,
     pub validator_signature: QUPSignature,
 }
 
