@@ -604,19 +604,7 @@ fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, Consens
 }
 
 fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
-    // Validate the block
-    if !self.validate_block(&block)? {
-        return Err(ConsensusError::InvalidBlock);
-    }
-
-    // Evaluate the block using the HDC model
-    let block_vector = self.hdc_model.encode_block(&block);
-    let similarity = self.hdc_model.evaluate_similarity(&block_vector);
-
-    // Check if the block meets the similarity threshold
-    if similarity < self.config.similarity_threshold {
-        return Err(ConsensusError::InsufficientSimilarity);
-    }
+    self.process_propose_common(&block)?;
 
     // Generate history proof
     let history_proof = self.generate_history_proof();
@@ -655,19 +643,7 @@ fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
 }
 
 fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
-    // Validate the block
-    if !self.validate_block(&block)? {
-        return Err(ConsensusError::InvalidBlock);
-    }
-
-    // Evaluate the block using the HDC model
-    let block_vector = self.hdc_model.encode_block(&block);
-    let similarity = self.hdc_model.evaluate_similarity(&block_vector);
-
-    // Check if the block meets the similarity threshold
-    if similarity < self.config.similarity_threshold {
-        return Err(ConsensusError::InsufficientSimilarity);
-    }
+    self.process_propose_common(&block)?;
 
     // Use a more efficient consensus algorithm under high load
     // For example, we can use a simplified voting mechanism
@@ -677,6 +653,24 @@ fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), Consensus
     // Check if the block has reached quorum
     if self.state.has_quorum(block.hash())? {
         self.commit_block(block)?;
+    }
+
+    Ok(())
+}
+
+fn process_propose_common(&self, block: &QUPBlock) -> Result<(), ConsensusError> {
+    // Validate the block
+    if !self.validate_block(block)? {
+        return Err(ConsensusError::InvalidBlock);
+    }
+
+    // Evaluate the block using the HDC model
+    let block_vector = self.hdc_model.encode_block(block);
+    let similarity = self.hdc_model.evaluate_similarity(&block_vector);
+
+    // Check if the block meets the similarity threshold
+    if similarity < self.config.similarity_threshold {
+        return Err(ConsensusError::InsufficientSimilarity);
     }
 
     Ok(())
