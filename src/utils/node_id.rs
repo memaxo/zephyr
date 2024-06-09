@@ -60,6 +60,6 @@ impl FromStr for NodeId {
     type Err = NodeIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        NodeId::from_str(s)
+        Ok(NodeId(s.to_string()))
     }
 }

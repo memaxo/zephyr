@@ -4,6 +4,7 @@ use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::collections::{HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
+use thiserror::Error;
 use tokio::fs;
 
 use crate::chain::block::Block;
@@ -18,6 +19,8 @@ use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
 use crate::secure_storage::SecureStorage;
 use crate::zkp_crate;
+use crate::storage::block_storage::BlockchainStorageError;
+use crate::secure_storage::SecureStorageError;
 use crate::qup::reward::RewardDistributor;
 
 #[derive(Error, Debug)]
@@ -76,20 +79,23 @@ impl Blockchain {
             qup_config,
             qup_consensus,
             qup_state,
-            qup_consensus,
         }
     }
 
     pub async fn commit(&self) -> Result<(), BlockchainError> {
-        let _state_lock = self.state_mutex.lock().unwrap();
+        let state_data;
+        let state_trie_data;
 
-        // Commit the state changes to the underlying storage
-        let state = self.state.read();
-        let state_data = serde_json::to_vec(&*state)?;
+        {
+            let _state_lock = self.state_mutex.lock().unwrap();
+
+            // Commit the state changes to the underlying storage
+            let state = self.state.read();
+            state_data = serde_json::to_vec(&*state)?;
+            state_trie_data = state.trie.serialize();
+        }
+
         fs::write("state.json", state_data).await.map_err(BlockchainError::IoError)?;
-
-        // Update the state trie and persist it to storage
-        let state_trie_data = state.trie.serialize();
         fs::write("state_trie.dat", state_trie_data).await.map_err(BlockchainError::IoError)?;
 
         debug!("State committed successfully");
@@ -97,15 +103,17 @@ impl Blockchain {
     }
 
     pub async fn revert_block(&self, block: &Block) -> Result<(), BlockchainError> {
-        let _state_lock = self.state_mutex.lock().unwrap();
+        {
+            let _state_lock = self.state_mutex.lock().unwrap();
 
-        // Revert the state changes made by the block
-        self.state_transition.revert_block(block)?;
+            // Revert the state changes made by the block
+            self.state_transition.revert_block(block)?;
 
-        // Remove the block from the chain
-        let mut chain = self.chain.write();
-        if let Some(index) = chain.iter().position(|b| b.hash == block.hash) {
-            chain.remove(index);
+            // Remove the block from the chain
+            let mut chain = self.chain.write();
+            if let Some(index) = chain.iter().position(|b| b.hash == block.hash) {
+                chain.remove(index);
+            }
         }
 
         // Persist the updated state and chain data
@@ -134,13 +142,10 @@ impl Blockchain {
     }
 
     pub async fn validate_chain(&self) -> Result<(), BlockchainError> {
-        let chain = {
-            let chain_read = self.chain.read();
-            if chain_read.is_empty() {
-                return Err(BlockchainError::EmptyBlockchain);
-            }
-            chain_read.clone()
-        };
+        let chain = self.chain.read();
+        if chain.is_empty() {
+            return Err(BlockchainError::EmptyBlockchain);
+        }
 
         let mut spent_transactions: HashSet<String> = HashSet::new();
 
