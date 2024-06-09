@@ -56,6 +56,7 @@ impl QUPConsensus {
             qup_crypto: QUPCrypto::new(),
         }
     }
+}
     }
 
     fn adapt_consensus_algorithm(&mut self) {
