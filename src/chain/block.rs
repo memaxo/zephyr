@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
-use crate::qup::crypto::QUPCrypto;
+use crate::qup::crypto::{QUPCrypto, Hash};
 use thiserror::Error;
 
 const TARGET_BLOCK_TIME: u64 = 600; // Target block time in seconds (10 minutes)
@@ -306,7 +306,7 @@ impl Block {
         qup_state: &QUPState,
     ) -> Result<(), BlockError> {
         self.verify_transactions(secure_vault)?;
-        if let Err(e) = blockchain.validate_chain() {
+        if let Err(e) = blockchain.validate_chain().await {
             return Err(BlockError::InvalidTransactions(format!(
                 "Failed to add block to the blockchain. Chain is invalid: {}",
                 e
