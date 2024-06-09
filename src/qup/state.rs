@@ -15,18 +15,16 @@ use rayon::prelude::*;
 use smallvec::SmallVec;
 
 pub struct QUPState {
-    pub accounts: Arc<HashMap<String, AccountState>>,
+    pub accounts: Arc<StateManager>,
     pub blocks: Arc<SmallVec<[QUPBlock; 4]>>,
     pub config: Arc<QUPConfig>,
-    pub state_db: Arc<StateDB>,
     pub delegator: Arc<QUPDelegator>,
     pub validator: Arc<QUPValidator>,
     pub hdc_models: Arc<QUPHDCModels>,
-    pub state_storage: Arc<StateStorage>,
     pub network_state: Arc<Mutex<NetworkState>>,
-        classical_node: Arc<ClassicalNode>,
-        quantum_node: Arc<QuantumNode>,
-    }
+    classical_node: Arc<ClassicalNode>,
+    quantum_node: Arc<QuantumNode>,
+}
 
     pub fn get_network_load(&self) -> f64 {
         // Placeholder implementation
@@ -408,19 +406,3 @@ pub struct NetworkState {
 
 use std::collections::HashMap;
 
-#[derive(Clone)]
-pub struct AccountState {
-    pub balance: u64,
-    pub nonce: u64,
-    pub storage: HashMap<String, String>,
-}
-
-impl AccountState {
-    pub fn new(balance: u64) -> Self {
-        AccountState {
-            balance,
-            nonce: 0,
-            storage: HashMap::new(),
-        }
-    }
-}
