@@ -233,8 +233,33 @@ impl Blockchain {
         self.qup_state.get_block_by_height(height).await
     }
 
-    pub async fn get_latest_block(&self) -> Option<Block> {
-        self.qup_state.get_latest_block().await
+    pub async fn get_latest_block(&self) -> Option<Arc<Block>> {
+        let chain = self.chain.read();
+        chain.last().cloned()
+    }
+
+    pub fn get_block_by_hash(&self, hash: &Hash) -> Option<Arc<Block>> {
+        let chain = self.chain.read();
+        chain.iter().find(|block| &block.hash == hash).cloned()
+    }
+
+    pub fn is_valid_block(&self, block: &Block) -> bool {
+        // Implement the logic to validate a block
+        // This can include checking the block's hash, previous hash, transactions, etc.
+        let calculated_hash = block.calculate_hash();
+        if block.hash != calculated_hash {
+            return false;
+        }
+
+        // Additional validation logic can be added here
+        true
+    }
+
+    pub fn is_valid_block_hash(&self, hash: &Hash) -> bool {
+        // Implement the logic to validate a block hash
+        // This can include checking if the hash exists in the blockchain
+        let chain = self.chain.read();
+        chain.iter().any(|block| &block.hash == hash)
     }
 
     pub fn get_chain_length(&self) -> u64 {
