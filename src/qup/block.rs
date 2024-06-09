@@ -6,6 +6,7 @@ use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
 use crate::storage::block_storage::BlockStorageError;
 use crate::qup::types::{UsefulWorkProblem, UsefulWorkSolution};
+use crate::qup::error::Error;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

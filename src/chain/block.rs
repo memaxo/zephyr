@@ -306,7 +306,11 @@ impl Block {
         qup_state: &QUPState,
     ) -> Result<(), BlockError> {
         self.verify_transactions(secure_vault)?;
-        if blockchain.validate_chain() {
+        if let Err(e) = blockchain.validate_chain() {
+            return Err(BlockError::InvalidTransactions(format!(
+                "Failed to add block to the blockchain. Chain is invalid: {}",
+                e
+            )));
             self.update_state(state)?;
             self.update_qup_state(qup_state)?;
             self.execute_smart_contracts(blockchain, state)?;
@@ -318,12 +322,5 @@ impl Block {
                 "Failed to add block to the blockchain. Chain is invalid".to_string(),
             ))
         }
-    }
-}
-impl Block {
-    pub fn verify_transactions(&self) -> bool {
-        self.transactions
-            .par_iter()
-            .all(|transaction| transaction.verify_signature())
     }
 }

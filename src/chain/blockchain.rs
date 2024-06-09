@@ -124,14 +124,25 @@ impl Blockchain {
     }
 
     pub async fn add_block(&self, block: Block) -> Result<(), BlockchainError> {
-        let _state_lock = self.state_mutex.lock().unwrap();
+        let state_data;
+        let state_trie_data;
 
-        let mut chain = self.chain.write();
-        chain.push(Arc::new(block.clone()));
+        {
+            let _state_lock = self.state_mutex.lock().unwrap();
 
-        self.qup_consensus.validate_block(&block)?;
+            let mut chain = self.chain.write();
+            chain.push(Arc::new(block.clone()));
+
+            self.qup_consensus.validate_block(&block)?;
+            self.state_transition.apply_block(&block)?;
+
+            state_data = serde_json::to_vec(&*self.state.read())?;
+            state_trie_data = self.state.read().trie.serialize();
+        }
+
         self.storage.save_block(&block).await?;
-        self.state_transition.apply_block(&block)?;
+        fs::write("state.json", state_data).await.map_err(BlockchainError::IoError)?;
+        fs::write("state_trie.dat", state_trie_data).await.map_err(BlockchainError::IoError)?;
 
         debug!("Block added to the blockchain");
 
