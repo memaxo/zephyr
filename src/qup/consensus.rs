@@ -535,8 +535,12 @@ impl QUPConsensus {
             }
         }
 
-        // Validate history proof
-        if !self.validate_history_proof(&stored_block.history_proof)? {
+        // Validate useful work proof
+        if let Some(proof) = &stored_block.useful_work_proof {
+            if !self.validate_useful_work_proof(proof)? {
+                return Ok(false);
+            }
+        } else {
             return Ok(false);
         }
 
@@ -662,13 +666,13 @@ fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSo
     }
 }
 
-fn validate_useful_work_solution(
-    &self,
-    problem: &UsefulWorkProblem,
-    solution: &UsefulWorkSolution,
-) -> Result<bool, ConsensusError> {
-    // Use the implementation from utils.rs
-    Ok(validate_useful_work_solution(problem, solution))
+fn validate_useful_work_proof(&self, proof: &[u8]) -> Result<bool, ConsensusError> {
+    // Implement the logic to validate the useful work proof
+    // For example, check if the proof is correctly generated and matches the solution
+    let solution: UsefulWorkSolution = bincode::deserialize(proof).map_err(|_| ConsensusError::InvalidUsefulWorkProof)?;
+    let problem = self.state.get_useful_work_problem(&solution).ok_or(ConsensusError::MissingUsefulWorkProblem)?;
+
+    self.validate_useful_work_solution(&problem, &solution)
 }
 
 fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
@@ -812,7 +816,14 @@ pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError>
     // Save the optimized block to storage
     self.block_storage.save_block(&optimized_block)?;
 
-    // Broadcast the optimized block to other nodes
+    // Validate useful work proof
+    if let Some(proof) = &block.useful_work_proof {
+        if !self.validate_useful_work_proof(proof)? {
+            return Err(ConsensusError::InvalidUsefulWorkProof);
+        }
+    } else {
+        return Err(ConsensusError::MissingUsefulWorkProof);
+    }
     let message = ProtocolMessage::BlockCommit {
         block: bincode::serialize(&optimized_block)?,
         signature: self.qup_crypto.sign(&bincode::serialize(&optimized_block)?),
