@@ -19,6 +19,15 @@ impl BlockStorage {
         BlockStorage { db }
     }
 
-    // Implement block storage methods here
-    // ...
+    pub async fn load_block(&self, hash: &str) -> Result<Block, BlockStorageError> {
+        let block_data = self.db.get(hash).map_err(|e| BlockStorageError::DatabaseError(e.to_string()))?;
+        let block: Block = bincode::deserialize(&block_data).map_err(|e| BlockStorageError::DatabaseError(e.to_string()))?;
+        Ok(block)
+    }
+
+    pub async fn save_block(&self, block: &Block) -> Result<(), BlockStorageError> {
+        let block_data = bincode::serialize(block).map_err(|e| BlockStorageError::DatabaseError(e.to_string()))?;
+        self.db.put(&block.hash, &block_data).map_err(|e| BlockStorageError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
 }
