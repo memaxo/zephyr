@@ -1,7 +1,7 @@
 use crate::state::account::Account;
 use crate::state::state_storage::StateStorage;
-use crate::chain::state::merkle_trie::MerkleTrie;
-use crate::chain::state::ChainState;
+use crate::state::merkle_trie::MerkleTrie;
+use crate::state::chain_state::ChainState;
 use bincode::serialize;
 use lru_cache::LruCache;
 use rocksdb::{Options, DB};

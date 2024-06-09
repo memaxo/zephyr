@@ -6,7 +6,6 @@ use std::{
     str::FromStr,
 };
 use thiserror::Error;
-use crate::state::account::Account;
 
 #[derive(Debug, Error)]
 pub enum NodeIdError {

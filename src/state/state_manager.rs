@@ -1,7 +1,7 @@
 use crate::state::account::Account;
 use crate::storage::state_storage::StateStorage;
-use crate::chain::state::{ChainState, state_db::StateDB};
-use crate::chain::storage::qup_storage::QUPStorage;
+use crate::state::{chain_state::ChainState, state_db::StateDB};
+use crate::state::qup_storage::QUPStorage;
 use crate::chain::validator::ChainValidator;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};

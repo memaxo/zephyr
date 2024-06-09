@@ -1,7 +1,6 @@
 use crate::hdcmodels::{Dataset, HDCModel, SimilarityMetric};
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
-use crate::state::account::Account;
 
 pub struct ParallelHDCTrainer {
     num_threads: usize,

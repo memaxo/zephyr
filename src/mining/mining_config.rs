@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use crate::state::account::Account;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MiningConfig {

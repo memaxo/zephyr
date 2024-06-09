@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
-use warp::http::Responseuse
+use warp::http::Responseuse;
 use zeroize::Zeroize;
 
 const MAX_OFF_CHAIN_TRANSACTIONS: usize = 100;

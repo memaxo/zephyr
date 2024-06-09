@@ -2,7 +2,6 @@ use crate::datasets::load_dataset;
 use crate::hdcmodels::encoding::{decode_data, encode_data};
 use crate::hdcmodels::similarity::cosine_similarity;
 use crate::hdcmodels::HDCModel;
-use crate::state::account::Account;
 use std::time::Instant;
 
 pub struct HDCBenchmarkSuite {
