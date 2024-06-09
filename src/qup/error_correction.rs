@@ -113,32 +113,30 @@ impl SurfaceCode {
         let mut syndrome = vec![false; self.stabilizers.len()];
 
         // Compute syndrome measurements
-        for (i, stabilizer) in self.stabilizers.iter().enumerate() {
+        self.stabilizers.par_iter().enumerate().for_each(|(i, stabilizer)| {
             let mut parity = false;
             for &qubit in stabilizer {
                 parity ^= encoded_data[qubit];
             }
             syndrome[i] = parity;
-        }
+        });
 
         // Perform error correction based on syndrome
         while !syndrome.iter().all(|&s| !s) {
-            for (i, stabilizer) in self.stabilizers.iter().enumerate() {
+            self.stabilizers.par_iter().enumerate().for_each(|(i, stabilizer)| {
                 if syndrome[i] {
                     // Find the qubit to flip based on the syndrome pattern
                     let qubit_to_flip = self.find_qubit_to_flip(&syndrome, stabilizer);
                     encoded_data[qubit_to_flip] = !encoded_data[qubit_to_flip];
 
                     // Update the syndrome based on the flipped qubit
-                    for (j, stabilizer) in self.stabilizers.iter().enumerate() {
+                    self.stabilizers.par_iter().enumerate().for_each(|(j, stabilizer)| {
                         if stabilizer.contains(&qubit_to_flip) {
                             syndrome[j] = !syndrome[j];
                         }
-                    }
-
-                    break;
+                    });
                 }
-            }
+            });
         }
     }
 

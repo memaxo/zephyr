@@ -547,14 +547,14 @@ fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSo
         UsefulWorkProblem::Knapsack(knapsack_problem) => {
             // Implement a simple greedy algorithm to solve the knapsack problem
             let mut total_weight = 0;
-            let mut selected_items = vec![false; knapsack_problem.weights.len()];
-
-            for (i, &weight) in knapsack_problem.weights.iter().enumerate() {
+            let selected_items: Vec<bool> = knapsack_problem.weights.par_iter().enumerate().map(|(i, &weight)| {
                 if total_weight + weight <= knapsack_problem.capacity {
                     total_weight += weight;
-                    selected_items[i] = true;
+                    true
+                } else {
+                    false
                 }
-            }
+            }).collect();
 
             UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
         }
@@ -563,14 +563,14 @@ fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSo
             let mut vertex_cover = Vec::new();
             let mut covered_edges = vec![false; vertex_cover_problem.graph.len()];
 
-            for (vertex, edges) in vertex_cover_problem.graph.iter().enumerate() {
+            vertex_cover_problem.graph.par_iter().enumerate().for_each(|(vertex, edges)| {
                 if !covered_edges[vertex] {
                     vertex_cover.push(vertex);
                     for &edge in edges {
                         covered_edges[edge] = true;
                     }
                 }
-            }
+            });
 
             UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
         }
