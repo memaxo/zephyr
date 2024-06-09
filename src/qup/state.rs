@@ -10,17 +10,18 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use rayon::prelude::*;
+use smallvec::SmallVec;
 
 pub struct QUPState {
-    pub accounts: HashMap<String, AccountState>,
-    pub blocks: Vec<QUPBlock>,
+    pub accounts: Arc<HashMap<String, AccountState>>,
+    pub blocks: Arc<SmallVec<[QUPBlock; 4]>>,
     pub config: Arc<QUPConfig>,
     pub state_db: Arc<StateDB>,
     pub delegator: Arc<QUPDelegator>,
     pub validator: Arc<QUPValidator>,
     pub hdc_models: Arc<QUPHDCModels>,
     pub state_storage: Arc<StateStorage>,
-    pub network_state: Mutex<NetworkState>,
+    pub network_state: Arc<Mutex<NetworkState>>,
     }
 
     pub fn get_network_load(&self) -> f64 {
