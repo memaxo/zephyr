@@ -9,6 +9,13 @@ pub struct QUPCrypto {
     pub kyber_keypair: KeyPair<KyberPublicKey, KyberSecretKey>,
     pub mceliece_keypair: KeyPair<McEliecePublicKey, McElieceSecretKey>,
     pub ntru_keypair: KeyPair<NTRUPublicKey, NTRUSecretKey>,
+    pub fn verify(&self, data: &[u8], signature: &[u8], public_key: &impl Verify) -> bool {
+        public_key.verify(data, signature)
+    }
+
+    pub fn sign(&self, data: &[u8]) -> Vec<u8> {
+        self.dilithium_keypair.secret_key.sign(data)
+    }
 }
 
 impl QUPCrypto {
