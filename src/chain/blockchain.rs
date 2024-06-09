@@ -22,6 +22,7 @@ use crate::zkp_crate;
 use crate::storage::block_storage::BlockchainStorageError;
 use crate::secure_storage::SecureStorageError;
 use crate::qup::reward::RewardDistributor;
+use crate::qup::crypto::Hash;
 
 #[derive(Error, Debug)]
 pub enum BlockchainError {
@@ -61,7 +62,6 @@ impl Blockchain {
         storage: Arc<BlockchainStorage>,
         secure_storage: Arc<SecureStorage>,
         qup_config: Arc<QUPConfig>,
-        qup_consensus: Arc<QUPConsensus>,
         qup_state: Arc<QUPState>,
     ) -> Self {
         let chain = Arc::new(RwLock::new(Vec::new()));
@@ -77,7 +77,6 @@ impl Blockchain {
             state_mutex: Arc::new(Mutex::new(())),
             state_transition,
             qup_config,
-            qup_consensus,
             qup_state,
         }
     }

@@ -1,6 +1,6 @@
 use crate::chain::transaction::Transaction;
 use crate::qup::config::QUPConfig;
-use crate::qup::crypto::{hash, QUPSignature};
+use crate::qup::crypto::{hash, QUPSignature, Hash};
 use crate::storage::block_storage::BlockStorage;
 use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
@@ -111,7 +111,7 @@ impl QUPBlock {
         }
 
         // Ensure the block follows the QUP consensus rules
-        if !state.is_valid_block(self, config) {
+        if !config.is_valid_block(self, state) {
             return Err(Error::InvalidBlock);
         }
 
