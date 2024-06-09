@@ -15,7 +15,7 @@ use rayon::prelude::*;
 use smallvec::SmallVec;
 
 pub struct QUPState {
-    pub state_db: Arc<StateDB>,
+    pub state_manager: Arc<StateManager>,
     pub blocks: Arc<SmallVec<[QUPBlock; 4]>>,
     pub config: Arc<QUPConfig>,
     pub delegator: Arc<QUPDelegator>,
@@ -245,7 +245,7 @@ impl QUPState {
     }
     pub fn new(
         config: Arc<QUPConfig>,
-        state_db: Arc<StateDB>,
+        state_manager: Arc<StateManager>,
         delegator: Arc<QUPDelegator>,
         validator: Arc<QUPValidator>,
         hdc_models: Arc<QUPHDCModels>,

@@ -1,4 +1,5 @@
-use crate::chain::state::account::Account;
+use crate::state::account::Account;
+use crate::state::state_storage::StateStorage;
 use crate::chain::state::merkle_trie::MerkleTrie;
 use crate::chain::state::ChainState;
 use bincode::serialize;
@@ -97,4 +98,25 @@ fn serialize_account(account: &Account) -> Vec<u8> {
 
 fn deserialize_account(data: &[u8]) -> Option<Account> {
     bincode::deserialize(data).ok()
+}
+impl StateStorage for StateDB {
+    fn get_account(&self, address: &str) -> Option<Account> {
+        // TODO: Implement
+        unimplemented!()
+    }
+
+    fn set_account(&mut self, account: &Account) {
+        // TODO: Implement
+        unimplemented!()
+    }
+
+    fn remove_account(&mut self, address: &str) {
+        // TODO: Implement
+        unimplemented!()
+    }
+
+    fn account_exists(&self, address: &str) -> bool {
+        // TODO: Implement
+        unimplemented!()
+    }
 }

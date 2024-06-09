@@ -1,6 +1,6 @@
 use crate::chain::block::Block;
 use crate::chain::state::account::Account;
-use crate::chain::state::state_manager::StateManager;
+use crate::state::state_manager::StateManager;
 use crate::chain::transaction::Transaction;
 use crate::qup::crypto::QUPCrypto;
 use crate::qup::state::QUPState;
