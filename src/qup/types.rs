@@ -17,7 +17,7 @@ pub enum UsefulWorkProblem {
     VehicleRouting(VehicleRoutingProblem),
     PortfolioOptimization(PortfolioOptimizationProblem),
     MarketEquilibrium(MarketEquilibriumProblem),
-    }
+}
 
     // Define the StandardUsefulWorkGenerator struct
     pub struct StandardUsefulWorkGenerator;
