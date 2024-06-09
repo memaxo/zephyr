@@ -8,6 +8,22 @@ pub enum TransactionStorageError {
     DatabaseError(String),
     #[error("Transaction not found: {0}")]
     TransactionNotFound(String),
+    pub fn get_transactions(&self) -> Result<Vec<Transaction>, TransactionStorageError> {
+        let mut transactions = Vec::new();
+        for key in self.db.keys() {
+            let data = self.db.get(&key).map_err(|e| TransactionStorageError::DatabaseError(e.to_string()))?;
+            let transaction: Transaction = serde_json::from_slice(&data).map_err(|e| TransactionStorageError::DatabaseError(e.to_string()))?;
+            transactions.push(transaction);
+        }
+        Ok(transactions)
+    }
+
+    pub fn save_transaction(&self, transaction: &Transaction) -> Result<(), TransactionStorageError> {
+        let tx_id = transaction.id().to_string();
+        let data = serde_json::to_vec(transaction).map_err(|e| TransactionStorageError::DatabaseError(e.to_string()))?;
+        self.db.put(&tx_id, &data).map_err(|e| TransactionStorageError::DatabaseError(e.to_string()))?;
+        Ok(())
+    }
 }
 
 pub struct TransactionStorage {
