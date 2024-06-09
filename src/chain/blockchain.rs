@@ -52,7 +52,6 @@ pub struct Blockchain {
     state_transition: Arc<StateTransition>,
     qup_config: Arc<QUPConfig>,
     qup_state: Arc<QUPState>,
-    qup_consensus: Arc<QUPConsensus>,
 }
 
 impl Blockchain {
@@ -265,49 +264,6 @@ impl Blockchain {
         let chain = self.chain.read();
         chain.len() as u64
     }
-use chrono::{DateTime, Duration, Utc};
-use log::{debug, error, info, trace, warn};
-use parking_lot::RwLock;
-use rayon::prelude::*;
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
-use thiserror::Error;
-use tokio::fs;
-
-use crate::chain::block::Block;
-use crate::chain::state::ChainState;
-use crate::chain::state_transition::StateTransition;
-use crate::storage::block_storage::BlockStorage;
-use crate::storage::state_storage::StateStorage;
-use crate::chain::transaction::Transaction;
-use crate::qup::config::QUPConfig;
-use crate::qup::consensus::QUPConsensus;
-use crate::qup::state::QUPState;
-use crate::qup::validator::QUPValidator;
-use crate::secure_storage::SecureStorage;
-use crate::qup::reward::RewardDistributor;
-
-#[derive(Error, Debug)]
-pub enum BlockchainError {
-    #[error("Blockchain is empty")]
-    EmptyBlockchain,
-    #[error("Invalid block hash at index {0}. Expected: {1}, Found: {2}")]
-    InvalidBlockHash(usize, String, String),
-    #[error("Invalid previous hash at index {0}. Expected: {1}, Found: {2}")]
-    InvalidPreviousHash(usize, String, String),
-    #[error("Double-spending detected in block at index {0}")]
-    DoubleSpending(usize),
-    #[error("Zero-knowledge proof verification failed for one or more transactions in block at index {0}")]
-    ZKPVerificationFailed(usize),
-    #[error("Blockchain storage error: {0}")]
-    StorageError(#[from] BlockchainStorageError),
-    #[error("Secure storage error: {0}")]
-    SecureStorageError(#[from] SecureStorageError),
-    #[error("State update error: {0}")]
-    StateUpdateError(String),
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
-}
 
 #[derive(Error, Debug)]
 pub enum BlockchainError {
@@ -322,7 +278,6 @@ pub struct Blockchain {
     state_mutex: Arc<Mutex<()>>,
     state_transition: Arc<StateTransition>,
     qup_config: Arc<QUPConfig>,
-    qup_consensus: Arc<QUPConsensus>,
     qup_state: Arc<QUPState>,
 }
 
