@@ -963,7 +963,7 @@ fn generate_useful_work_proof(&self, solution: &UsefulWorkSolution) -> Vec<u8> {
 
 
 pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
-    self.communication_protocol.receive_message(message.clone())?;
+    self.communication_protocol.receive_message(&message)?;
 
     match message {
         ConsensusMessage::Propose(block) => {
