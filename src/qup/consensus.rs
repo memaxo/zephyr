@@ -754,7 +754,7 @@ fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), Consensus
     self.state.add_vote(vote.clone())?;
 
     // Check if the block has reached quorum
-    if self.state.has_quorum(&block.hash())? {
+    if self.state.has_quorum(block.hash())? {
         self.commit_block(block)?;
     }
 
@@ -771,7 +771,7 @@ pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
     self.state.add_vote(vote.clone())?;
 
     // Check if the block has reached quorum
-    if self.state.has_quorum(&vote.block_hash)? {
+    if self.state.has_quorum(vote.block_hash)? {
         let block = self.state.get_proposed_block(&vote.block_hash)?;
         self.commit_block(block)?;
     }
@@ -874,8 +874,8 @@ fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError>
     Ok(())
 }
 
-pub fn has_quorum(&self, block_hash: &Hash) -> Result<bool, ConsensusError> {
-    let votes = self.state.get_votes(block_hash)?;
+pub fn has_quorum(&self, block_hash: Hash) -> Result<bool, ConsensusError> {
+    let votes = self.state.get_votes(&block_hash)?;
     let total_stake: u64 = self.state.get_total_stake();
     let quorum_stake: u64 = (total_stake as f64 * self.config.consensus_config.quorum_threshold) as u64;
 
