@@ -2,6 +2,7 @@ use crate::hdcmodels::encoding::{
     encode_natural_language, encode_rust_code, encode_smart_contract, encode_transactional_data,
 };
 use crate::hdcmodels::similarity::{cosine_similarity, hamming_distance};
+use crate::state::account::Account;
 use std::time::Instant;
 
 pub struct HDCModel {

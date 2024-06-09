@@ -1,5 +1,6 @@
 use crate::chain::transaction::Transaction;
 use crate::storage::Storage;
+use crate::state::account::Account;
 use log::debug;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};

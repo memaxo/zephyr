@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use crate::state::account::Account;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProblemSolution {

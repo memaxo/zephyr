@@ -1,3 +1,5 @@
+use crate::state::account::Account;
+
 pub struct QUPStorage {
     hdc_model: HDCModel,
     qup_state: QUPState,
