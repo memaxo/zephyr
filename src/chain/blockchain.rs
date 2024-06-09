@@ -4,7 +4,6 @@ use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::collections::{HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
-use thiserror::Error;
 use tokio::fs;
 
 use crate::chain::block::Block;
@@ -265,119 +264,6 @@ impl Blockchain {
         chain.len() as u64
     }
 
-#[derive(Error, Debug)]
-pub enum BlockchainError {
-    // ...
-}
-
-pub struct Blockchain {
-    chain: Arc<RwLock<Vec<Arc<Block>>>>,
-    storage: Arc<BlockchainStorage>,
-    secure_storage: Arc<SecureStorage>,
-    state: Arc<RwLock<ChainState>>,
-    state_mutex: Arc<Mutex<()>>,
-    state_transition: Arc<StateTransition>,
-    qup_config: Arc<QUPConfig>,
-    qup_state: Arc<QUPState>,
-}
-
-impl Blockchain {
-    pub fn new(
-        storage: Arc<BlockchainStorage>,
-        secure_storage: Arc<SecureStorage>,
-        qup_config: Arc<QUPConfig>,
-        qup_consensus: Arc<QUPConsensus>,
-        qup_state: Arc<QUPState>,
-    ) -> Self {
-        // ...
-        Blockchain {
-            // ...
-            qup_state,
-        }
-    }
-
-    // ...
-
-    pub async fn validate_chain(&self) -> Result<(), BlockchainError> {
-        let chain = self.chain.read();
-        let mut spent_transactions: HashSet<String> = HashSet::new();
-
-        if chain.is_empty() {
-            return Err(BlockchainError::EmptyBlockchain);
-        }
-
-        chain.par_iter().enumerate().try_for_each(|(i, block)| {
-            if i > 0 {
-                let previous_block = &chain[i - 1];
-                if block.previous_hash != previous_block.hash {
-                    return Err(BlockchainError::InvalidPreviousHash(
-                        i,
-                        previous_block.hash.clone(),
-                        block.previous_hash.clone(),
-                    ));
-                }
-            }
-
-            let calculated_hash = block.calculate_hash();
-            if block.hash != calculated_hash {
-                return Err(BlockchainError::InvalidBlockHash(
-                    i,
-                    calculated_hash,
-                    block.hash.clone(),
-                ));
-            }
-
-            let transaction_hashes: HashSet<String> = block
-                .transactions
-                .par_iter()
-                .map(|tx| tx.calculate_hash())
-                .collect();
-
-            if transaction_hashes
-                .par_iter()
-                .any(|hash| spent_transactions.contains(hash))
-            {
-                return Err(BlockchainError::DoubleSpending(i));
-            }
-
-            spent_transactions.extend(transaction_hashes);
-
-            let verification_results = block
-                .transactions
-                .par_iter()
-                .map(|transaction| transaction.verify_signature())
-                .collect::<Vec<_>>();
-
-            if !verification_results.into_iter().all(|result| result) {
-                return Err(BlockchainError::ZKPVerificationFailed(i));
-            }
-
-            Ok(())
-        })?;
-
-        Ok(())
-    }
-
-    pub async fn register_validator(&self, validator: &QUPValidator) -> Result<(), BlockchainError> {
-        let public_key = validator.public_key().to_bytes();
-        let validator_id = validator.address().to_string();
-        self.secure_storage
-            .save_validator_key(&validator_id, &public_key)
-            .await?;
-        self.qup_state.register_validator(validator).await?;
-        debug!("Validator registered: {}", validator_id);
-        Ok(())
-    }
-
-    pub async fn get_block_by_height(&self, height: u64) -> Option<Block> {
-        self.qup_state.get_block_by_height(height).await
-    }
-
-    pub async fn get_latest_block(&self) -> Option<Block> {
-        let chain = self.chain.read();
-        chain.last().cloned()
-    }
-}
 
 // Separate module for blockchain-related functionality
 pub(crate) mod blockchain_utils {
