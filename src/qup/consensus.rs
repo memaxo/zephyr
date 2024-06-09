@@ -21,6 +21,18 @@ use std::sync::Arc;
 
 use crate::chain::blockchain::Blockchain;
 
+pub enum ConsensusAlgorithm {
+    Standard,
+    Efficient,
+    Secure,
+}
+
+pub enum ConsensusMechanism {
+    Standard,
+    Efficient,
+    Secure,
+}
+
 pub struct QUPConsensus {
     pub blockchain: Arc<Blockchain>,
     pub config: Arc<QUPConfig>,
@@ -43,12 +55,14 @@ impl QUPConsensus {
         blockchain: Arc<Blockchain>,
         block_storage: Arc<BlockStorage>,
         transaction_storage: Arc<TransactionStorage>,
+        network: Arc<Network>,
     ) -> Self {
         QUPConsensus {
             config,
             state,
             key_pair,
             hdc_model,
+            network,
             network,
             blockchain,
             block_storage,
