@@ -9,7 +9,14 @@ use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{verify_signature, QUPKeyPair, QUPCrypto};
 use crate::qup::state::QUPState;
-use crate::utils::validate_useful_work_solution;
+use crate::utils::{validate_useful_work_solution, is_valid_vertex_cover};
+use crate::network::Network;
+use std::time::Instant;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use rand::Rng;
+use rand::distributions::Alphanumeric;
+use rayon::prelude::*;
 use std::sync::Arc;
 
 use crate::chain::blockchain::Blockchain;
@@ -62,32 +69,6 @@ impl QUPConsensus {
         self.update_consensus_algorithm(consensus_algorithm);
     }
 
-    fn assess_security_threats(&self) -> SecurityThreats {
-        // Assess the current security threats to the network
-        // This can be customized based on the specific types of threats and attack vectors
-        // For example, consider factors like network attacks, spam transactions, etc.
-        let network_attack_rate = self.state.get_network_attack_rate();
-        let spam_transaction_rate = self.state.get_spam_transaction_rate();
-
-        SecurityThreats {
-            network_attack_rate,
-            spam_transaction_rate,
-            // Add more threat assessment metrics as required
-        }
-    }
-
-    fn determine_consensus_algorithm(&self, network_load: f64, security_threats: SecurityThreats) -> ConsensusAlgorithm {
-        // Determine the appropriate consensus algorithm based on the network load and security threats
-        // This can be customized based on the specific logic and thresholds
-        // For example, use the efficient algorithm under high load and low threats, otherwise use the secure algorithm
-        if network_load > self.config.consensus_config.load_threshold
-            && security_threats.network_attack_rate < self.config.consensus_config.attack_threshold
-        {
-            ConsensusAlgorithm::Efficient
-        } else {
-            ConsensusAlgorithm::Secure
-        }
-    }
 
 
     fn update_consensus_algorithm(&mut self, consensus_algorithm: ConsensusAlgorithm) {
@@ -912,30 +893,3 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
             ConsensusAlgorithm::Secure
         }
     }
-fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
-    // Validate the block
-    if !self.validate_block(&block)? {
-        return Err(ConsensusError::InvalidBlock);
-    }
-
-    // Evaluate the block using the HDC model
-    let block_vector = self.hdc_model.encode_block(&block);
-    let similarity = self.hdc_model.evaluate_similarity(&block_vector);
-
-    // Check if the block meets the similarity threshold
-    if similarity < self.config.similarity_threshold {
-        return Err(ConsensusError::InsufficientSimilarity);
-    }
-
-    // Use a more efficient consensus algorithm under high load
-    // For example, we can use a simplified voting mechanism
-    let vote = self.cast_vote(block.hash())?;
-    self.state.add_vote(vote.clone())?;
-
-    // Check if the block has reached quorum
-    if self.state.has_quorum(&block.hash())? {
-        self.commit_block(block)?;
-    }
-
-    Ok(())
-}
