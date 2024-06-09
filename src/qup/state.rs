@@ -15,7 +15,7 @@ use rayon::prelude::*;
 use smallvec::SmallVec;
 
 pub struct QUPState {
-    pub accounts: Arc<StateManager>,
+    pub state_db: Arc<StateDB>,
     pub blocks: Arc<SmallVec<[QUPBlock; 4]>>,
     pub config: Arc<QUPConfig>,
     pub delegator: Arc<QUPDelegator>,
@@ -245,7 +245,7 @@ impl QUPState {
     }
     pub fn new(
         config: Arc<QUPConfig>,
-        state_manager: Arc<StateManager>,
+        state_db: Arc<StateDB>,
         delegator: Arc<QUPDelegator>,
         validator: Arc<QUPValidator>,
         hdc_models: Arc<QUPHDCModels>,
@@ -253,7 +253,7 @@ impl QUPState {
         quantum_node: Arc<QuantumNode>,
     ) -> Self {
         let mut state = QUPState {
-            accounts: state_manager,
+            state_db,
             blocks: Vec::new(),
             config: config.clone(),
             delegator: delegator.clone(),
@@ -318,9 +318,6 @@ impl QUPState {
         hasher.finish()
     }
 
-    pub fn add_account(&mut self, id: String, account: Account) {
-        self.accounts.insert(id, account);
-    }
 
     pub fn add_block(&mut self, block: QUPBlock) {
         self.blocks.push(block);
@@ -357,8 +354,8 @@ impl QUPState {
         hasher.finish()
     }
 
-    pub fn get_account(&self, id: &str) -> Option<&Account> {
-        self.accounts.get(id)
+    pub fn get_account(&self, address: &str) -> Option<Account> {
+        self.state_db.get_account(address)
     }
 
     pub fn get_latest_block(&self) -> Option<&QUPBlock> {

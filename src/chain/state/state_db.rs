@@ -10,7 +10,6 @@ use std::path::Path;
 pub struct StateDB {
     db: DB,
     account_trie: MerkleTrie,
-    chain_state: ChainState,
     account_cache: LruCache<String, Account>,
 }
 
@@ -33,10 +32,6 @@ impl StateDB {
             return Some(account.clone());
         }
 
-        if let Some(account) = self.chain_state.get_account(address) {
-            self.account_cache.put(address.to_string(), account.clone());
-            return Some(account);
-        }
 
         let account_data = self.db.get(address.as_bytes()).ok()??;
         let account = deserialize_account(&account_data);
@@ -51,7 +46,6 @@ impl StateDB {
         self.db
             .put(account.address.as_bytes(), &account_data)
             .expect("Failed to set account");
-        self.chain_state.set_account(account);
         self.account_cache
             .put(account.address.clone(), account.clone());
         self.update_account_trie(account);
@@ -61,7 +55,6 @@ impl StateDB {
         self.db
             .delete(address.as_bytes())
             .expect("Failed to remove account");
-        self.chain_state.remove_account(address);
         self.account_cache.pop(address);
         self.account_trie
             .remove(address.as_bytes())
@@ -70,9 +63,6 @@ impl StateDB {
 
     pub fn account_exists(&self, address: &str) -> bool {
         if self.account_cache.contains(address) {
-            return true;
-        }
-        if self.chain_state.account_exists(address) {
             return true;
         }
         self.db.get(address.as_bytes()).ok().is_some()
