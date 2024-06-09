@@ -520,6 +520,7 @@ impl QUPConsensus {
         }
 
         history_proof
+    }
 
 }
 
