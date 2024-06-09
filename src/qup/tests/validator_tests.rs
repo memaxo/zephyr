@@ -16,7 +16,7 @@ fn test_stake_and_unstake() {
     let key_pair = QUPKeyPair::generate();
     let validator_address = Address::from_slice(&[1u8; 20]);
 
-    let mut validator = QUPValidator::new(validator_address, key_pair, config, state.clone());
+    let mut validator = QUPValidator::new(validator_address, key_pair, config.clone(), state.clone());
 
     // Set up validator account
     let mut account = Account {

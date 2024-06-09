@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 
 pub struct QUPValidator {
-    config: QUPConfig,
+    config: Arc<QUPConfig>,
     state: Arc<QUPState>,
     hdc_models: QUPHDCModels,
     stakes: HashMap<String, u64>, // Validator stakes
@@ -17,7 +17,7 @@ pub struct QUPValidator {
 }
 
 impl QUPValidator {
-    pub fn new(config: QUPConfig, state: Arc<QUPState>, hdc_models: QUPHDCModels) -> Self {
+    pub fn new(config: Arc<QUPConfig>, state: Arc<QUPState>, hdc_models: QUPHDCModels) -> Self {
         QUPValidator {
             config,
             state,

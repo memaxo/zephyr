@@ -59,6 +59,7 @@ impl QUPConsensus {
         block_storage: Arc<BlockStorage>,
         transaction_storage: Arc<TransactionStorage>,
         network: Arc<Network>,
+        qup_crypto: Arc<QUPCrypto>,
     ) -> Self {
         QUPConsensus {
             config,
@@ -70,7 +71,7 @@ impl QUPConsensus {
             blockchain,
             block_storage,
             transaction_storage,
-            qup_crypto: QUPCrypto::new(),
+            qup_crypto,
             consensus_mechanism: ConsensusMechanism::Standard,
             useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
             communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
