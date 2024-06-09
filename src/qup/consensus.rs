@@ -524,17 +524,6 @@ impl QUPConsensus {
             return Ok(false);
         }
 
-        // Validate useful work solution
-        if let Some(problem) = &stored_block.useful_work_problem {
-            if let Some(solution) = &stored_block.useful_work_solution {
-                if !self.validate_useful_work_solution(problem, solution)? {
-                    return Ok(false);
-                }
-            } else {
-                return Ok(false);
-            }
-        }
-
         // Validate useful work proof
         if let Some(proof) = &stored_block.useful_work_proof {
             if !self.validate_useful_work_proof(proof)? {
@@ -543,8 +532,6 @@ impl QUPConsensus {
         } else {
             return Ok(false);
         }
-
-        Ok(true)
     }
 
     fn generate_history_proof(&self) -> Vec<Hash> {
