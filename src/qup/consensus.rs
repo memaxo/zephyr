@@ -54,6 +54,8 @@ impl QUPConsensus {
         node_type: NodeType,
         blockchain: Arc<Blockchain>,
         block_storage: Arc<BlockStorage>,
+        classical_node: Arc<ClassicalNode>,
+        quantum_node: Arc<QuantumNode>,
         transaction_storage: Arc<TransactionStorage>,
         network: Arc<Network>,
         qup_crypto: Arc<QUPCrypto>,
@@ -105,6 +107,8 @@ fn adapt_consensus_algorithm(&mut self) {
                 self.consensus_mechanism = ConsensusMechanism::Secure;
                 self.config.validator_threshold = 0.75; // Increase validator threshold for higher security
             }
+            classical_node,
+            quantum_node,
         }
     }
 

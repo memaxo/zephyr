@@ -4,6 +4,8 @@ use crate::qup::block::QUPBlock;
 use crate::qup::config::QUPConfig;
 use crate::qup::delegator::QUPDelegator;
 use crate::qup::qup_hdcmodels::QUPHDCModels;
+use crate::qup::classical_node::ClassicalNode;
+use crate::qup::quantum_node::QuantumNode;
 use crate::qup::validator::QUPValidator;
 use crate::storage::state_storage::StateStorage;
 use std::collections::HashMap;
@@ -22,6 +24,8 @@ pub struct QUPState {
     pub hdc_models: Arc<QUPHDCModels>,
     pub state_storage: Arc<StateStorage>,
     pub network_state: Arc<Mutex<NetworkState>>,
+        classical_node: Arc<ClassicalNode>,
+        quantum_node: Arc<QuantumNode>,
     }
 
     pub fn get_network_load(&self) -> f64 {
@@ -241,7 +245,16 @@ impl QUPState {
             *tasks = average_tasks;
         }
     }
-    pub fn new(config: Arc<QUPConfig>, state_db: Arc<StateDB>, delegator: Arc<QUPDelegator>, validator: Arc<QUPValidator>, hdc_models: Arc<QUPHDCModels>, state_storage: Arc<StateStorage>) -> Self {
+    pub fn new(
+        config: Arc<QUPConfig>,
+        state_db: Arc<StateDB>,
+        delegator: Arc<QUPDelegator>,
+        validator: Arc<QUPValidator>,
+        hdc_models: Arc<QUPHDCModels>,
+        state_storage: Arc<StateStorage>,
+        classical_node: Arc<ClassicalNode>,
+        quantum_node: Arc<QuantumNode>,
+    ) -> Self {
         let mut state = QUPState {
             accounts: HashMap::new(),
             blocks: Vec::new(),
@@ -252,6 +265,8 @@ impl QUPState {
             hdc_models: hdc_models.clone(),
             state_storage: state_storage.clone(),
             network_state: Mutex::new(NetworkState::default()),
+            classical_node,
+            quantum_node,
         };
 
         // Initialize quantum nodes

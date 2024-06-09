@@ -10,6 +10,12 @@ pub struct QuantumNode {
     pub communication_protocol: CommunicationProtocol,
     pub config: Arc<QUPConfig>,
     pub state: Arc<QUPState>,
+    pub fn send_task(&self, task: &str) {
+        // Method to send tasks to classical nodes
+    }
+
+    pub fn receive_results(&self, results: &UsefulWorkSolution) {
+        // Method to receive results from classical nodes
     }
 }
 

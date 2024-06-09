@@ -46,11 +46,23 @@ impl ClassicalNode {
         }
     }
 
-    pub fn allocate_task(&self, task: &str) {
+    pub fn allocate_task(&self, task: &str, quantum_node: &QuantumNode) {
+        quantum_node.send_task(task);
+    }
         // Scaffold method for allocating tasks to quantum nodes
     }
 
-    pub fn receive_proof(&self, proof: &[u8]) {
+    pub fn receive_proof(&self, proof: &[u8], quantum_node: &QuantumNode) {
+        if self.validate_proof(proof) {
+            let results = self.generate_results(proof);
+            quantum_node.receive_results(&results);
+        }
+    }
+
+    fn generate_results(&self, proof: &[u8]) -> UsefulWorkSolution {
+        // Generate results from proof
+        UsefulWorkSolution::default()
+    }
         // Scaffold method for receiving proofs from quantum nodes
     }
 
