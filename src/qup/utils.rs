@@ -16,6 +16,27 @@ pub fn calculate_block_hash(block_header: &QUPBlockHeader) -> Hash {
     hasher.finalize()
 }
 
+pub fn is_valid_vertex_cover(graph: &Vec<Vec<usize>>, vertex_cover: &Vec<usize>) -> bool {
+    let mut covered_edges = vec![vec![false; graph.len()]; graph.len()];
+
+    for &vertex in vertex_cover {
+        for &neighbor in &graph[vertex] {
+            covered_edges[vertex][neighbor] = true;
+            covered_edges[neighbor][vertex] = true;
+        }
+    }
+
+    for (u, neighbors) in graph.iter().enumerate() {
+        for &v in neighbors {
+            if !covered_edges[u][v] {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
 pub fn calculate_transaction_hash(transaction: &QUPTransaction) -> Hash {
     let mut hasher = Hasher::new();
     hasher.update(&transaction.from);
