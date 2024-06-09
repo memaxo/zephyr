@@ -36,7 +36,7 @@ pub enum ConsensusMechanism {
 pub struct QUPConsensus {
     pub blockchain: Arc<Blockchain>,
     pub config: Arc<QUPConfig>,
-    pub state: Arc<QUPState>,
+    pub state_manager: Arc<StateManager>,
     pub key_pair: QUPKeyPair,
     pub hdc_model: HDCModel,
     pub network: Arc<Network>,
@@ -48,7 +48,7 @@ pub struct QUPConsensus {
 impl QUPConsensus {
     pub fn new(
         config: Arc<QUPConfig>,
-        state: Arc<QUPState>,
+        state_manager: Arc<StateManager>,
         key_pair: QUPKeyPair,
         hdc_model: HDCModel,
         node_type: NodeType,
