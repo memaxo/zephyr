@@ -72,22 +72,17 @@ impl QUPConsensus {
             consensus_mechanism: ConsensusMechanism::Standard,
             useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
             communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
-        }
-    }
+fn adapt_consensus_algorithm(&mut self) {
+    // Assess the current network load and security threats
+    let network_load = self.state.get_network_load();
+    let security_threats = self.assess_security_threats();
+
+    // Determine the appropriate consensus algorithm based on the assessment
+    let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
+
+    // Update the consensus algorithm
+    self.update_consensus_algorithm(consensus_algorithm);
 }
-    }
-
-    fn adapt_consensus_algorithm(&mut self) {
-        // Assess the current network load and security threats
-        let network_load = self.state.get_network_load();
-        let security_threats = self.assess_security_threats();
-
-        // Determine the appropriate consensus algorithm based on the assessment
-        let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
-
-        // Update the consensus algorithm
-        self.update_consensus_algorithm(consensus_algorithm);
-    }
 
 
 
