@@ -18,7 +18,49 @@ pub struct QUPConfig {
     pub quantum_node_settings: QuantumNodeSettings,
     pub useful_work_problem_types: Vec<UsefulWorkProblemType>,
     pub cryptographic_parameters: CryptographicParameters,
+    pub load_threshold: f64,
+    pub attack_threshold: f64,
+    pub quorum_threshold: f64,
+    pub confirmation_threshold: usize,
+    pub confirmation_timeout: std::time::Duration,
 }
+
+impl QUPConfig {
+    pub fn new(
+        consensus_config: ConsensusConfig,
+        network_config: NetworkConfig,
+        block_reward: u64,
+        validator_reward_ratio: f64,
+        useful_work_config: UsefulWorkConfig,
+        reward_scheme: RewardScheme,
+        load_threshold: f64,
+        attack_threshold: f64,
+        quorum_threshold: f64,
+        confirmation_threshold: usize,
+        confirmation_timeout: std::time::Duration,
+    ) -> Self {
+        QUPConfig {
+            consensus_config,
+            network_config,
+            block_reward,
+            validator_reward_ratio,
+            useful_work_config,
+            reward_scheme,
+            load_threshold,
+            attack_threshold,
+            quorum_threshold,
+            confirmation_threshold,
+            confirmation_timeout,
+        }
+    }
+
+    pub fn hasher(&self) -> Arc<dyn Hasher> {
+        self.consensus_config.hasher()
+    }
+
+    pub fn supports_quantum_features(&self) -> bool {
+        self.supports_quantum
+    }
 
 /// Configuration settings for quantum nodes.
 pub struct QuantumNodeSettings {
