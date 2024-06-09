@@ -103,8 +103,20 @@ pub struct QUPState {
         Ok(QUPBlock::default())
     }
 
-    pub fn apply_block(&self, _block: &QUPBlock) -> Result<(), ConsensusError> {
-        // Placeholder implementation
+    pub fn apply_block(&self, block: &QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block
+        if !self.validator.validate_block(block) {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Apply each transaction in the block
+        for transaction in &block.transactions {
+            self.execute_transaction(transaction)?;
+        }
+
+        // Add the block to the state
+        self.blocks.push(block.clone());
+
         Ok(())
     }
 
