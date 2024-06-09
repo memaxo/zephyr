@@ -966,7 +966,9 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
         // Determine the appropriate consensus algorithm based on the network load and security threats
         // This can be customized based on the specific logic and thresholds
         // For example, use the efficient algorithm under high load and low threats, otherwise use the secure algorithm
-        if network_load > self.config.consensus_config.load_threshold && security_threats.network_attack_rate < self.config.consensus_config.attack_threshold {
+        if network_load > self.config.consensus_config.load_threshold
+            && security_threats.network_attack_rate < self.config.consensus_config.attack_threshold
+        {
             ConsensusAlgorithm::Efficient
         } else {
             ConsensusAlgorithm::Secure
