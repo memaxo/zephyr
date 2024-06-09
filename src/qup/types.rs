@@ -17,7 +17,69 @@ pub enum UsefulWorkProblem {
     VehicleRouting(VehicleRoutingProblem),
     PortfolioOptimization(PortfolioOptimizationProblem),
     MarketEquilibrium(MarketEquilibriumProblem),
-    // Add more useful work problem types as needed
+    }
+
+    // Define the StandardUsefulWorkGenerator struct
+    pub struct StandardUsefulWorkGenerator;
+
+    impl StandardUsefulWorkGenerator {
+        pub fn new() -> Self {
+            StandardUsefulWorkGenerator
+        }
+    }
+
+    // Define the EnhancedUsefulWorkGenerator struct
+    pub struct EnhancedUsefulWorkGenerator;
+
+    impl EnhancedUsefulWorkGenerator {
+        pub fn new() -> Self {
+            EnhancedUsefulWorkGenerator
+        }
+    }
+
+    // Define the StorageOptimizedUsefulWorkGenerator struct
+    pub struct StorageOptimizedUsefulWorkGenerator;
+
+    impl StorageOptimizedUsefulWorkGenerator {
+        pub fn new() -> Self {
+            StorageOptimizedUsefulWorkGenerator
+        }
+    }
+
+    // Define the SecurityThreats struct
+    pub struct SecurityThreats {
+        pub network_attack_rate: f64,
+        pub spam_transaction_rate: f64,
+    }
+
+    // Define the QUPMessage enum
+    pub enum QUPMessage {
+        QUPBlock(QUPBlock),
+        QUPTransaction(Transaction),
+    }
+
+    // Define the QUPVote struct
+    pub struct QUPVote {
+        pub voter: Vec<u8>,
+        pub block_hash: Hash,
+        pub signature: QUPSignature,
+    }
+
+    // Define the ProtocolMessage enum
+    pub enum ProtocolMessage {
+        BlockProposal { block: Vec<u8>, signature: QUPSignature },
+        Vote { vote: Vec<u8>, signature: QUPSignature },
+        BlockCommit { block: Vec<u8>, signature: QUPSignature },
+    }
+
+    // Define the Hash type
+    pub type Hash = Vec<u8>;
+
+    // Define the UsefulWorkResult struct
+    pub struct UsefulWorkResult {
+        pub problem: UsefulWorkProblem,
+        pub solution: UsefulWorkSolution,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
