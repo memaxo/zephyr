@@ -1,4 +1,4 @@
-use crate::chain::transaction::{Transaction, QUPTransaction, TransactionType};
+use crate::chain::transaction::{Transaction, TransactionType};
 use crate::storage::{block_storage::BlockStorage, transaction_storage::TransactionStorage};
 use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
@@ -80,53 +80,15 @@ impl QUPConsensus {
         // Determine the appropriate consensus algorithm based on the network load and security threats
         // This can be customized based on the specific logic and thresholds
         // For example, use the efficient algorithm under high load and low threats, otherwise use the secure algorithm
-        if network_load > self.config.consensus_config.load_threshold && security_threats.network_attack_rate < self.config.consensus_config.attack_threshold {
+        if network_load > self.config.consensus_config.load_threshold
+            && security_threats.network_attack_rate < self.config.consensus_config.attack_threshold
+        {
             ConsensusAlgorithm::Efficient
         } else {
             ConsensusAlgorithm::Secure
         }
     }
 
-    fn assess_current_needs(&self) -> NetworkNeeds {
-        // Assess the current needs of the network
-        // This can be customized based on the specific requirements and metrics
-        // For example, consider factors like transaction throughput, storage capacity, etc.
-        let transaction_throughput = self.state.get_transaction_throughput();
-        let storage_capacity = self.state.get_storage_capacity();
-
-        NetworkNeeds {
-            transaction_throughput,
-            storage_capacity,
-            // Add more need assessment metrics as required
-        }
-    }
-
-    fn assess_current_threats(&self) -> NetworkThreats {
-        // Assess the current threats to the network
-        // This can be customized based on the specific types of threats and attack vectors
-        // For example, consider factors like network attacks, spam transactions, etc.
-        let network_attack_rate = self.state.get_network_attack_rate();
-        let spam_transaction_rate = self.state.get_spam_transaction_rate();
-
-        NetworkThreats {
-            network_attack_rate,
-            spam_transaction_rate,
-            // Add more threat assessment metrics as required
-        }
-    }
-
-    fn determine_consensus_algorithm(&self, needs: NetworkNeeds, threats: NetworkThreats) -> ConsensusAlgorithm {
-        // Determine the appropriate consensus algorithm based on the current needs and threats
-        // This can be customized based on the specific logic and thresholds
-        // For example, use different consensus algorithms for different scenarios
-        if needs.transaction_throughput > self.config.throughput_threshold && threats.network_attack_rate < self.config.attack_threshold {
-            ConsensusAlgorithm::Efficient
-        } else if threats.spam_transaction_rate > self.config.spam_threshold {
-            ConsensusAlgorithm::Secure
-        } else {
-            ConsensusAlgorithm::Standard
-        }
-    }
 
     fn update_consensus_algorithm(&mut self, consensus_algorithm: ConsensusAlgorithm) {
         // Update the consensus algorithm based on the determined algorithm
@@ -498,6 +460,7 @@ impl QUPConsensus {
         Ok(())
     }
 
+    /// Validates a block.
     pub fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
         // Retrieve the block from the block storage
         let stored_block = self.block_storage.load_block(&block.hash())?;
@@ -752,6 +715,7 @@ fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), Consensus
     Ok(())
 }
 
+/// Processes a vote.
 pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
     // Verify the vote signature
     if !self.verify_vote_signature(&vote)? {
@@ -782,6 +746,7 @@ fn verify_vote_signature(&self, vote: &QUPVote) -> Result<bool, ConsensusError> 
     }
 }
 
+/// Processes a commit.
 pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
     // Retrieve the block from the block storage
     let block = self.block_storage.load_block(&block_hash)?;
@@ -820,6 +785,7 @@ pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError>
     Ok(())
 }
 
+/// Casts a vote for a block.
 pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
     let signature = if self.config.supports_quantum_features() {
         self.qup_crypto.sign(&block_hash.to_bytes())
@@ -843,6 +809,7 @@ pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
     Ok(vote)
 }
 
+/// Commits a block.
 pub fn commit_block(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
     // Apply the block to the state
     self.state.apply_block(&block)?;
@@ -872,6 +839,7 @@ fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError>
     Ok(())
 }
 
+/// Checks if a block has reached quorum.
 pub fn has_quorum(&self, block_hash: Hash) -> Result<bool, ConsensusError> {
     let votes = self.state.get_votes(&block_hash)?;
     let total_stake: u64 = self.state.get_total_stake();
@@ -889,10 +857,8 @@ pub fn has_quorum(&self, block_hash: Hash) -> Result<bool, ConsensusError> {
     Ok(false)
 }
 
-pub fn propose_block(
-    &self,
-    transactions: Vec<Transaction>,
-) -> Result<QUPBlock, ConsensusError> {
+/// Proposes a new block.
+pub fn propose_block(&self, transactions: Vec<Transaction>) -> Result<QUPBlock, ConsensusError> {
     use rayon::prelude::*;
 
     // Generate useful work problem and history proof in parallel
@@ -960,6 +926,7 @@ fn generate_useful_work_proof(&self, solution: &UsefulWorkSolution) -> Vec<u8> {
 }
 
 
+/// Processes a consensus message.
 pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
     self.communication_protocol.receive_message(&message)?;
 
