@@ -1,4 +1,5 @@
 use rand::Rng;
+use crate::qup::crypto::key_management::KeyPairGenerator;
 
 
 pub struct McEliecePublicKey {
@@ -16,7 +17,14 @@ pub struct McElieceSecretKey {
     // pub matrix_g: Vec<Vec<u8>>,
 }
 
-impl McElieceKeyPair {
+pub struct McElieceKeyPair {
+    pub public_key: McEliecePublicKey,
+    pub secret_key: McElieceSecretKey,
+}
+
+impl KeyPairGenerator for McElieceKeyPair {
+    type PublicKey = McEliecePublicKey;
+    type SecretKey = McElieceSecretKey;
     pub fn generate(rng: &mut impl Rng) -> Self {
         // Implement key generation logic for McEliece
         // Example:

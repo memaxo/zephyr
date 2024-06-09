@@ -1,4 +1,5 @@
 use rand::Rng;
+use crate::qup::crypto::key_management::KeyPairGenerator;
 
 pub struct SPHINCSKeyPair {
     pub public_key: SPHINCSPublicKey,
@@ -20,7 +21,9 @@ pub struct SPHINCSSignature {
     pub signature: Vec<u8>,
 }
 
-impl SPHINCSKeyPair {
+impl KeyPairGenerator for SPHINCSKeyPair {
+    type PublicKey = SPHINCSPublicKey;
+    type SecretKey = SPHINCSSecretKey;
     pub fn generate(rng: &mut impl Rng) -> Self {
         // Implement key generation logic for SPHINCS+
         let secret_key = SPHINCSSecretKey {

@@ -1,4 +1,5 @@
 use rand::Rng;
+use crate::qup::crypto::key_management::KeyPairGenerator;
 
 
 pub struct NTRUPublicKey {
@@ -13,7 +14,14 @@ pub struct NTRUSecretKey {
     // pub key: Vec<u8>,
 }
 
-impl NTRUKeyPair {
+pub struct NTRUKeyPair {
+    pub public_key: NTRUPublicKey,
+    pub secret_key: NTRUSecretKey,
+}
+
+impl KeyPairGenerator for NTRUKeyPair {
+    type PublicKey = NTRUPublicKey;
+    type SecretKey = NTRUSecretKey;
     pub fn generate(rng: &mut impl Rng) -> Self {
         // Implement key generation logic for NTRU
         // Example:

@@ -1,4 +1,5 @@
 use rand::Rng;
+use crate::qup::crypto::key_management::KeyPairGenerator;
 
 
 pub struct PicnicPublicKey {
@@ -19,7 +20,14 @@ pub struct PicnicSignature {
     // pub signature: Vec<u8>,
 }
 
-impl PicnicKeyPair {
+pub struct PicnicKeyPair {
+    pub public_key: PicnicPublicKey,
+    pub secret_key: PicnicSecretKey,
+}
+
+impl KeyPairGenerator for PicnicKeyPair {
+    type PublicKey = PicnicPublicKey;
+    type SecretKey = PicnicSecretKey;
     pub fn generate(rng: &mut impl Rng) -> Self {
         // Implement key generation logic for Picnic
         // Example:
