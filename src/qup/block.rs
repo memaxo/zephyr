@@ -1,6 +1,7 @@
 use crate::chain::transaction::Transaction;
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{hash, QUPSignature, Hash};
+use crate::chain::common::{BlockCommon, BlockFields};
 use crate::storage::block_storage::BlockStorage;
 use crate::qup::state::QUPState;
 use crate::qup::validator::QUPValidator;
@@ -15,10 +16,9 @@ use smallvec::SmallVec;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct QUPBlock {
+    pub common: BlockFields,
     pub height: u64,
-    pub timestamp: u64,
     pub prev_block_hash: Hash,
-    pub transactions: Arc<SmallVec<[Transaction; 4]>>,
     pub useful_work_problem: Option<Box<UsefulWorkProblem>>,
     pub useful_work_solution: Option<Box<UsefulWorkSolution>>,
     pub history_proof: Arc<SmallVec<[Hash; 4]>>,

@@ -14,6 +14,7 @@ use zeroize::Zeroize;
 use crate::chain::crypto::{
     PostQuantumKeyPair, PostQuantumPublicKey, PostQuantumSignature, QUPCrypto,
 };
+use crate::chain::common::{TransactionCommon, TransactionFields};
 use crate::key_management::{KeyManagementError, KeyManager};
 use crate::logging::LoggingError;
 use crate::qup::state::QUPState;
@@ -22,18 +23,7 @@ use crate::zkp_crate::{generate_proof, verify_proof, ZKProofError};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transaction {
-    pub sender: String,
-    pub receiver: String,
-    pub amount: f64,
-    pub nonce: u64,
-    #[serde(skip)]
-    pub signature: Vec<u8>,
-    pub proof: Proof,
-    #[serde(skip)]
-    pub encrypted_details: Vec<u8>,
-    pub post_quantum_signature: Option<PostQuantumSignature>,
-    pub useful_work_solution: Option<UsefulWorkSolution>,
-    pub history_proof: Option<HistoryProof>,
+    pub common: TransactionFields,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

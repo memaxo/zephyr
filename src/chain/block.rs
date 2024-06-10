@@ -1,5 +1,6 @@
 use crate::chain::blockchain::Blockchain;
 use crate::chain::transaction::Transaction;
+use crate::chain::common::{BlockCommon, BlockFields};
 use crate::parallel::parallel_map::parallel_map;
 use crate::qup::consensus::QUPConsensus;
 use crate::qup::crypto::{PostQuantumSignature, QUPCrypto};
@@ -52,18 +53,13 @@ impl Block {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
-    pub timestamp: u64,
-    pub transactions: Vec<Arc<Transaction>>,
-    pub previous_hash: String,
-    pub hash: String,
+    pub common: BlockFields,
     pub difficulty: u64,
     pub nonce: u64,
     pub merkle_root: String,
     pub smart_contracts: Vec<Arc<SmartContract>>,
     pub hv_dimension: u64,
     pub state_root: String,
-    pub validator_signature: Option<PostQuantumSignature>,
-    pub useful_work: Option<UsefulWork>,
     pub qup_block_header: QUPBlockHeader,
     pub qup_specific_data: QUPSpecificData,
 }
