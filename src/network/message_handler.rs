@@ -1,14 +1,18 @@
 use crate::network::p2p::message::Message;
+use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use libp2p::floodsub::{Floodsub, FloodsubEvent, Topic};
 use libp2p::gossipsub::{Gossipsub, GossipsubEvent, IdentTopic as Topic, MessageId, ValidationMode};
 use libp2p::swarm::Swarm;
 use libp2p::{identity, PeerId};
 use std::collections::HashSet;
+use tokio::net::TcpStream;
+use log::{error, info};
 
 pub struct MessageHandler {
     floodsub: Floodsub,
     gossipsub: Gossipsub,
     peers: HashSet<PeerId>,
+    pq_tls_connection: Option<PostQuantumTLSConnection>,
 }
 
 impl MessageHandler {
@@ -20,7 +24,12 @@ impl MessageHandler {
             local_peer_id.clone(),
         ).expect("Correct configuration");
 
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect("localhost:12345").await.expect("Failed to connect to server");
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.expect("Failed to establish TLS connection");
+
         MessageHandler {
+            pq_tls_connection: Some(pq_tls_connection),
             floodsub,
             gossipsub,
             peers: HashSet::new(),
@@ -47,17 +56,25 @@ impl MessageHandler {
 
     pub fn publish(&mut self, topic: &str, message: Message) {
         let topic = Topic::new(topic);
-        let data = message.serialize().unwrap();
-        self.floodsub.publish(topic.clone(), data.clone());
-        self.gossipsub.publish(topic, data).unwrap();
+        if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+            let data = message.serialize().unwrap();
+            pq_tls_connection.send(&data).await.expect("Failed to send message over TLS");
+        } else {
+            error!("TLS connection not established");
+        }
     }
 
     pub async fn handle_events(&mut self, swarm: &mut Swarm<Self>) {
         loop {
             match swarm.next().await {
                 Some(FloodsubEvent::Message(message)) => {
-                    if let Ok(msg) = Message::deserialize(&message.data) {
-                        // Handle the message
+                    if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+                        let data = pq_tls_connection.receive().await.expect("Failed to receive message over TLS");
+                        if let Ok(msg) = Message::deserialize(&data) {
+                            // Handle the message
+                        }
+                    } else {
+                        error!("TLS connection not established");
                     }
                 }
                 Some(GossipsubEvent::Message {
