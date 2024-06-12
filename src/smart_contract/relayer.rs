@@ -1,5 +1,6 @@
 use crate::smart_contract::types::{CrossChainMessage, IBCPacketData};
 use log::info;
+use pqcrypto_dilithium::dilithium2::{sign, SecretKey};
 
 pub struct Relayer {
     // TODO: Add necessary fields for the relayer
@@ -36,7 +37,17 @@ impl Relayer {
             ..message
         };
 
-        // Send the message over IBC
+        // Sign the message
+        let secret_key = SecretKey::from_bytes(&[0u8; 32]).unwrap(); // Replace with actual key management
+        let signature = sign(&serde_json::to_vec(&routed_message).unwrap(), &secret_key);
+
+        // Update the message with the signature
+        let signed_message = CrossChainMessage {
+            signature,
+            ..routed_message
+        };
+
+        // Send the signed message over IBC
         info!("Relaying cross-chain message over IBC: {:?}", routed_message);
         
         // TODO: Implement the actual relaying logic using IBC modules

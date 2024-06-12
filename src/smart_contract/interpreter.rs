@@ -1,4 +1,5 @@
-use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryOperator, Value};
+use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryOperator, Value, CrossChainMessage};
+use pqcrypto_dilithium::dilithium2::verify;
 use log::info;
 use std::collections::HashSet;
 use parking_lot::Mutex;
@@ -298,7 +299,7 @@ impl Interpreter {
         // TODO: Implement signature verification logic
         // Verify each signature in the message.signatures vector
         // Return true if all signatures are valid, false otherwise
-        true
+        verify(&message.signature, &serde_json::to_vec(message).unwrap(), &message.public_key).is_ok()
     }
         &self,
         expression: &Expression,

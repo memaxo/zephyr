@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use log::info;
 use regex::Regex;
 use serde::{Serialize, Deserialize};
+use pqcrypto_dilithium::dilithium2::{self, PublicKey, SecretKey, sign, verify};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -11,6 +12,8 @@ pub struct SmartContract {
     pub version: String,
     pub author: String,
     pub gas_limit: u64,
+    pub signature: Vec<u8>,
+    pub public_key: PublicKey,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
