@@ -32,15 +32,17 @@ pub fn calculate_operation_cost(operation: &Operation, gas_cost: &GasCost) -> u6
     match operation {
         Operation::Set { .. } => gas_cost.set_cost,
         Operation::If { then_branch, else_branch, .. } => {
-            gas_cost.if_cost
-                + then_branch.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum::<u64>()
-                + else_branch.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum::<u64>()
+            let then_cost: u64 = then_branch.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum();
+            let else_cost: u64 = else_branch.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum();
+            gas_cost.if_cost + then_cost + else_cost
         },
         Operation::Loop { body, .. } => {
-            gas_cost.loop_cost + body.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum::<u64>()
+            let body_cost: u64 = body.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum();
+            gas_cost.loop_cost + body_cost
         },
         Operation::FunctionCall { args, .. } => {
-            gas_cost.func_call_cost + args.iter().map(|arg| calculate_expression_cost(arg, gas_cost)).sum::<u64>()
+            let args_cost: u64 = args.iter().map(|arg| calculate_expression_cost(arg, gas_cost)).sum();
+            gas_cost.func_call_cost + args_cost
         },
         Operation::Return { .. } => gas_cost.return_cost,
         Operation::Break => gas_cost.break_cost,
@@ -53,13 +55,17 @@ pub fn calculate_expression_cost(expression: &Expression, gas_cost: &GasCost) ->
         Expression::Literal(_) => gas_cost.op_cost,
         Expression::Variable(_) => gas_cost.get_cost,
         Expression::BinaryOp { left, right, .. } => {
-            gas_cost.op_cost
-                + calculate_expression_cost(left, gas_cost)
-                + calculate_expression_cost(right, gas_cost)
+            let left_cost = calculate_expression_cost(left, gas_cost);
+            let right_cost = calculate_expression_cost(right, gas_cost);
+            gas_cost.op_cost + left_cost + right_cost
         },
-        Expression::UnaryOp { expr, .. } => gas_cost.op_cost + calculate_expression_cost(expr, gas_cost),
+        Expression::UnaryOp { expr, .. } => {
+            let expr_cost = calculate_expression_cost(expr, gas_cost);
+            gas_cost.op_cost + expr_cost
+        },
         Expression::FunctionCall { args, .. } => {
-            gas_cost.func_call_cost + args.iter().map(|arg| calculate_expression_cost(arg, gas_cost)).sum::<u64>()
+            let args_cost: u64 = args.iter().map(|arg| calculate_expression_cost(arg, gas_cost)).sum();
+            gas_cost.func_call_cost + args_cost
         },
     }
 }

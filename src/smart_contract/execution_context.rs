@@ -127,7 +127,13 @@ impl ExecutionContext {
         Ok(())
     }
 
-    pub fn reset_gas(&mut self) {
+    pub fn rebate_gas(&mut self, amount: u64) {
+        if amount <= self.gas_used {
+            self.gas_used -= amount;
+        } else {
+            self.gas_used = 0;
+        }
+    }
         self.gas_used = 0;
     }
 
