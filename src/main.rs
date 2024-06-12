@@ -22,6 +22,8 @@ use std::{
     sync::{Arc, Mutex},
     process,
 };
+use log::{info, error};
+use env_logger::{Builder, Env};
 use crate::{chain::Blockchain, ui::start_ui, qup::interface::{QUPBlockProposal, QUPVoteHandler, QUPStateProvider}, qup::consensus::QUPConsensus};
 use log::{info, LevelFilter};
 use env_logger::{Builder, Env};
@@ -31,18 +33,27 @@ async fn main() {
     // Initialize logging with default settings or environment configuration
     Builder::from_env(Env::default().default_filter_or("info")).init();
     info!("ZephyrChain node initializing...");
+    Builder::from_env(Env::default().default_filter_or("info")).init();
+    info!("ZephyrChain node initializing...");
 
     // Create a new blockchain instance and wrap it for thread safety
     let blockchain = match Blockchain::new() {
+        Ok(blockchain) => blockchain,
+        Err(e) => {
+            error!("Failed to initialize blockchain: {}", e);
+            process::exit(1);
+        },
+    };
+    let blockchain = Arc::new(Mutex::new(blockchain));
+    info!("Blockchain initialized successfully.");
         Ok(blockchain) => blockchain,
         Err(e) => {
             eprintln!("Failed to initialize blockchain: {}", e);
             process::exit(1);
         },
     };
-    let blockchain = Arc::new(Mutex::new(blockchain));
-
     // Create a QUPConsensus instance
+    info!("Creating QUPConsensus instance...");
     let qup_consensus = QUPConsensus {
         // Initialize fields
     };
@@ -53,20 +64,25 @@ async fn main() {
     let state_provider: Arc<dyn QUPStateProvider> = Arc::new(qup_consensus);
 
     // Launch the API server with QUP dependencies
+    info!("Launching API server...");
     let api_server = api::start_server(blockchain.clone());
 
     // Launch the network server
+    info!("Launching network server...");
     let network_server = network::start_server(blockchain.clone());
 
     // Launch the user interface, passing the thread-safe blockchain instance
+    info!("Launching user interface...");
     match start_ui(blockchain.clone()).await {
         Ok(_) => info!("ZephyrChain node started and user interface launched successfully."),
         Err(e) => {
-            eprintln!("Failed to start user interface: {}", e);
+            error!("Failed to start user interface: {}", e);
             process::exit(1);
         },
     }
 
     // Wait for the API server and network server to finish
-    tokio::try_join!(api_server, network_server).unwrap();
+    if let Err(e) = tokio::try_join!(api_server, network_server) {
+        error!("Error running servers: {}", e);
+    }
 }
