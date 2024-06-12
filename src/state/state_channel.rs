@@ -104,6 +104,7 @@ impl StateChannelOptimized {
         }
 
     pub async fn close_channel(&mut self, blockchain: &mut Blockchain) -> Result<(), StateChannelError> {
+        let lock = self.acquire_closure_lock().await;
         if self.closed {
             return Err(StateChannelError::ChannelAlreadyClosed);
         }
@@ -111,6 +112,20 @@ impl StateChannelOptimized {
         if self.dispute.is_some() {
             return Err(StateChannelError::ChannelInDispute("Dispute must be resolved before closing".to_string()));
         }
+
+        let result = self.execute_channel_closure(blockchain).await;
+        lock.unlock().await;
+        result
+    }
+
+    async fn acquire_closure_lock(&self) -> DistributedLock {
+        // Implement logic to acquire a distributed lock for channel closure
+        // This could involve using a consensus-based approach or a lock service
+        // Return the acquired lock
+        unimplemented!()
+    }
+
+    async fn execute_channel_closure(&mut self, blockchain: &mut Blockchain) -> Result<(), StateChannelError> {
 
         let final_state_transaction = Transaction {
             sender: self.parties[0].clone(),
@@ -159,6 +174,21 @@ impl StateChannelOptimized {
         }
     }
 
+    pub fn resolve_dispute_with_modifications(&mut self, resolution: DisputeResolution, modifications: Vec<OffChainTransaction>) -> Result<(), StateChannelError> {
+        if self.closed {
+            Err(StateChannelError::ChannelClosed)
+        } else if let Some(dispute) = &mut self.dispute {
+            dispute.resolution = Some(resolution.clone());
+            self.off_chain_transactions.retain(|tx| !modifications.contains(tx));
+            self.off_chain_transactions.extend(modifications);
+            self.dispute = None;
+            info!("Dispute resolved with modifications in state channel: {:?}", self.id);
+            Ok(())
+        } else {
+            Err(StateChannelError::NoDisputeToResolve)
+        }
+    }
+
     pub fn start_arbitration(&mut self, arbitrator: String) -> Result<(), StateChannelError> {
         if let Some(dispute) = &mut self.dispute {
             if let Some(Arbitration { status: ArbitrationStatus::Requested, .. }) = dispute.arbitration {
@@ -170,6 +200,23 @@ impl StateChannelOptimized {
                 Ok(())
             } else {
                 Err(StateChannelError::ArbitrationNotRequested)
+            }
+        } else {
+            Err(StateChannelError::NoDisputeToArbitrate)
+        }
+    }
+
+    pub fn conclude_arbitration(&mut self, resolution: DisputeResolution) -> Result<(), StateChannelError> {
+        if let Some(dispute) = &mut self.dispute {
+            if let Some(Arbitration { status: ArbitrationStatus::InProgress { .. }, .. }) = dispute.arbitration {
+                dispute.arbitration = Some(Arbitration {
+                    status: ArbitrationStatus::Resolved { resolution: resolution.clone() },
+                    arbitrator_details: dispute.arbitration.as_ref().unwrap().arbitrator_details.clone(),
+                });
+                info!("Arbitration concluded in state channel: {:?}", self.id);
+                self.resolve_dispute(resolution)
+            } else {
+                Err(StateChannelError::ArbitrationNotInProgress)
             }
         } else {
             Err(StateChannelError::NoDisputeToArbitrate)
