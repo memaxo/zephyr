@@ -114,9 +114,12 @@ impl QUPConsensus {
             consensus_mechanism: ConsensusMechanism::Standard,
             useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
             communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
-fn adapt_consensus_algorithm(&mut self) {
-    // Assess the current network load and security threats
-    let network_load = self.state.get_network_load()?;
+        }
+    }
+
+    fn adapt_consensus_algorithm(&mut self) -> Result<(), ConsensusError> {
+        // Assess the current network load and security threats
+        let network_load = self.state.get_network_load()?;
     let security_threats = self.assess_security_threats()?;
 
     // Determine the appropriate consensus algorithm based on the assessment
@@ -185,10 +188,6 @@ fn adapt_consensus_algorithm(&mut self) {
         if needs.transaction_throughput > self.config.throughput_threshold && threats.network_attack_rate > self.config.attack_threshold {
             UsefulWorkType::Enhanced
         } else if needs.storage_capacity < self.config.storage_threshold {
-            UsefulWorkType::StorageOptimized
-        } else {
-            UsefulWorkType::Standard
-        }
             UsefulWorkType::StorageOptimized
         } else {
             UsefulWorkType::Standard
