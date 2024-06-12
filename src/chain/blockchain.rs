@@ -63,12 +63,18 @@ impl Blockchain {
         secure_storage: Arc<SecureStorage>,
         qup_config: Arc<QUPConfig>,
         qup_state: Arc<QUPState>,
+        qup_consensus: Arc<QUPConsensus>,
         qup_provider: Arc<dyn QuantumComputationProvider>,
+        qup_provider: Arc<dyn QuantumComputationProvider>,
+        qup_crypto: Arc<dyn QuantumKeyManagement>,
     ) -> Self {
         let chain = Arc::new(RwLock::new(Vec::new()));
         let state = Arc::new(RwLock::new(ChainState::new()));
         let state_manager = Arc::new(StateManager::new());
         let state_transition = Arc::new(StateTransition::new(state_manager));
+
+        let qup_provider = qup_consensus.clone() as Arc<dyn QuantumComputationProvider>;
+        let qup_crypto = qup_consensus.clone() as Arc<dyn QuantumKeyManagement>;
 
         Blockchain {
             chain,
@@ -80,6 +86,8 @@ impl Blockchain {
             qup_config,
             qup_state,
             qup_provider,
+            qup_provider,
+            qup_crypto,
         }
     }
 

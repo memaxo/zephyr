@@ -46,8 +46,17 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn new(config: &NetworkConfig, consensus: Arc<dyn Consensus>, network_error_handler: Arc<dyn NetworkErrorHandler>, qup_provider: Arc<dyn QuantumComputationProvider>) -> Self {
+    pub fn new(
+        config: &NetworkConfig,
+        consensus: Arc<dyn Consensus>,
+        network_error_handler: Arc<dyn NetworkErrorHandler>,
+        qup_provider: Arc<dyn QuantumComputationProvider>,
+        qup_crypto: Arc<dyn QuantumKeyManagement>,
+    ) -> Self {
         let (peer_tx, peer_rx) = channel(config.peer_channel_capacity);
+        let qup_provider = qup_consensus.clone() as Arc<dyn QuantumComputationProvider>;
+        let qup_crypto = qup_consensus.clone() as Arc<dyn QuantumKeyManagement>;
+
         Network {
             peers: RwLock::new(HashMap::new()),
             consensus,
@@ -60,6 +69,7 @@ impl Network {
             peer_channel: (peer_tx, peer_rx),
             network_error_handler,
             qup_provider,
+            qup_crypto,
         }
     }
 
