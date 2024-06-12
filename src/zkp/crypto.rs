@@ -1,7 +1,5 @@
 use crate::zkp_crate::math::FieldElement;
 use pqcrypto_dilithium::dilithium2::{keypair as dilithium_keypair, sign as dilithium_sign, verify as dilithium_verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, Signature as DilithiumSignature};
-use pqcrypto_falcon::falcon1024::{keypair as falcon_keypair, sign as falcon_sign, verify as falcon_verify, PublicKey as FalconPublicKey, SecretKey as FalconSecretKey, Signature as FalconSignature};
-use pqcrypto_sphincsplus::sphincssha256128frobust::{keypair as sphincs_keypair, sign as sphincs_sign, verify as sphincs_verify, PublicKey as SphincsPublicKey, SecretKey as SphincsSecretKey, Signature as SphincsSignature};
 use rand::rngs::OsRng;
 use num_bigint::BigUint;
 
@@ -15,10 +13,6 @@ pub struct QuantumResistantMerkleTree {
     levels: Vec<Vec<FieldElement>>,
     dilithium_public_key: DilithiumPublicKey,
     dilithium_secret_key: DilithiumSecretKey,
-    falcon_public_key: FalconPublicKey,
-    falcon_secret_key: FalconSecretKey,
-    sphincs_public_key: SphincsPublicKey,
-    sphincs_secret_key: SphincsSecretKey,
 }
 
 impl QuantumResistantMerkleTree {
@@ -31,17 +25,11 @@ impl QuantumResistantMerkleTree {
         }
 
         let (dilithium_public_key, dilithium_secret_key) = dilithium_keypair();
-        let (falcon_public_key, falcon_secret_key) = falcon_keypair();
-        let (sphincs_public_key, sphincs_secret_key) = sphincs_keypair();
 
         QuantumResistantMerkleTree {
             levels,
             dilithium_public_key,
             dilithium_secret_key,
-            falcon_public_key,
-            falcon_secret_key,
-            sphincs_public_key,
-            sphincs_secret_key,
         }
     }
 
@@ -65,7 +53,7 @@ impl QuantumResistantMerkleTree {
         self.levels.last().unwrap()[0].clone()
     }
 
-    pub fn proof(&self, index: usize) -> (Vec<FieldElement>, DilithiumSignature, FalconSignature, SphincsSignature) {
+    pub fn proof(&self, index: usize) -> (Vec<FieldElement>, DilithiumSignature) {
         let mut proof = Vec::new();
         let mut index = index;
 
@@ -79,10 +67,7 @@ impl QuantumResistantMerkleTree {
 
         let message = proof.iter().map(|p| p.to_bytes()).flatten().collect::<Vec<u8>>();
         let dilithium_signature = dilithium_sign(&message, &self.dilithium_secret_key);
-        let falcon_signature = falcon_sign(&message, &self.falcon_secret_key);
-        let sphincs_signature = sphincs_sign(&message, &self.sphincs_secret_key);
-
-        (proof, dilithium_signature, falcon_signature, sphincs_signature)
+        (proof, dilithium_signature)
     }
 }
 
@@ -90,11 +75,7 @@ pub fn verify_quantum_merkle_proof(
     root: &FieldElement,
     proof: &[FieldElement],
     dilithium_signature: &DilithiumSignature,
-    falcon_signature: &FalconSignature,
-    sphincs_signature: &SphincsSignature,
     dilithium_public_key: &DilithiumPublicKey,
-    falcon_public_key: &FalconPublicKey,
-    sphincs_public_key: &SphincsPublicKey,
     leaf: &FieldElement,
     index: usize,
 ) -> bool {
@@ -120,6 +101,4 @@ pub fn verify_quantum_merkle_proof(
 
     let message = proof.iter().map(|p| p.to_bytes()).flatten().collect::<Vec<u8>>();
     dilithium_verify(&message, dilithium_signature, dilithium_public_key).is_ok() &&
-    falcon_verify(&message, falcon_signature, falcon_public_key).is_ok() &&
-    sphincs_verify(&message, sphincs_signature, sphincs_public_key).is_ok()
 }
