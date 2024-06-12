@@ -1,6 +1,7 @@
 use crate::zkp_crate::math::FieldElement;
-use pqcrypto_picnic::picnic_l1_fs::Hasher as PicnicHasher;
-use crystals_dilithium::{dilithium2 as Dilithium, Keypair, PublicKey, Signature};
+use pqcrypto_dilithium::dilithium2::{keypair as dilithium_keypair, sign as dilithium_sign, verify as dilithium_verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, Signature as DilithiumSignature};
+use pqcrypto_falcon::falcon1024::{keypair as falcon_keypair, sign as falcon_sign, verify as falcon_verify, PublicKey as FalconPublicKey, SecretKey as FalconSecretKey, Signature as FalconSignature};
+use pqcrypto_sphincsplus::sphincssha256128frobust::{keypair as sphincs_keypair, sign as sphincs_sign, verify as sphincs_verify, PublicKey as SphincsPublicKey, SecretKey as SphincsSecretKey, Signature as SphincsSignature};
 use rand::rngs::OsRng;
 use num_bigint::BigUint;
 
@@ -10,29 +11,14 @@ pub trait Hasher {
     fn finalize(self) -> FieldElement;
 }
 
-pub struct QuantumResistantHasher(PicnicHasher);
-
-impl Hasher for QuantumResistantHasher {
-    fn new() -> Self {
-        QuantumResistantHasher(PicnicHasher::new())
-    }
-
-    fn update(&mut self, data: &[u8]) {
-        self.0.update(data);
-    }
-
-    fn finalize(self) -> FieldElement {
-        let digest = self.0.finalize();
-        let bytes = digest.as_slice();
-        let value = BigUint::from_bytes_le(bytes);
-        FieldElement::new(value, &BigUint::from(1u32) << 256)
-    }
-}
-
 pub struct QuantumResistantMerkleTree {
     levels: Vec<Vec<FieldElement>>,
-    public_key: PublicKey,
-    keypair: Keypair, // Add this line to store the Keypair
+    dilithium_public_key: DilithiumPublicKey,
+    dilithium_secret_key: DilithiumSecretKey,
+    falcon_public_key: FalconPublicKey,
+    falcon_secret_key: FalconSecretKey,
+    sphincs_public_key: SphincsPublicKey,
+    sphincs_secret_key: SphincsSecretKey,
 }
 
 impl QuantumResistantMerkleTree {
@@ -44,22 +30,31 @@ impl QuantumResistantMerkleTree {
             levels.push(level);
         }
 
-        let keypair = Keypair::generate(&mut OsRng);
-        let public_key = keypair.public;
+        let (dilithium_public_key, dilithium_secret_key) = dilithium_keypair();
+        let (falcon_public_key, falcon_secret_key) = falcon_keypair();
+        let (sphincs_public_key, sphincs_secret_key) = sphincs_keypair();
 
-        QuantumResistantMerkleTree { levels, public_key, keypair } // Adjust this line
+        QuantumResistantMerkleTree {
+            levels,
+            dilithium_public_key,
+            dilithium_secret_key,
+            falcon_public_key,
+            falcon_secret_key,
+            sphincs_public_key,
+            sphincs_secret_key,
+        }
     }
 
     fn build_level(prev_level: &[FieldElement]) -> Vec<FieldElement> {
         let mut level = Vec::new();
 
         for i in (0..prev_level.len()).step_by(2) {
-            let mut hasher = QuantumResistantHasher::new();
+            let mut hasher = Sha256::new();
             hasher.update(&prev_level[i].to_bytes());
             if i + 1 < prev_level.len() {
                 hasher.update(&prev_level[i + 1].to_bytes());
             }
-            let hash = hasher.finalize();
+            let hash = FieldElement::new(BigUint::from_bytes_le(&hasher.finalize()), &BigUint::from(1u32) << 256);
             level.push(hash);
         }
 
@@ -70,7 +65,7 @@ impl QuantumResistantMerkleTree {
         self.levels.last().unwrap()[0].clone()
     }
 
-    pub fn proof(&self, index: usize) -> (Vec<FieldElement>, Signature) {
+    pub fn proof(&self, index: usize) -> (Vec<FieldElement>, DilithiumSignature, FalconSignature, SphincsSignature) {
         let mut proof = Vec::new();
         let mut index = index;
 
@@ -83,17 +78,23 @@ impl QuantumResistantMerkleTree {
         }
 
         let message = proof.iter().map(|p| p.to_bytes()).flatten().collect::<Vec<u8>>();
-        let signature = self.keypair.sign(&message); 
+        let dilithium_signature = dilithium_sign(&message, &self.dilithium_secret_key);
+        let falcon_signature = falcon_sign(&message, &self.falcon_secret_key);
+        let sphincs_signature = sphincs_sign(&message, &self.sphincs_secret_key);
 
-        (proof, signature)
+        (proof, dilithium_signature, falcon_signature, sphincs_signature)
     }
 }
 
 pub fn verify_quantum_merkle_proof(
     root: &FieldElement,
     proof: &[FieldElement],
-    signature: &Signature,
-    public_key: &PublicKey,
+    dilithium_signature: &DilithiumSignature,
+    falcon_signature: &FalconSignature,
+    sphincs_signature: &SphincsSignature,
+    dilithium_public_key: &DilithiumPublicKey,
+    falcon_public_key: &FalconPublicKey,
+    sphincs_public_key: &SphincsPublicKey,
     leaf: &FieldElement,
     index: usize,
 ) -> bool {
@@ -101,7 +102,7 @@ pub fn verify_quantum_merkle_proof(
     let mut index = index;
 
     for sibling in proof {
-        let mut hasher = Blake3bHasher::new();
+        let mut hasher = Sha256::new();
         if index % 2 == 0 {
             hasher.update(&current.to_bytes());
             hasher.update(&sibling.to_bytes());
@@ -109,7 +110,7 @@ pub fn verify_quantum_merkle_proof(
             hasher.update(&sibling.to_bytes());
             hasher.update(&current.to_bytes());
         }
-        current = hasher.finalize();
+        current = FieldElement::new(BigUint::from_bytes_le(&hasher.finalize()), &BigUint::from(1u32) << 256);
         index /= 2;
     }
 
@@ -118,5 +119,7 @@ pub fn verify_quantum_merkle_proof(
     }
 
     let message = proof.iter().map(|p| p.to_bytes()).flatten().collect::<Vec<u8>>();
-    Dilithium::verify(&message, signature, public_key)
+    dilithium_verify(&message, dilithium_signature, dilithium_public_key).is_ok() &&
+    falcon_verify(&message, falcon_signature, falcon_public_key).is_ok() &&
+    sphincs_verify(&message, sphincs_signature, sphincs_public_key).is_ok()
 }
