@@ -284,6 +284,13 @@ impl Interpreter {
                 let response = provider.get_response(request_id as u64)?;
                 Ok(Some(response.result))
             },
+            CrossChainOperation::OracleQuery { query } => {
+                // Logic to execute oracle query
+                info!("Executing oracle query: {}", query);
+                let provider = ChainlinkOracleProvider {}; // Use Chainlink provider for now
+                let result = provider.execute_query(&query)?;
+                Ok(Some(result))
+            },
         }
     }
     
