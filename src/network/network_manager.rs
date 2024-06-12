@@ -36,6 +36,15 @@ impl NetworkManager {
             Some(QuantumKeyDistribution::new())
         } else {
             None
+        };
+
+        let mut network_manager = NetworkManager {
+            config,
+            peers: Arc::new(RwLock::new(HashMap::new())),
+            validator,
+            message_sender,
+            crypto,
+            qkd,
             pq_tls_connection: None,
         };
 
@@ -225,11 +234,48 @@ impl NetworkManager {
         }
         Ok(())
     }
-        self.handle_incoming_messages().await?;
         Ok(())
     }
 
-impl NetworkManager {
+    async fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
+        while let Some(message) = self.message_receiver.recv().await {
+            match message {
+                Message::SignedMessage { message, signature } => {
+                    // Verify the message signature using post-quantum cryptography
+                    if let Err(e) = self.crypto.verify(&message, &signature) {
+                        error!("Error verifying message signature: {}", e);
+                        continue;
+                    }
+                    // Process the verified message based on its type
+                    match message {
+                        Message::TransactionBroadcast(transaction) => {
+                            // Handle transaction broadcast
+                            // ...
+                        }
+                        Message::BlockBroadcast(block) => {
+                            // Handle block broadcast
+                            // ...
+                        }
+                        // Handle other message types
+                        // ...
+                        _ => {
+                            debug!("Received unknown message type");
+                        }
+                    }
+                }
+                Message::QUPMessage(qup_message) => {
+                    // Handle QUP-specific messages
+                    self.handle_qup_message(qup_message).await?;
+                }
+                // Handle other message types
+                // ...
+                _ => {
+                    debug!("Received unknown message type");
+                }
+            }
+        }
+        Ok(())
+    }
         async fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
             while let Some(message) = self.message_receiver.recv().await {
                 match message {
