@@ -1,5 +1,6 @@
 use crate::state::account::Account;
 use crate::state::state_storage::StateStorage;
+use rocksdb::{Options, DB};
 use crate::state::merkle_trie::MerkleTrie;
 use crate::state::chain_state::ChainState;
 use bincode::serialize;
@@ -13,6 +14,7 @@ pub struct StateDB {
     db: DB,
     account_trie: MerkleTrie,
     account_cache: LruCache<String, Account>,
+    chain_state: ChainState,
 }
 
 impl StateDB {
@@ -21,6 +23,7 @@ impl StateDB {
         options.create_if_missing(true);
         let db = DB::open(&options, path).expect("Failed to open database");
         let account_cache = LruCache::new(1000); // Adjust the cache size as needed
+        let account_trie = MerkleTrie::new();
         StateDB {
             db,
             account_trie: MerkleTrie::new(),
@@ -35,7 +38,7 @@ impl StateDB {
         }
 
 
-        let account_data = self.db.get(address.as_bytes()).ok()??;
+        let account_data = self.db.get(address.as_bytes()).unwrap_or(None)?;
         let account = deserialize_account(&account_data);
         if let Some(account) = account.clone() {
             self.account_cache.put(address.to_string(), account);
@@ -45,18 +48,14 @@ impl StateDB {
 
     pub fn set_account(&mut self, account: &Account) {
         let account_data = serialize_account(account);
-        self.db
-            .put(account.address.as_bytes(), &account_data)
-            .expect("Failed to set account");
+        self.db.put(account.address.as_bytes(), &account_data).expect("Failed to set account");
         self.account_cache
             .put(account.address.clone(), account.clone());
         self.update_account_trie(account);
     }
 
     pub fn remove_account(&mut self, address: &str) {
-        self.db
-            .delete(address.as_bytes())
-            .expect("Failed to remove account");
+        self.db.delete(address.as_bytes()).expect("Failed to remove account");
         self.account_cache.pop(address);
         self.account_trie
             .remove(address.as_bytes())
@@ -67,7 +66,7 @@ impl StateDB {
         if self.account_cache.contains(address) {
             return true;
         }
-        self.db.get(address.as_bytes()).ok().is_some()
+        self.db.get(address.as_bytes()).unwrap_or(None).is_some()
     }
 
     pub fn get_state_root(&self) -> Vec<u8> {
@@ -102,22 +101,35 @@ fn deserialize_account(data: &[u8]) -> Option<Account> {
 }
 impl StateStorage for StateDB {
     fn get_account(&self, address: &str) -> Option<Account> {
-        // TODO: Implement
-        unimplemented!()
+        if let Some(account) = self.account_cache.get(address) {
+            return Some(account.clone());
+        }
+
+        let account_data = self.db.get(address.as_bytes()).unwrap_or(None)?;
+        let account = deserialize_account(&account_data);
+        if let Some(account) = account.clone() {
+            self.account_cache.put(address.to_string(), account);
+        }
+        account
     }
 
     fn set_account(&mut self, account: &Account) {
-        // TODO: Implement
-        unimplemented!()
+        let account_data = serialize_account(account);
+        self.db.put(account.address.as_bytes(), &account_data).expect("Failed to set account");
+        self.account_cache.put(account.address.clone(), account.clone());
+        self.update_account_trie(account);
     }
 
     fn remove_account(&mut self, address: &str) {
-        // TODO: Implement
-        unimplemented!()
+        self.db.delete(address.as_bytes()).expect("Failed to remove account");
+        self.account_cache.pop(address);
+        self.account_trie.remove(address.as_bytes()).expect("Failed to remove account from trie");
     }
 
     fn account_exists(&self, address: &str) -> bool {
-        // TODO: Implement
-        unimplemented!()
+        if self.account_cache.contains(address) {
+            return true;
+        }
+        self.db.get(address.as_bytes()).unwrap_or(None).is_some()
     }
 }
