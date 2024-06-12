@@ -26,7 +26,6 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
-    pub event_system: Arc<EventSystem>,
 }
 
 impl QUPConsensus {
@@ -81,6 +80,9 @@ pub struct QUPConsensus {
     pub transaction_storage: Arc<TransactionStorage>,
     pub qup_crypto: QUPCrypto,
     pub state: QUPState,
+    pub consensus_mechanism: ConsensusMechanism,
+    pub useful_work_generator: Box<dyn UsefulWorkGenerator>,
+    pub communication_protocol: Box<dyn CommunicationProtocol>,
 }
 
 impl QUPConsensus {
@@ -616,11 +618,8 @@ fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
 
     use rayon::prelude::*;
 
-    // Generate useful work problem and history proof in parallel
-    let (useful_work_problem, history_proof) = rayon::join(
-        || self.generate_useful_work_problem(),
-        || self.generate_history_proof(),
-    );
+    // Generate useful work problem
+    let useful_work_problem = self.generate_useful_work_problem();
 
     // Solve useful work problem in parallel
     let useful_work_solution = rayon::spawn(|| self.solve_useful_work_problem(&useful_work_problem)).join().unwrap();
