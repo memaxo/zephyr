@@ -5,7 +5,8 @@ use libp2p::floodsub::{Floodsub, FloodsubEvent, Topic};
 use libp2p::gossipsub::{Gossipsub, GossipsubEvent, IdentTopic as Topic, MessageId, ValidationMode};
 use libp2p::swarm::Swarm;
 use libp2p::{identity, PeerId};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
+use std::sync::{Arc, Mutex};
 use tokio::net::TcpStream;
 use log::{error, info};
 
@@ -14,6 +15,46 @@ pub struct MessageHandler {
     gossipsub: Gossipsub,
     peers: BTreeSet<PeerId>,
     pq_tls_connection: Option<PostQuantumTLSConnection>,
+    message_cache: Arc<Mutex<LRUCache<MessageId, Message>>>,
+}
+
+struct LRUCache<K, V> {
+    capacity: usize,
+    map: HashMap<K, V>,
+    list: Vec<K>,
+}
+
+impl<K: Eq + Hash + Clone, V> LRUCache<K, V> {
+    fn new(capacity: usize) -> Self {
+        LRUCache {
+            capacity,
+            map: HashMap::with_capacity(capacity),
+            list: Vec::with_capacity(capacity),
+        }
+    }
+
+    fn get(&mut self, key: &K) -> Option<&V> {
+        if let Some(value) = self.map.get(key) {
+            let index = self.list.iter().position(|k| k == key).unwrap();
+            self.list.remove(index);
+            self.list.push(key.clone());
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    fn put(&mut self, key: K, value: V) {
+        if self.map.contains_key(&key) {
+            let index = self.list.iter().position(|k| k == &key).unwrap();
+            self.list.remove(index);
+        } else if self.list.len() == self.capacity {
+            let oldest_key = self.list.remove(0);
+            self.map.remove(&oldest_key);
+        }
+        self.list.push(key.clone());
+        self.map.insert(key, value);
+    }
 }
 
 impl MessageHandler {
@@ -34,6 +75,7 @@ impl MessageHandler {
             floodsub,
             gossipsub,
             peers: BTreeSet::new(),
+            message_cache: Arc::new(Mutex::new(LRUCache::new(100))), // Adjust cache capacity as needed
         }
     }
 
@@ -89,12 +131,18 @@ impl MessageHandler {
                     message_id: _,
                     message,
                 }) => {
-                    match Message::decode(&message.data[..]) {
-                        Ok(msg) => {
-                            // Handle the message  
-                        },
-                        Err(e) => {
-                            error!("Failed to decode gossipsub message: {}", e);
+                    let message_id = message.id.clone();
+                    if let Some(cached_message) = self.message_cache.lock().unwrap().get(&message_id) {
+                        // Handle the cached message
+                    } else {
+                        match Message::decode(&message.data[..]) {
+                            Ok(msg) => {
+                                self.message_cache.lock().unwrap().put(message_id, msg.clone());
+                                // Handle the message
+                            },
+                            Err(e) => {
+                                error!("Failed to decode gossipsub message: {}", e);
+                            }
                         }
                     }
                 }
