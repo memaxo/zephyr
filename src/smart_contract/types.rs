@@ -47,6 +47,7 @@ pub enum CrossChainOperation {
     IBCTimeoutPacket { packet: IBCPacketData },
     OracleRequest { request: OracleRequest },
     OracleResponse { request_id: u64 },
+    OracleQuery { query: String },
 }
 
 impl SmartContract {
