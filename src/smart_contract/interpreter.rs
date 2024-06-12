@@ -1,4 +1,45 @@
 use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryOperator, Value};
+use std::collections::HashSet;
+
+pub struct Function {
+    pub name: String,
+    pub required_role: Role,
+    pub arg_count: usize,
+}
+
+pub struct ExecutionContext {
+    pub state: HashMap<String, Value>,
+    pub transaction_stack: VecDeque<TransactionContext>,
+    pub gas_used: u64,
+    pub gas_limit: u64,
+    pub roles: HashMap<String, HashSet<Role>>,
+    pub functions: HashMap<String, Function>,
+}
+
+impl ExecutionContext {
+    pub fn new(gas_limit: u64) -> Self {
+        ExecutionContext {
+            state: HashMap::new(),
+            transaction_stack: VecDeque::new(),
+            gas_used: 0,
+            gas_limit,
+            roles: HashMap::new(),
+            functions: HashMap::new(),
+        }
+    }
+
+    pub fn add_function(&mut self, function: Function) {
+        self.functions.insert(function.name.clone(), function);
+    }
+
+    pub fn check_function_permission(&self, user: &str, function_name: &str) -> Result<(), String> {
+        if let Some(function) = self.functions.get(function_name) {
+            self.check_permission(user, function.required_role.clone())
+        } else {
+            Err(format!("Function not found: {}", function_name))
+        }
+    }
+}
 use crate::smart_contract::gas::{calculate_operation_cost, calculate_expression_cost, GasCost};
 use std::collections::HashMap;
 
@@ -55,10 +96,28 @@ impl Interpreter {
                 Ok(None)
             },
             Operation::FunctionCall { name, args } => {
-                // Implement function call logic
-                // Evaluate arguments, lookup function, and execute function body
+                // Check function permissions
+                context.check_function_permission(user, name)?;
+
+                // Validate argument count
+                if let Some(function) = context.functions.get(name) {
+                    if args.len() != function.arg_count {
+                        return Err(format!("Invalid argument count for function '{}'. Expected {}, got {}", name, function.arg_count, args.len()));
+                    }
+                } else {
+                    return Err(format!("Function not found: {}", name));
+                }
+
+                // Evaluate arguments
+                let evaluated_args: Result<Vec<Value>, String> = args.iter()
+                    .map(|arg| self.evaluate_expression(arg, context, gas_limit))
+                    .collect();
+
+                let evaluated_args = evaluated_args?;
+
+                // Execute function logic (to be implemented)
                 // Update context with function return value if any
-                unimplemented!("Function call not implemented")
+                unimplemented!("Function call logic not implemented")
             },
             Operation::Return { value } => {
                 let return_value = self.evaluate_expression(value, context, gas_limit)?;
