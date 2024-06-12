@@ -5,3 +5,4 @@ mod parser;
 mod interpreter;
 mod gas;
 mod lib;
+mod zkp_circuits;
