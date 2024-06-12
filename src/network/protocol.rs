@@ -143,6 +143,8 @@ impl MessageQueue {
     QKDKeyResponse {
         key: QKDKey,
     },
+        key: QKDKey,
+    },
     QKDKeyConfirmation,
     QuantumStateDistribution {
         state: QuantumState,
