@@ -18,6 +18,32 @@ use crate::logging::LoggingError;
 use crate::qup::state::QUPState;
 use crate::zkp_crate::{generate_proof, verify_proof, ZKProofError};
 
+impl Transaction {
+    pub fn generate_zkp(&self) -> Result<Proof> {
+        let proof_bytes = generate_proof(
+            &self.common.sender,
+            &self.common.receiver,
+            self.common.amount,
+            &self.common.encrypted_details,
+        )?;
+        Ok(Proof {
+            proof_hash: hex::encode(proof_bytes),
+        })
+    }
+
+    pub fn verify_zkp(&self) -> Result<()> {
+        let proof_data = [
+            self.common.sender.as_bytes(),
+            self.common.receiver.as_bytes(),
+            &self.common.amount.to_be_bytes(),
+            self.sp_key.expose_secret(),
+        ]
+        .concat();
+        verify_proof(&self.common.proof.proof_hash, &proof_data)
+            .context("Failed to verify zero-knowledge proof")
+    }
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transaction {
@@ -153,15 +179,7 @@ impl TransactionCommon for Transaction {
         self.verify_post_quantum_signature(&self.sender_post_quantum_public_key()?)?;
 
         // Verify the zero-knowledge proof
-        let proof_data = [
-            self.common.sender.as_bytes(),
-            self.common.receiver.as_bytes(),
-            &self.common.amount.to_be_bytes(),
-            self.sp_key.expose_secret(),
-        ]
-        .concat();
-        verify_proof(&self.common.proof.proof_hash, &proof_data)
-            .context("Failed to verify zero-knowledge proof")?;
+        self.verify_zkp()?;
 
         Ok(())
     }
