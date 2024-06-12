@@ -6,12 +6,12 @@ pub trait ConstraintSystem {
     fn new() -> Self;
     fn alloc_input(&mut self, value: FieldElement) -> Variable;
     fn alloc_variable(&mut self, value: FieldElement) -> Variable;
-    fn enforce_constraint(&mut self, lhs: Expression, rhs: Expression);
+    fn enforce_plonk_constraint(&mut self, constraint: PlonkConstraint);
     fn evaluate(&self, expression: &Expression) -> FieldElement;
 pub struct ConstraintSystemImpl {
     pub inputs: Vec<FieldElement>,
     pub variables: Vec<FieldElement>,
-    pub constraints: Vec<(Expression, Expression)>,
+    pub plonk_constraints: Vec<PlonkConstraint>,
     pub variable_map: HashMap<Variable, FieldElement>,
     pub custom_gates: Vec<CustomGate>,
 }
@@ -21,7 +21,7 @@ impl ConstraintSystem for ConstraintSystemImpl {
         ConstraintSystemImpl {
             inputs: Vec::new(),
             variables: Vec::new(),
-            constraints: Vec::new(),
+            plonk_constraints: Vec::new(),
             variable_map: HashMap::new(),
             custom_gates: Vec::new(),
         }
@@ -39,40 +39,38 @@ impl ConstraintSystem for ConstraintSystemImpl {
         Variable(index)
     }
 
-    fn enforce_constraint(&mut self, lhs: Expression, rhs: Expression) -> Result<(), ConstraintSystemError> {
-        self.constraints.push((lhs, rhs));
-        Ok(())
+    fn enforce_plonk_constraint(&mut self, constraint: PlonkConstraint) {
+        self.plonk_constraints.push(constraint);
     }
 
-    fn evaluate(&self, expression: &Expression) -> Result<FieldElement, ConstraintSystemError> {
+    fn evaluate(&self, expression: &Expression) -> FieldElement {
         let result = match expression {
             Expression::Constant(value) => value.clone(),
             Expression::Variable(variable) => self.variable_map.get(variable)
-                .ok_or_else(|| ConstraintSystemError::ConstraintFailed(format!("Variable {:?} not found", variable)))?
+                .expect(&format!("Variable {:?} not found", variable))
                 .clone(),
             Expression::Add(lhs, rhs) => {
-                let lhs_value = self.evaluate(lhs)?;
-                let rhs_value = self.evaluate(rhs)?;
+                let lhs_value = self.evaluate(lhs);
+                let rhs_value = self.evaluate(rhs);
                 lhs_value + rhs_value
             }
             Expression::Mul(lhs, rhs) => {
-                let lhs_value = self.evaluate(lhs)?;
-                let rhs_value = self.evaluate(rhs)?;
+                let lhs_value = self.evaluate(lhs);
+                let rhs_value = self.evaluate(rhs);
                 lhs_value * rhs_value
             }
         };
-        Ok(result)
+        result
     }
 
     pub fn add_custom_gate(&mut self, gate: CustomGate) {
         self.custom_gates.push(gate);
     }
 
-    pub fn enforce_custom_gates(&mut self) -> Result<(), ConstraintSystemError> {
+    pub fn enforce_custom_gates(&mut self) {
         for gate in &self.custom_gates {
-            gate.enforce(self)?;
+            gate.enforce(self);
         }
-        Ok(())
     }
 }
 
@@ -105,13 +103,25 @@ impl Expression {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct PlonkConstraint {
+    pub lhs: Expression,
+    pub rhs: Expression,
+}
+
+impl PlonkConstraint {
+    pub fn new(lhs: Expression, rhs: Expression) -> Self {
+        PlonkConstraint { lhs, rhs }
+    }
+}
+
 pub enum CustomGate {
     RangeProof { variable: Variable, bitwidth: usize },
     ArithmeticCircuit { a: Expression, b: Expression },
 }
 
 impl CustomGate {
-    pub fn enforce(&self, cs: &mut impl ConstraintSystem) -> Result<(), ConstraintSystemError> {
+    pub fn enforce(&self, cs: &mut impl ConstraintSystem) {
         match self {
             CustomGate::RangeProof { variable, bitwidth } => {
                 let mut accumulator = Expression::constant(FieldElement::zero());
@@ -120,17 +130,16 @@ impl CustomGate {
 
                 for i in 0..*bitwidth {
                     let bit = Expression::variable(cs.alloc_variable(FieldElement::zero()));
-                    cs.enforce_constraint(bit.clone() * (one.clone() - bit.clone()), Expression::constant(FieldElement::zero()))?;
+                    cs.enforce_plonk_constraint(PlonkConstraint::new(bit.clone() * (one.clone() - bit.clone()), Expression::constant(FieldElement::zero())));
                     accumulator = accumulator + bit * two.pow(FieldElement::from(i as u64));
                 }
 
-                cs.enforce_constraint(Expression::variable(variable.clone()), accumulator)?;
+                cs.enforce_plonk_constraint(PlonkConstraint::new(Expression::variable(variable.clone()), accumulator));
             }
             CustomGate::ArithmeticCircuit { a, b } => {
-                cs.enforce_constraint(a.clone(), b.clone());
+                cs.enforce_plonk_constraint(PlonkConstraint::new(a.clone(), b.clone()));
             }
         }
-        Ok(())
     }
 }
 
