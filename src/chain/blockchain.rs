@@ -1,10 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
 use log::{debug, error, info, trace, warn};
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
+use crossbeam_utils::thread;
 use rayon::prelude::*;
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
-use parking_lot::{Mutex, RwLock};
 use thiserror::Error;
 use tokio::fs;
 
@@ -51,8 +51,8 @@ pub struct Blockchain {
     chain: Arc<RwLock<Vec<Arc<Block>>>>,
     storage: Arc<BlockchainStorage>,
     secure_storage: Arc<SecureStorage>,
-    state: Arc<parking_lot::RwLock<ChainState>>,
-    state_mutex: Arc<parking_lot::Mutex<()>>,
+    state: Arc<RwLock<ChainState>>,
+    state_mutex: Arc<Mutex<()>>,
     state_transition: Arc<StateTransition>,
     qup_config: Arc<QUPConfig>,
     qup_state: Arc<QUPState>,
@@ -170,7 +170,26 @@ impl Blockchain {
 
         let mut spent_transactions: HashSet<String> = HashSet::new();
 
-        chain.par_iter().enumerate().try_for_each(|(i, block)| {
+        thread::scope(|s| {
+            let results: Vec<Result<(), BlockchainError>> = chain
+                .par_iter()
+                .enumerate()
+                .map(|(i, block)| {
+                    s.spawn(|_| {
+                        // Validation logic for each block
+                        // ...
+                    })
+                })
+                .collect();
+
+            // Check if any validation errors occurred
+            for result in results {
+                result?;
+            }
+
+            Ok(())
+        })
+        .unwrap();
             if i == 0 {
                 // Validate the genesis block's previous hash
                 if block.previous_hash != self.qup_config.genesis_block_prev_hash() {
