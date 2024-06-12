@@ -621,8 +621,8 @@ fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
     // Generate useful work problem
     let useful_work_problem = self.generate_useful_work_problem();
 
-    // Solve useful work problem in parallel
-    let useful_work_solution = rayon::spawn(|| self.solve_useful_work_problem(&useful_work_problem)).join().unwrap();
+    // Solve useful work problem
+    let useful_work_solution = self.solve_useful_work_problem(&useful_work_problem);
 
     // Generate proof of useful work
     let useful_work_proof = self.generate_useful_work_proof(&useful_work_solution);
@@ -657,6 +657,8 @@ fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), Consensus
     }
 
     Ok(())
+
+    Ok(())
 }
 
 fn process_propose_common(&self, block: &QUPBlock) -> Result<(), ConsensusError> {
@@ -673,6 +675,8 @@ fn process_propose_common(&self, block: &QUPBlock) -> Result<(), ConsensusError>
     if similarity < self.config.similarity_threshold {
         return Err(ConsensusError::InsufficientSimilarity);
     }
+
+    Ok(())
 
     Ok(())
 }
@@ -702,9 +706,9 @@ fn verify_vote_signature(&self, vote: &QUPVote) -> Result<bool, ConsensusError> 
     let signature = &vote.signature;
 
     if self.config.supports_quantum_features() {
-        Ok(self.qup_crypto.verify(message, signature, &voter_public_key))
+        Ok(self.qup_crypto.verify_signature(message, signature, &voter_public_key))
     } else {
-        Ok(verify_signature(&voter_public_key, signature, message)?)
+        Ok(self.qup_crypto.verify_signature(message, signature, &voter_public_key))
     }
 }
 
@@ -738,11 +742,8 @@ pub fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError>
     } else {
         return Err(ConsensusError::MissingUsefulWorkProof);
     }
-    let message = ProtocolMessage::BlockCommit {
-        block: bincode::serialize(&optimized_block)?,
-        signature: self.qup_crypto.sign(&bincode::serialize(&optimized_block)?),
-    };
-    self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
+    let message = NetworkMessage::BlockCommit(optimized_block);
+    self.network.broadcast(message)?;
 
     Ok(())
 }
@@ -762,11 +763,8 @@ pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
     };
 
     // Broadcast the vote to other validators
-    let message = ProtocolMessage::Vote {
-        vote: bincode::serialize(&vote)?,
-        signature: self.qup_crypto.sign(&bincode::serialize(&vote)?),
-    };
-    self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
+    let message = NetworkMessage::Vote(vote);
+    self.network.broadcast(message)?;
 
     self.emit_event(QUPEvent::VoteCast(vote.clone()));
     Ok(vote)
@@ -849,11 +847,8 @@ pub fn propose_block(&self, transactions: Vec<Transaction>) -> Result<QUPBlock, 
     block.sign(&self.key_pair);
 
     // Broadcast the block proposal to other validators
-    let message = ProtocolMessage::BlockProposal {
-        block: bincode::serialize(&block)?,
-        signature: self.qup_crypto.sign(&bincode::serialize(&block)?),
-    };
-    self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
+    let message = NetworkMessage::BlockProposal(block);
+    self.network.broadcast(message)?;
 
     self.emit_event(QUPEvent::NewBlockProposal(block.clone()));
     Ok(block)
@@ -1012,16 +1007,3 @@ impl QuantumComputationProvider for QUPConsensus {
     }
 }
 
-impl QuantumKeyManagement for QUPConsensus {
-    fn generate_key_pair(&self) -> (QuantumPublicKey, QuantumPrivateKey) {
-        self.qup_crypto.generate_key_pair()
-    }
-
-    fn sign_message(&self, message: &[u8], private_key: &QuantumPrivateKey) -> QuantumSignature {
-        self.qup_crypto.sign_message(message, private_key)
-    }
-
-    fn verify_signature(&self, message: &[u8], signature: &QuantumSignature, public_key: &QuantumPublicKey) -> bool {
-        self.qup_crypto.verify_signature(message, signature, public_key)
-    }
-}

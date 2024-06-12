@@ -285,3 +285,7 @@ pub struct QuantumBlock {
     pub hash: QuantumHash,
     pub signature: QuantumSignature,
 }
+pub struct SecurityThreats {
+    pub network_attack_rate: f64,
+    pub spam_transaction_rate: f64,
+}
