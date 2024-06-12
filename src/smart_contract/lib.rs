@@ -5,6 +5,7 @@ pub mod parser;
 pub mod execution_context;
 pub mod smart_contract_interface;
 pub mod symbolic_execution;
+pub mod std;
 
 pub use types::{SmartContract, Operation, Value, Expression, BinaryOperator, UnaryOperator, TransactionContext};
 pub use gas::{GasCost, calculate_operation_cost, calculate_expression_cost, calculate_contract_cost};
