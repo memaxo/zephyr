@@ -27,7 +27,6 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
-    pub vdf: VDF,
 }
 
 impl QUPConsensus {
@@ -58,35 +57,7 @@ impl QUPConsensus {
             useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
             communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
             event_system,
-        }
-    }
-    pub fn new(
-        config: Arc<QUPConfig>,
-        state_manager: Arc<StateManager>,
-        key_pair: QUPKeyPair,
-        hdc_model: HDCModel,
-        node_type: NodeType,
-        blockchain: Arc<Blockchain>,
-        block_storage: Arc<BlockStorage>,
-        transaction_storage: Arc<TransactionStorage>,
-        network: Arc<Network<dyn QuantumComputationProvider + QuantumKeyManagement>>,
-        qup_crypto: Arc<dyn QuantumKeyManagement>,
-    ) -> Self {
-        QUPConsensus {
-            config,
-            state,
-            key_pair,
-            hdc_model,
-            network,
-            network,
-            blockchain,
-            block_storage,
-            transaction_storage,
-            qup_crypto,
-            consensus_mechanism: ConsensusMechanism::Standard,
-            useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
-            communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
-            event_system,
+            vdf: VDF::new(),
         }
     }
 
@@ -113,6 +84,7 @@ pub struct QUPConsensus {
     pub state: QUPState,
     pub consensus_mechanism: ConsensusMechanism,
     pub useful_work_generator: Box<dyn UsefulWorkGenerator>,
+    pub vdf: VDF,
     pub communication_protocol: Box<dyn CommunicationProtocol>,
 }
 
