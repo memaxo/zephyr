@@ -29,12 +29,6 @@ pub fn is_valid_vertex_cover(graph: &Vec<Vec<usize>>, vertex_cover: &Vec<usize>)
 }
 
 
-pub fn verify_transaction_signature(transaction: &QUPTransaction) -> bool {
-    let message = calculate_hash(&transaction.to_bytes());
-    let public_key = get_public_key_from_address(&transaction.from);
-    let qup_crypto = QUPCrypto::new();
-    qup_crypto.verify_transaction_signature(&message, &transaction.signature, &public_key)
-}
 
 pub fn verify_block_signature(
     block_header: &QUPBlockHeader,
