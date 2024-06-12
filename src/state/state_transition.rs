@@ -123,14 +123,14 @@ impl StateTransition {
     }
 
     pub fn apply_block(&self, block: &Block) -> Result<(), StateTransitionError> {
-        for transaction in &block.transactions {
+        block.transactions.par_iter().try_for_each(|transaction| {
             self.apply(transaction).map_err(|e| {
                 StateTransitionError::StateUpdateError(format!(
                     "Failed to apply transaction: {}",
                     e
                 ))
-            })?;
-        }
+            })
+        })?;
 
         let state_root = self.state_manager.get_state_root();
         if block.header.state_root != state_root {
@@ -145,14 +145,14 @@ impl StateTransition {
     }
 
     pub fn revert_block(&self, block: &Block) -> Result<(), StateTransitionError> {
-        for transaction in block.transactions.iter().rev() {
+        block.transactions.par_iter().rev().try_for_each(|transaction| {
             self.revert(transaction).map_err(|e| {
                 StateTransitionError::StateUpdateError(format!(
                     "Failed to revert transaction: {}",
                     e
                 ))
-            })?;
-        }
+            })
+        })?;
 
         Ok(())
     }

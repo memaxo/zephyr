@@ -17,6 +17,7 @@ impl RewardDistributor {
         // This can be based on various performance metrics
         // For simplicity, let's assume a fixed performance score for now
         100
+    }
 
     fn calculate_useful_work_contribution(&self, block_header: &QUPBlockHeader) -> u64 {
         // Implement the logic to calculate the contribution of useful work

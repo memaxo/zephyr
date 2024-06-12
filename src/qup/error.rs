@@ -54,3 +54,20 @@ impl fmt::Display for UsefulWorkError {
 }
 
 impl std::error::Error for UsefulWorkError {}
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ConsensusError {
+    #[error("Invalid block")]
+    InvalidBlock,
+    #[error("Insufficient similarity")]
+    InsufficientSimilarity,
+    #[error("Invalid signature")]
+    InvalidSignature,
+    #[error("Invalid useful work proof")]
+    InvalidUsefulWorkProof,
+    #[error("Missing useful work proof")]
+    MissingUsefulWorkProof,
+    #[error("Unexpected message")]
+    UnexpectedMessage,
+}
