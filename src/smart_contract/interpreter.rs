@@ -179,6 +179,11 @@ impl Interpreter {
     ) -> Result<Option<Value>, String> {
         match cross_chain_op {
             CrossChainOperation::SendMessage { message } => {
+                // Verify signatures
+                if !self.verify_signatures(message) {
+                    return Err("Invalid signatures for cross-chain message".to_string());
+                }
+                
                 // Logic to send cross-chain message
                 info!("Sending cross-chain message: {:?}", message);
                 // Deduct gas for sending message
@@ -190,6 +195,11 @@ impl Interpreter {
                 Ok(None)
             },
             CrossChainOperation::ReceiveMessage { message } => {
+                // Verify signatures
+                if !self.verify_signatures(message) {
+                    return Err("Invalid signatures for cross-chain message".to_string());
+                }
+                
                 // Logic to handle received cross-chain message
                 info!("Received cross-chain message: {:?}", message);
                 // Deduct gas for receiving message
@@ -225,6 +235,13 @@ impl Interpreter {
                 Ok(None)
             },
         }
+    }
+    
+    fn verify_signatures(&self, message: &CrossChainMessage) -> bool {
+        // TODO: Implement signature verification logic
+        // Verify each signature in the message.signatures vector
+        // Return true if all signatures are valid, false otherwise
+        true
     }
         &self,
         expression: &Expression,
