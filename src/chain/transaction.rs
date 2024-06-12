@@ -135,47 +135,8 @@ impl TransactionCommon for Transaction {
     }
 
     fn validate(&self, state: &State) -> Result<()> {
-        // Check if the sender account exists
-        if !state.account_exists(&self.common.sender) {
-            anyhow::bail!(format!("Sender account not found: {}", self.common.sender));
-        }
-
-        // Check if the transaction amount is positive
-        if self.common.amount <= 0.0 {
-            anyhow::bail!("Transaction amount must be positive");
-        }
-
-        // Check if the sender has sufficient balance
-        let sender_account = state
-            .get_account(&self.common.sender)
-            .context(format!("Sender account not found: {}", self.common.sender))?;
-        if sender_account.balance < self.common.amount {
-            anyhow::bail!(format!("Insufficient balance for sender: {}", self.common.sender));
-        }
-
-        // Check if the nonce is valid
-        if sender_account.nonce != self.common.nonce {
-            anyhow::bail!(format!("Invalid nonce for sender: {}", self.common.sender));
-        }
-
-        // Verify the transaction signature
-        self.verify_signature(&self.sender_public_key()?)?;
-
-        // Verify the post-quantum signature
-        self.verify_post_quantum_signature(&self.sender_post_quantum_public_key()?)?;
-
-        // Verify the zero-knowledge proof
-        let proof_data = [
-            self.common.sender.as_bytes(),
-            self.common.receiver.as_bytes(),
-            &self.common.amount.to_be_bytes(),
-            self.sp_key.expose_secret(),
-        ]
-        .concat();
-        verify_proof(&self.common.proof.proof_hash, &proof_data)
-            .context("Failed to verify zero-knowledge proof")?;
-
-        Ok(())
+        use crate::chain::validation::transaction_validator::validate_transaction;
+        validate_transaction(self, state)
     }
 }
 

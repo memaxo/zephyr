@@ -486,39 +486,8 @@ fn adapt_consensus_algorithm(&mut self) {
 
     /// Validates a block.
     pub fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
-        // Retrieve the block from the block storage
-        let stored_block = self.block_storage.load_block(&block.hash())?;
-
-        // Verify the block signature
-        let signer = stored_block.proposer;
-        let signature = stored_block
-            .signature
-            .as_ref()
-            .ok_or(ConsensusError::MissingSignature)?;
-        let block_data = stored_block.hash().as_bytes();
-        if self.config.supports_quantum_features() {
-            if !self.qup_crypto.verify(block_data, signature) {
-                return Ok(false);
-            }
-        } else {
-            if !verify_signature(&signer, signature, block_data)? {
-                return Ok(false);
-            }
-        }
-
-        // Check if the block follows the QUP consensus rules
-        if !self.blockchain.state_transition.is_valid_block(&stored_block)? {
-            return Ok(false);
-        }
-
-        // Validate useful work proof
-        if let Some(proof) = &stored_block.useful_work_proof {
-            if !self.validate_useful_work_proof(proof)? {
-                return Ok(false);
-            }
-        } else {
-            return Ok(false);
-        }
+        use crate::chain::validation::block_validator::validate_block;
+        validate_block(block, &self.qup_crypto, &self.qup_state)
     }
 
     fn generate_history_proof(&self) -> Vec<Hash> {
