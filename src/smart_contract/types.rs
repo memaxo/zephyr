@@ -31,7 +31,7 @@ pub struct CrossChainMessage {
     pub destination_chain: String,
     pub packet_data: IBCPacketData,
     pub timestamp: u64,
-    pub signature: String,
+    pub signatures: Vec<String>,
 }
 
 pub enum CrossChainOperation {
