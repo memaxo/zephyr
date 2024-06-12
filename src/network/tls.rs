@@ -74,42 +74,22 @@ impl PostQuantumTLSConfig {
 
 pub struct PostQuantumTLSConnection {
     connection: ClientConnection,
-    stream: Stream<TcpStream<'a>>,
+    stream: StreamOwned<ClientConnection, TcpStream>,
 }
 impl PostQuantumTLSConnection {
-    pub async fn new(stream: TcpStream) -> Result<Self, TLSError> {
-        let node = Node::new(); // Assuming the existence of a `Node` struct with post-quantum keys
-        let post_quantum_certificate = node.get_post_quantum_certificate().ok_or(TLSError::General("Post-quantum certificate not found".into()))?;
-        let post_quantum_private_key = node.get_post_quantum_private_key().ok_or(TLSError::General("Post-quantum private key not found".into()))?;
-
-        let mut config = ClientConfig::new();
-        let mut dangerous_config = config.dangerous();
-        dangerous_config.set_certificate_verifier(Arc::new(webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap()));
-        dangerous_config.set_single_cert(vec![post_quantum_certificate], post_quantum_private_key.clone())?;
-
-        // Enforce strong cipher suites
-        config.ciphersuites = vec![
-            &rustls::ciphersuite::TLS13_AES_256_GCM_SHA384,
-            &rustls::ciphersuite::TLS13_CHACHA20_POLY1305_SHA256,
-        ];
-
-        // Enable Perfect Forward Secrecy (PFS)
-        config.kx_groups = vec![&rustls::kx_group::X25519, &rustls::kx_group::SECP384R1];
-
+    pub async fn new(stream: TcpStream, config: PostQuantumTLSConfig) -> Result<Self, TLSError> {
         let dns_name = DNSNameRef::try_from_ascii_str("localhost").map_err(|_| TLSError::General("Invalid DNS name".into()))?;
-        let mut session = ClientConnection::new(Arc::new(config), dns_name)?;
-        let mut stream = Stream::new(&mut session, stream);
+        let mut client_config = ClientConfig::new();
+        
+        client_config.ciphersuites = config.ciphersuites;
+        client_config.kx_groups = config.kx_groups;
+        client_config.dangerous().set_certificate_verifier(config.certificate_verifier);
+        client_config.set_single_cert(vec![config.certificate], config.private_key)?;
 
-        match stream.complete_io(rustls::Connection::Client) {
-            Ok(_) => {
-                info!("TLS connection established with peer");
-                Ok(Self { connection: session, stream })
-            },
-            Err(e) => {
-                error!("TLS connection failed: {}", e);
-                Err(e)
-            },
-        }
+        let connection = ClientConnection::new(Arc::new(client_config), dns_name)?;
+        let stream = StreamOwned::new(connection, stream);
+
+        Ok(Self { connection, stream })
     }
 
     pub async fn send(&mut self, data: &[u8]) -> Result<(), std::io::Error> {
