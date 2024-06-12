@@ -1,8 +1,8 @@
 use crate::crypto::post_quantum::{Dilithium, Keypair, PublicKey, SecretKey, Signature};
 use crate::network::quantum_resistant::QuantumResistantConnection;
+use crate::qup::quantum_random::QuantumRandom;
 use crate::utils::error::QuantumEntropyError;
 use log::{debug, error, info, trace};
-use rand::rngs::OsRng;
 use secrecy::{ExposeSecret, Secret};
 use std::sync::Arc;
 use thiserror::Error;
@@ -14,7 +14,8 @@ pub struct QuantumEntropySource {
 
 impl QuantumEntropySource {
     pub fn new() -> Self {
-        let dilithium = Arc::new(Dilithium::new(OsRng));
+        let quantum_random = QuantumRandom::new();
+        let dilithium = Arc::new(Dilithium::new(quantum_random));
         Self { dilithium }
     }
 

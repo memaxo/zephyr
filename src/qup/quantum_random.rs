@@ -1,27 +1,48 @@
-use rand::Rng;
-use rand_core::{CryptoRng, OsRng, RngCore};
+use reqwest::Client;
+use serde::Deserialize;
+
+const QRN_URL: &str = "https://api.quantumnumbers.anu.edu.au/";
+const QRN_KEY: &str = "txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx7"; // replace with your secret API-KEY
+
+#[derive(Debug, Deserialize)]
+struct QRNResponse {
+    success: bool,
+    data: Option<Vec<u8>>,
+    message: Option<String>,
+}
 
 pub struct QuantumRandom {
-    rng: OsRng,
+    client: Client,
 }
 
 impl QuantumRandom {
     pub fn new() -> Self {
-        QuantumRandom { rng: OsRng }
+        QuantumRandom {
+            client: Client::new(),
+        }
     }
 
-    pub fn generate_random_bytes(&mut self, length: usize) -> Vec<u8> {
-        let mut bytes = vec![0u8; length];
-        self.rng.fill_bytes(&mut bytes);
-        bytes
-    }
+    pub async fn generate_random_bytes(&self, length: usize) -> Result<Vec<u8>, String> {
+        let params = [("length", length.to_string()), ("type", "uint8".to_string())];
+        let response = self
+            .client
+            .get(QRN_URL)
+            .header("x-api-key", QRN_KEY)
+            .query(&params)
+            .send()
+            .await
+            .map_err(|e| format!("Request failed: {}", e))?;
 
-    pub fn generate_random_u64(&mut self) -> u64 {
-        self.rng.next_u64()
-    }
+        let qrn_response: QRNResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    pub fn generate_random_range(&mut self, min: u64, max: u64) -> u64 {
-        self.rng.gen_range(min..=max)
+        if qrn_response.success {
+            Ok(qrn_response.data.unwrap())
+        } else {
+            Err(qrn_response.message.unwrap())
+        }
     }
 
     // Add more random number generation methods as needed

@@ -1,12 +1,12 @@
 use crate::qup::crypto::{QUPKeyPair, QUPPublicKey, QUPSecretKey};
 use hmac::{Hmac, Mac, NewMac};
-use rand::Rng;
+use crate::qup::quantum_random::QuantumRandom;
 use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
 pub struct QuantumKeyDistribution {
-    // Implementation details
+    quantum_random: QuantumRandom,
 }
 
 trait RandomData {
@@ -51,7 +51,7 @@ impl RandomData for Intensity {
 impl QuantumKeyDistribution {
     pub fn new() -> Self {
         QuantumKeyDistribution {
-            // Initialize the necessary fields
+            quantum_random: QuantumRandom::new(),
         }
     }
 
@@ -159,10 +159,7 @@ impl QuantumKeyDistribution {
     }
 
     fn generate_authentication_key(&self) -> Vec<u8> {
-        let mut rng = rand::thread_rng();
-        let key_size = 32; // 256-bit key
-        let mut key = vec![0; key_size];
-        rng.fill_bytes(&mut key);
+        let key = self.quantum_random.generate_random_bytes(32).await.expect("Failed to generate authentication key");
         key
     }
 
