@@ -30,6 +30,24 @@ pub enum ConsensusAlgorithm {
     Secure,
 }
 
+impl ConsensusInterface for QUPConsensus {
+    fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
+        use crate::chain::validation::block_validator::validate_block;
+        validate_block(block, &self.qup_crypto, &self.qup_state)
+    }
+
+    fn process_transaction(&mut self, transaction: Transaction) -> Result<(), ConsensusError> {
+        self.allocate_and_execute_task(transaction)
+    }
+
+    fn reach_consensus(&mut self) -> Result<(), ConsensusError> {
+        // Implement the logic for reaching consensus
+        // This can include proposing blocks, voting, and committing blocks
+        // based on the specific consensus algorithm being used
+        todo!()
+    }
+}
+
 impl QUPConsensus {
     pub fn new(
         config: Arc<QUPConfig>,
@@ -1023,3 +1041,8 @@ impl QuantumComputationProvider for QUPConsensus {
     }
 }
 
+pub trait ConsensusInterface {
+    fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError>;
+    fn process_transaction(&mut self, transaction: Transaction) -> Result<(), ConsensusError>;
+    fn reach_consensus(&mut self) -> Result<(), ConsensusError>;
+}
