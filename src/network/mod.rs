@@ -23,7 +23,7 @@ use crate::network::p2p::{Message, Peer, PeerError};
 use crate::network::sync::{BlockSyncState, StateSync};
 use crate::network::tls::{TLSConnectionError, TLSListener};
 use crate::qup::block::QUPBlock;
-use crate::qup::qup_message::QUPMessage;
+use crate::qup::traits::QuantumComputationProvider;
 use crate::utils::node_id::NodeId;
 use crate::error_handling::mod::NetworkError;
 use log::{debug, error, info, warn};
@@ -61,15 +61,15 @@ impl Network {
         }
     }
 
-    async fn handle_qup_message(&self, peer_addr: &str, qup_message: QUPMessage) {
+    async fn handle_qup_message(&self, peer_addr: &str, qup_message: QUPMessage, qup_provider: &dyn QuantumComputationProvider) {
         match qup_message {
-            QUPMessage::QUPBlock(block) => self.handle_qup_block(peer_addr, block).await,
-            QUPMessage::QUPTransaction(tx) => self.handle_qup_transaction(peer_addr, tx).await,
+            QUPMessage::QUPBlock(block) => self.handle_qup_block(peer_addr, block, qup_provider).await,
+            QUPMessage::QUPTransaction(tx) => self.handle_qup_transaction(peer_addr, tx, qup_provider).await,
         }
     }
 
-    async fn handle_qup_block(&self, peer_addr: &str, block: QUPBlock) {
-        if self.consensus.validate_block(&block) {
+    async fn handle_qup_block(&self, peer_addr: &str, block: QUPBlock, qup_provider: &dyn QuantumComputationProvider) {
+        if qup_provider.validate_useful_work(&block.useful_work_problem, &block.useful_work_solution) {
             self.state_sync.process_block(block.clone()).await;
             self.broadcast(Message::QUPMessage(QUPMessage::QUPBlock(block))).await;
         } else {
@@ -77,7 +77,7 @@ impl Network {
         }
     }
 
-    async fn handle_qup_transaction(&self, peer_addr: &str, tx: Transaction) {
+    async fn handle_qup_transaction(&self, peer_addr: &str, tx: Transaction, qup_provider: &dyn QuantumComputationProvider) {
         let tx_hash = tx.hash();
         if !self.tx_pool.read().unwrap().contains_key(&tx_hash) {
             self.tx_pool.write().unwrap().insert(tx_hash, tx.clone());

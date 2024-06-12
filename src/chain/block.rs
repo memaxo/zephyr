@@ -2,7 +2,7 @@ use crate::chain::blockchain::Blockchain;
 use crate::chain::transaction::Transaction;
 use crate::chain::common::{BlockCommon, BlockFields};
 use crate::parallel::parallel_map::parallel_map;
-use crate::qup::consensus::QUPConsensus;
+use crate::qup::traits::QuantumComputationProvider;
 use crate::qup::crypto::{PostQuantumSignature, QUPCrypto};
 use crate::secure_core::secure_vault::SecureVault;
 use crate::smart_contract::SmartContract;
@@ -67,7 +67,8 @@ impl BlockCommon for Block {
                     "Failed to verify block signature: {}",
                     e
                 ))
-            })?;
+                return Err(BlockError::InvalidUsefulWork("Failed to verify useful work".to_string()));
+            }
             
             // Verify history proof if present
             if let Some(proof) = &self.qup_block_header.history_proof {
@@ -85,11 +86,11 @@ impl BlockCommon for Block {
         }
     }
 
-    fn validate(&self, qup_consensus: &QUPConsensus, qup_state: &QUPState) -> Result<(), BlockError> {
+    fn validate(&self, qup_provider: &dyn QuantumComputationProvider, qup_state: &QUPState) -> Result<(), BlockError> {
         self.verify_transactions(qup_consensus.secure_vault())?;
-        self.verify_signature(qup_consensus.qup_crypto(), qup_state)?;
-        if let Some(useful_work) = &self.common.useful_work {
-            qup_consensus.verify_useful_work(useful_work).map_err(|e| {
+        self.verify_signature(qup_provider, qup_state)?;
+        if let Some(useful_work) = &self.useful_work {
+            if !qup_provider.validate_useful_work(useful_work) {
                 BlockError::InvalidUsefulWork(format!("Failed to verify useful work: {}", e))
             })?;
         }

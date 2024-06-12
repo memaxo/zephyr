@@ -898,3 +898,28 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
             ConsensusAlgorithm::Secure
         }
     }
+use crate::qup::traits::{QuantumComputationProvider, QuantumKeyManagement};
+
+impl QuantumComputationProvider for QUPConsensus {
+    fn perform_useful_work(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
+        self.solve_useful_work_problem(problem)
+    }
+
+    fn validate_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
+        self.validate_useful_work(problem, solution)
+    }
+}
+
+impl QuantumKeyManagement for QUPConsensus {
+    fn generate_key_pair(&self) -> (QuantumPublicKey, QuantumPrivateKey) {
+        self.qup_crypto.generate_key_pair()
+    }
+
+    fn sign_message(&self, message: &[u8], private_key: &QuantumPrivateKey) -> QuantumSignature {
+        self.qup_crypto.sign_message(message, private_key)
+    }
+
+    fn verify_signature(&self, message: &[u8], signature: &QuantumSignature, public_key: &QuantumPublicKey) -> bool {
+        self.qup_crypto.verify_signature(message, signature, public_key)
+    }
+}

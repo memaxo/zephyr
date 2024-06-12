@@ -13,3 +13,13 @@ pub trait ClassicalCryptography {
     fn verify_vote_signature(&self, vote: &Vote, signature: &ClassicalDigitalSignature, classical_key: &ClassicalKey) -> Result<bool, VotingError>;
     fn hash_vote(&self, vote: &Vote) -> Result<ClassicalHash, VotingError>;
 }
+pub trait QuantumComputationProvider {
+    fn perform_useful_work(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution;
+    fn validate_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool;
+}
+
+pub trait QuantumKeyManagement {
+    fn generate_key_pair(&self) -> (QuantumPublicKey, QuantumPrivateKey);
+    fn sign_message(&self, message: &[u8], private_key: &QuantumPrivateKey) -> QuantumSignature;
+    fn verify_signature(&self, message: &[u8], signature: &QuantumSignature, public_key: &QuantumPublicKey) -> bool;
+}
