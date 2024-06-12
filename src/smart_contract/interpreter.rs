@@ -123,6 +123,9 @@ impl Interpreter {
                 // Update context with function return value if any
                 unimplemented!("Function call logic not implemented")
             },
+            Operation::CrossChain(cross_chain_op) => {
+                self.execute_cross_chain_operation(cross_chain_op, context, gas_limit)
+            },
             Operation::Return { value } => {
                 let return_value = self.evaluate_expression(value, context, gas_limit)?;
                 Ok(Some(return_value))
@@ -168,7 +171,61 @@ impl Interpreter {
         Ok(None)
     }
 
-    fn evaluate_expression(
+    fn execute_cross_chain_operation(
+        &self,
+        cross_chain_op: &CrossChainOperation,
+        context: &mut HashMap<String, Value>,
+        gas_limit: &mut u64,
+    ) -> Result<Option<Value>, String> {
+        match cross_chain_op {
+            CrossChainOperation::SendMessage { message } => {
+                // Logic to send cross-chain message
+                info!("Sending cross-chain message: {:?}", message);
+                // Deduct gas for sending message
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                Ok(None)
+            },
+            CrossChainOperation::ReceiveMessage { message } => {
+                // Logic to handle received cross-chain message
+                info!("Received cross-chain message: {:?}", message);
+                // Deduct gas for receiving message
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                Ok(None)
+            },
+            CrossChainOperation::QueryState { chain_id, key } => {
+                // Logic to query state from another chain
+                info!("Querying state from chain {}: key {}", chain_id, key);
+                // Deduct gas for querying state
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                // Simulate a state query result
+                let result = Value::String("mocked_state_value".to_string());
+                Ok(Some(result))
+            },
+            CrossChainOperation::TransferAssets { chain_id, amount } => {
+                // Logic to transfer assets to another chain
+                info!("Transferring {} assets to chain {}", amount, chain_id);
+                // Deduct gas for transferring assets
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                Ok(None)
+            },
+        }
+    }
         &self,
         expression: &Expression,
         context: &HashMap<String, Value>,

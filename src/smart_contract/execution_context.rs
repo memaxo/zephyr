@@ -8,7 +8,24 @@ use std::collections::HashSet;
 pub enum Role {
     Admin,
     User,
-}
+    pub fn send_cross_chain_message(&self, message: CrossChainMessage) -> Result<(), String> {
+        // Logic to send cross-chain message
+        info!("Sending cross-chain message: {:?}", message);
+        Ok(())
+    }
+
+    pub fn query_cross_chain_state(&self, chain_id: &str, key: &str) -> Result<Value, String> {
+        // Logic to query state from another chain
+        info!("Querying state from chain {}: key {}", chain_id, key);
+        // Simulate a state query result
+        Ok(Value::String("mocked_state_value".to_string()))
+    }
+
+    pub fn transfer_cross_chain_assets(&self, chain_id: &str, amount: u64) -> Result<(), String> {
+        // Logic to transfer assets to another chain
+        info!("Transferring {} assets to chain {}", amount, chain_id);
+        Ok(())
+    }
 
 pub struct ExecutionContext {
     pub state: HashMap<String, Value>,

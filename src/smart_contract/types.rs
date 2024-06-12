@@ -18,11 +18,15 @@ pub struct CrossChainMessage {
     pub source_chain: String,
     pub destination_chain: String,
     pub payload: String,
+    pub timestamp: u64,
+    pub signature: String,
 }
 
 pub enum CrossChainOperation {
     SendMessage { message: CrossChainMessage },
     ReceiveMessage { message: CrossChainMessage },
+    QueryState { chain_id: String, key: String },
+    TransferAssets { chain_id: String, amount: u64 },
 }
 
 impl SmartContract {

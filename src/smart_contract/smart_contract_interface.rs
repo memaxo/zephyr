@@ -9,6 +9,9 @@ pub trait SmartContractInterface {
     fn get_contract_state(&self, contract_id: &str) -> Result<ContractState>;
     fn upgrade_contract(&self, contract_id: &str, new_code: &str) -> Result<()>;
     fn get_proxy_contract(&self, contract_id: &str) -> Result<String>;
+    fn send_cross_chain_message(&self, message: CrossChainMessage) -> Result<()>;
+    fn query_cross_chain_state(&self, chain_id: &str, key: &str) -> Result<Value>;
+    fn transfer_cross_chain_assets(&self, chain_id: &str, amount: u64) -> Result<()>;
 }
 
 pub struct ProxyContract {
