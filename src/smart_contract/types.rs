@@ -12,6 +12,18 @@ pub struct SmartContract {
     pub gas_limit: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CrossChainMessage {
+    pub source_chain: String,
+    pub destination_chain: String,
+    pub payload: String,
+}
+
+pub enum CrossChainOperation {
+    SendMessage { message: CrossChainMessage },
+    ReceiveMessage { message: CrossChainMessage },
+}
+
 impl SmartContract {
     pub fn validate(&self) -> bool {
         let name_regex = Regex::new(r"^[a-zA-Z][a-zA-Z0-9_]{0,31}$").unwrap();
@@ -45,6 +57,7 @@ pub enum Operation {
     FunctionCall { name: String, args: Vec<Expression> },
     OracleCall { url: String, key: String },
     Return { value: Expression },
+    CrossChain(CrossChainOperation),
     Break,
     Continue,
 }
