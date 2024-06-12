@@ -14,6 +14,7 @@ mod node_message;
 mod shard_message;
 mod qup_message;
 mod peer_discovery;
+mod connection_manager;
 
 use crate::chain::block::Block;
 use crate::chain::consensus::{Consensus, ConsensusType};
