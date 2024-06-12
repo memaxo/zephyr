@@ -139,6 +139,7 @@ pub enum ProtocolMessage {
         block_hash: String,
     },
     BlockResponse {
+    BlockResponse {
         block: Vec<u8>,
         signature: QUPSignature,
     },
@@ -152,6 +153,8 @@ pub enum ProtocolMessage {
     StateSyncRequest {
         shard_id: u64,
     },
+    StateSyncResponse {
+        shard_id: u64,
     StateSyncResponse {
         shard_id: u64,
         state: Vec<u8>,
@@ -202,7 +205,6 @@ pub enum ProtocolMessage {
         block: Vec<u8>,
         signature: QUPSignature,
     },
-}
     Ping,
     Pong,
     Handshake {
@@ -428,33 +430,23 @@ mod protocol_message {
     pub struct Batch {
         pub messages: List<ProtocolMessage>,
     }
-        ProtocolMessage::TLSHandshake { version, peer_id } => {
-            let mut tls_handshake = root.init_tls_handshake();
-            tls_handshake.set_version(*version);
-            tls_handshake.set_peer_id(peer_id);
-        }
-        ProtocolMessage::TLSKeyExchange { public_key } => {
-            let mut tls_key_exchange = root.init_tls_key_exchange();
-            tls_key_exchange.set_public_key(public_key);
-        }
-        ProtocolMessage::TLSEncryptedMessage { data } => {
-            let mut tls_encrypted_message = root.init_tls_encrypted_message();
-            tls_encrypted_message.set_data(data);
+                ProtocolMessage::TLSHandshake { version, peer_id } => {
+                    let mut tls_handshake = root.init_tls_handshake();
+                    tls_handshake.set_version(*version);
+                    tls_handshake.set_peer_id(peer_id);
+                }
+                ProtocolMessage::TLSKeyExchange { public_key } => {
+                    let mut tls_key_exchange = root.init_tls_key_exchange();
+                    tls_key_exchange.set_public_key(public_key);
+                }
+                ProtocolMessage::TLSEncryptedMessage { data } => {
+                    let mut tls_encrypted_message = root.init_tls_encrypted_message();
+                    tls_encrypted_message.set_data(data);
+                }
+            }
         }
     }
 }
-    BlockProposal {
-        block: Vec<u8>,
-        signature: QUPSignature,
-    },
-    Vote {
-        vote: Vec<u8>,
-        signature: QUPSignature,
-    },
-    BlockCommit {
-        block: Vec<u8>,
-        signature: QUPSignature,
-    },
 use std::collections::BinaryHeap;
 use std::cmp::Reverse;
 
