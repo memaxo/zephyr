@@ -9,6 +9,50 @@ use log::{info, warn, error};
 pub struct PostQuantumTLSConfig {
     pub certificate: Certificate,
     pub private_key: PrivateKey,
+    pub ciphersuites: Vec<&'static rustls::SupportedCipherSuite>,
+    pub kx_groups: Vec<&'static rustls::SupportedKxGroup>,
+    pub certificate_verifier: Arc<dyn rustls::client::ServerCertVerifier>,
+}
+
+impl PostQuantumTLSConfig {
+    pub fn new() -> Self {
+        Self {
+            certificate: Vec::new(),
+            private_key: Vec::new(),
+            ciphersuites: vec![
+                &rustls::ciphersuite::TLS13_AES_256_GCM_SHA384,
+                &rustls::ciphersuite::TLS13_CHACHA20_POLY1305_SHA256,
+            ],
+            kx_groups: vec![
+                &rustls::kx_group::X25519,
+                &rustls::kx_group::SECP384R1,
+            ],
+            certificate_verifier: Arc::new(rustls::client::WebPkiVerifier::new(
+                rustls::client::RootCertStore::empty(),
+                None,
+            )),
+        }
+    }
+
+    pub fn set_certificate(&mut self, certificate: Certificate) {
+        self.certificate = certificate;
+    }
+
+    pub fn set_private_key(&mut self, private_key: PrivateKey) {
+        self.private_key = private_key;
+    }
+
+    pub fn set_ciphersuites(&mut self, ciphersuites: Vec<&'static rustls::SupportedCipherSuite>) {
+        self.ciphersuites = ciphersuites;
+    }
+
+    pub fn set_kx_groups(&mut self, kx_groups: Vec<&'static rustls::SupportedKxGroup>) {
+        self.kx_groups = kx_groups;
+    }
+
+    pub fn set_certificate_verifier(&mut self, verifier: Arc<dyn rustls::client::ServerCertVerifier>) {
+        self.certificate_verifier = verifier;
+    }
 }
 
 impl PostQuantumTLSConfig {
