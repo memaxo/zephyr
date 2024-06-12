@@ -11,9 +11,9 @@ use log::{debug, error, info, warn};
 use merkle::MerkleTree;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use crate::qup::crypto::{QUPCrypto, Hash};
+use crate::utils::hashing::calculate_hash;
 use thiserror::Error;
 
 const TARGET_BLOCK_TIME: u64 = 600; // Target block time in seconds (10 minutes)
@@ -46,21 +46,17 @@ pub enum BlockError {
 
 impl BlockCommon for Block {
     fn calculate_hash(&self) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(&self.common.timestamp.to_le_bytes());
-        for tx in &self.common.transactions {
-            hasher.update(tx.calculate_hash().as_bytes());
-        }
-        hasher.update(self.common.previous_hash.as_bytes());
-        hasher.update(&self.nonce.to_le_bytes());
-        hasher.update(&self.difficulty.to_le_bytes());
-        hasher.update(self.merkle_root.as_bytes());
-        for sc in &self.smart_contracts {
-            hasher.update(sc.code.as_bytes());
-            hasher.update(sc.state.to_string().as_bytes());
-        }
-        hasher.update(self.state_root.as_bytes());
-        hex::encode(hasher.finalize())
+        let data = [
+            &self.common.timestamp.to_le_bytes(),
+            &self.common.transactions.iter().flat_map(|tx| tx.calculate_hash().as_bytes().to_vec()).collect::<Vec<_>>(),
+            self.common.previous_hash.as_bytes(),
+            &self.nonce.to_le_bytes(),
+            &self.difficulty.to_le_bytes(),
+            self.merkle_root.as_bytes(),
+            &self.smart_contracts.iter().flat_map(|sc| [sc.code.as_bytes(), sc.state.to_string().as_bytes()].concat()).collect::<Vec<_>>(),
+            self.state_root.as_bytes(),
+        ].concat();
+        calculate_hash(&data)
     }
 
     fn verify_signature(&self, qup_crypto: &QUPCrypto, qup_state: &QUPState) -> Result<(), BlockError> {

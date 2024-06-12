@@ -1,4 +1,5 @@
-use crate::crypto::hash::{Hash, Hasher};
+use crate::crypto::hash::Hash;
+use crate::utils::hashing::calculate_hash;
 use crate::crypto::signature::Signature;
 use crate::qup::types::{
     QUPBlockHeader, QUPTransaction, QUPVote, UsefulWorkProblem, UsefulWorkSolution,
@@ -6,14 +7,15 @@ use crate::qup::types::{
 use rand::Rng;
 
 pub fn calculate_block_hash(block_header: &QUPBlockHeader) -> Hash {
-    let mut hasher = Hasher::new();
-    hasher.update(&block_header.version.to_le_bytes());
-    hasher.update(&block_header.prev_block_hash);
-    hasher.update(&block_header.merkle_root);
-    hasher.update(&block_header.timestamp.to_le_bytes());
-    hasher.update(&block_header.difficulty.to_le_bytes());
-    hasher.update(&block_header.nonce.to_le_bytes());
-    hasher.finalize()
+    let data = [
+        &block_header.version.to_le_bytes(),
+        &block_header.prev_block_hash,
+        &block_header.merkle_root,
+        &block_header.timestamp.to_le_bytes(),
+        &block_header.difficulty.to_le_bytes(),
+        &block_header.nonce.to_le_bytes(),
+    ].concat();
+    calculate_hash(&data)
 }
 
 pub fn is_valid_vertex_cover(graph: &Vec<Vec<usize>>, vertex_cover: &Vec<usize>) -> bool {
