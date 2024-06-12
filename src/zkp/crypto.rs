@@ -31,11 +31,11 @@ impl QuantumResistantMerkleTree {
             levels,
             dilithium_public_key,
             dilithium_secret_key,
-        }
+        };
 
         // Zeroize the secret key to prevent leakage
-        tree.dilithium_secret_key.zeroize();
-        tree
+        merkle_tree.dilithium_secret_key.zeroize();
+        merkle_tree
     }
 
     fn build_level(prev_level: &[FieldElement]) -> Vec<FieldElement> {
