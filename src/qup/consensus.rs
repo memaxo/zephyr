@@ -58,6 +58,35 @@ impl QUPConsensus {
             event_system,
         }
     }
+    pub fn new(
+        config: Arc<QUPConfig>,
+        state_manager: Arc<StateManager>,
+        key_pair: QUPKeyPair,
+        hdc_model: HDCModel,
+        node_type: NodeType,
+        blockchain: Arc<Blockchain>,
+        block_storage: Arc<BlockStorage>,
+        transaction_storage: Arc<TransactionStorage>,
+        network: Arc<Network<dyn QuantumComputationProvider + QuantumKeyManagement>>,
+        qup_crypto: Arc<dyn QuantumKeyManagement>,
+    ) -> Self {
+        QUPConsensus {
+            config,
+            state,
+            key_pair,
+            hdc_model,
+            network,
+            network,
+            blockchain,
+            block_storage,
+            transaction_storage,
+            qup_crypto,
+            consensus_mechanism: ConsensusMechanism::Standard,
+            useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
+            communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
+            event_system,
+        }
+    }
 
     fn emit_event(&self, event: QUPEvent) {
         self.event_system.emit(event);
