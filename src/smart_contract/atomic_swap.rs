@@ -1,6 +1,6 @@
 use crate::smart_contract::types::{Value, ExecutionContext};
 use log::info;
-use sha2::{Sha256, Digest};
+use pqcrypto_sphincsplus::sphincssha256128frobust as sphincs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct AtomicSwap {
@@ -12,12 +12,10 @@ pub struct AtomicSwap {
 
 impl AtomicSwap {
     pub fn new(secret: &[u8], recipient: String, expiration: u64, amount: u64) -> Self {
-        let mut hasher = Sha256::new();
-        hasher.update(secret);
-        let hash = hasher.finalize();
+        let hash = sphincs::hash(secret);
         
         AtomicSwap {
-            hash: hash.into(),
+            hash: hash.as_bytes().try_into().expect("Hash length mismatch"),
             recipient,
             expiration,
             amount,
@@ -51,11 +49,9 @@ impl AtomicSwap {
             return Err("Atomic swap does not exist".to_string());
         }
         
-        let mut hasher = Sha256::new();
-        hasher.update(secret);
-        let hash = hasher.finalize();
+        let hash = sphincs::hash(secret);
         
-        if hash.as_slice() != self.hash {
+        if hash.as_bytes() != self.hash {
             return Err("Invalid secret for atomic swap".to_string());
         }
         
