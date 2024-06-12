@@ -5,6 +5,7 @@ use crate::quantum_voting::quantum_key_distribution::{QKDProtocol, BB84, E91};
 use crate::quantum_voting::quantum_state_preparation::prepare_entangled_state;
 use crate::quantum_voting::quantum_state_verification::verify_entangled_state;
 use async_trait::async_trait;
+use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use log::{debug, error, info, warn};
 use oqs::kem::{Kyber768, KeyEncapsulation};
 use rand::rngs::OsRng;
@@ -19,6 +20,7 @@ pub struct QuantumResistantConnection {
     keypair: Arc<Keypair>,
     quantum_channel: Mutex<Option<QuantumChannel>>,
     use_quantum: bool,
+    pq_tls_connection: Option<PostQuantumTLSConnection>,
 }
 
 impl QuantumResistantConnection {
@@ -34,13 +36,34 @@ impl QuantumResistantConnection {
             keypair,
             quantum_channel: Mutex::new(None),
             use_quantum,
+            pq_tls_connection: None,
         }
+    }
+
+    pub async fn establish_tls_connection(&mut self, node_id: &str) -> Result<(), NetworkError> {
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect(node_id).await.map_err(|e| {
+            error!("Failed to connect to node {}: {}", node_id, e);
+            NetworkError::ConnectionError(format!("Failed to connect to node {}: {}", node_id, e))
+        })?;
+
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.map_err(|e| {
+            error!("TLS connection establishment failed: {}", e);
+            NetworkError::ConnectionError(format!("TLS connection establishment failed: {}", e))
+        })?;
+
+        self.pq_tls_connection = Some(pq_tls_connection);
+        info!("TLS connection established with node: {}", node_id);
+
+        Ok(())
     }
 
     pub async fn establish(
         &mut self,
         node_id: &str,
     ) -> Result<(PublicKey, SecretKey), NetworkError> {
+        self.establish_tls_connection(node_id).await?;
+
         if self.use_quantum {
             match self.establish_quantum(node_id).await {
                 Ok(keys) => Ok(keys),
