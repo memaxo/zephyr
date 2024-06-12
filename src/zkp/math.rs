@@ -1,6 +1,7 @@
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
+use kzg::{KZGCommitmentScheme, KZGCommitment, KZGProof};
 use sha2::{Sha256, Digest};
 type Hasher = Sha256;
 
