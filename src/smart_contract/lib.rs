@@ -4,6 +4,7 @@ pub mod interpreter;
 pub mod parser;
 pub mod execution_context;
 pub mod smart_contract_interface;
+pub mod symbolic_execution;
 
 pub use types::{SmartContract, Operation, Value, Expression, BinaryOperator, UnaryOperator, TransactionContext};
 pub use gas::{GasCost, calculate_operation_cost, calculate_expression_cost, calculate_contract_cost};
@@ -11,10 +12,18 @@ pub use interpreter::Interpreter;
 pub use parser::Parser;
 pub use execution_context::ExecutionContext;
 pub use smart_contract_interface::SmartContractInterface;
+pub use symbolic_execution::{SymbolicExecutionEngine, SymbolicState, SymbolicValue};
 
 use std::collections::HashMap;
 
 pub fn execute_contract(contract: &SmartContract, gas_limit: u64) -> Result<HashMap<String, Value>, String> {
+    let operations = Parser::parse_contract(&contract.code)?;
+    let symbolic_engine = SymbolicExecutionEngine::new();
+    let states = symbolic_engine.execute(&operations);
+    Ok(states)
+}
+
+pub fn execute_symbolic_contract(contract: &SmartContract) -> Result<Vec<SymbolicState>, String> {
     let gas_cost = GasCost::default();
     let operations = Parser::parse_contract(&contract.code)?;
 
