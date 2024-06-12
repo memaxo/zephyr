@@ -5,7 +5,9 @@ use crate::quantum_entropy::qrng::{QRNGConfig, QuantumEntropy};
 use crate::qup::crypto::QUPCrypto;
 use log::{debug, error, info, trace, warn};
 use rand::rngs::OsRng;
+use parking_lot::RwLock;
 use std::sync::Arc;
+use crossbeam_utils::thread;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -31,7 +33,7 @@ pub enum WalletError {
 pub struct Wallet {
     secure_storage: Arc<SecureStorage>,
     quantum_entropy: QuantumEntropy,
-    post_quantum_keypair: PostQuantumKeyPair,
+    post_quantum_keypair: Arc<RwLock<PostQuantumKeyPair>>,
     qup_crypto: Arc<QUPCrypto>,
 }
 
@@ -43,7 +45,7 @@ impl Wallet {
     ) -> Result<Self, WalletError> {
         let quantum_entropy = QuantumEntropy::new(qrng_config);
         let post_quantum_keypair = match quantum_entropy.generate_post_quantum_keypair() {
-            Ok(keypair) => keypair,
+            Ok(keypair) => Arc::new(RwLock::new(keypair)),
             Err(e) => return Err(WalletError::KeypairGenerationError(format!("Failed to generate post-quantum keypair: {}", e))),
         };
         info!("Post-quantum keypair generated successfully");
@@ -58,20 +60,33 @@ impl Wallet {
     pub fn sign_transaction(&self, transaction: &mut Transaction) -> Result<(), WalletError> {
         let message = transaction.calculate_hash();
 
-        // Sign with classical signature
-        let classical_signature = self.qup_crypto.sign_message(&message).map_err(|e| WalletError::TransactionSigningError(format!("Failed to sign transaction with classical signature: {}", e)))?;
-        transaction.set_signature(classical_signature);
+        thread::scope(|s| {
+            // Sign with classical signature
+            let classical_signature_handle = s.spawn(|_| {
+                self.qup_crypto.sign_message(&message)
+            });
 
-        // Sign with post-quantum signature
-        let post_quantum_signature = self.post_quantum_keypair.sign(&message).map_err(|e| WalletError::TransactionSigningError(format!("Failed to sign transaction with post-quantum signature: {}", e)))?;
-        transaction.set_post_quantum_signature(post_quantum_signature);
+            // Sign with post-quantum signature
+            let post_quantum_signature_handle = s.spawn(|_| {
+                let keypair = self.post_quantum_keypair.read();
+                keypair.sign(&message)
+            });
+
+            // Wait for signatures and set them on the transaction
+            let classical_signature = classical_signature_handle.join().map_err(|e| WalletError::TransactionSigningError(format!("Failed to sign transaction with classical signature: {}", e)))?;
+            transaction.set_signature(classical_signature);
+
+            let post_quantum_signature = post_quantum_signature_handle.join().map_err(|e| WalletError::TransactionSigningError(format!("Failed to sign transaction with post-quantum signature: {}", e)))?;
+            transaction.set_post_quantum_signature(post_quantum_signature);
+        }).unwrap();
 
         debug!("Transaction signed with classical and post-quantum signatures");
         Ok(())
     }
 
-    pub fn public_key(&self) -> &[u8] {
-        self.post_quantum_keypair.public_key.as_bytes()
+    pub fn public_key(&self) -> Vec<u8> {
+        let keypair = self.post_quantum_keypair.read();
+        keypair.public_key.as_bytes().to_vec()
     }
 
     pub fn generate_stealth_address(&self, view_key: &[u8]) -> Result<StealthAddress, WalletError> {
