@@ -1,4 +1,9 @@
-use crate::crypto::post_quantum::{Dilithium, Keypair, PublicKey, SecretKey, Signature};
+use pqcrypto_kyber::{PublicKey as KyberPublicKey, SecretKey as KyberSecretKey};
+use pqcrypto_classicmceliece::{PublicKey as McEliecePublicKey, SecretKey as McElieceSecretKey};
+use pqcrypto_hqc::{PublicKey as HQCPublicKey, SecretKey as HQCSecretKey};
+use pqcrypto_dilithium::{PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey};
+use pqcrypto_falcon::{PublicKey as FalconPublicKey, SecretKey as FalconSecretKey};
+use pqcrypto_sphincsplus::{PublicKey as SPHINCSPlusPublicKey, SecretKey as SPHINCSPlusSecretKey};
 use crate::network::quantum_resistant::QuantumResistantConnection;
 use crate::qup::quantum_random::QuantumRandom;
 use crate::utils::error::QuantumEntropyError;
