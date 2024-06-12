@@ -1,12 +1,11 @@
 use crate::chain::block::Block;
 use crate::chain::transaction::Transaction;
 use crate::crypto::hash::Hasher;
+use libp2p::gossipsub::{
+    Gossipsub, GossipsubConfigBuilder, GossipsubMessage, IdentTopic as Topic, MessageAuthenticity,
+    MessageId, ValidationMode,
+};
 use serde::{Deserialize, Serialize};
-use libp2p::floodsub::{Floodsub, FloodsubEvent, Topic};
-use libp2p::gossipsub::{Gossipsub, GossipsubEvent, IdentTopic as Topic, MessageId, ValidationMode};
-use libp2p::swarm::Swarm;
-use libp2p::{identity, PeerId};
-use std::collections::HashSet;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Message {

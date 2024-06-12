@@ -1,11 +1,12 @@
 use crate::quantum_voting::quantum_state::QuantumState;
 use crate::qup::crypto::{QUPCrypto, QUPSignature};
-use crate::qup::crypto::{QUPCrypto, QUPSignature};
+use libp2p::core::upgrade;
+use libp2p::request_response::{
+    ProtocolSupport, RequestResponse, RequestResponseCodec, RequestResponseConfig,
+    RequestResponseEvent, RequestResponseMessage,
+};
 use rmp_serde as rmps;
-use capnp::{message::Builder, serialize};
 use serde::{Deserialize, Serialize};
-use zstd::stream::{decode_all, encode_all};
-use priority_queue::PriorityQueue;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use zstd::stream::{decode_all, encode_all};
