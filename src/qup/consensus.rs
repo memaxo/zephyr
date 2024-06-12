@@ -1,4 +1,5 @@
 use crate::chain::transaction::{Transaction, TransactionType};
+use crate::qup::vdf::VDF;
 use crate::storage::{block_storage::BlockStorage, transaction_storage::TransactionStorage};
 use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
@@ -26,6 +27,7 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
+    pub vdf: VDF,
 }
 
 impl QUPConsensus {
@@ -632,12 +634,8 @@ fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSo
 }
 
 fn validate_useful_work_proof(&self, proof: &[u8]) -> Result<bool, ConsensusError> {
-    // Implement the logic to validate the useful work proof
-    // For example, check if the proof is correctly generated and matches the solution
-    let solution: UsefulWorkSolution = bincode::deserialize(proof).map_err(|_| ConsensusError::InvalidUsefulWorkProof)?;
-    let problem = self.state.get_useful_work_problem(&solution).ok_or(ConsensusError::MissingUsefulWorkProblem)?;
-
-    self.validate_useful_work_solution(&problem, &solution)
+    // Validate the useful work proof using VDF
+    self.vdf.verify_proof(proof)
 }
 
 fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
@@ -918,10 +916,8 @@ fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
 }
 
 fn generate_useful_work_proof(&self, solution: &UsefulWorkSolution) -> Vec<u8> {
-    // Generate a proof of useful work
-    // This can be customized based on the specific requirements of the proof
-    // For simplicity, we will serialize the solution to a byte vector
-    bincode::serialize(solution).expect("Failed to serialize useful work solution")
+    // Generate a proof of useful work using VDF
+    self.vdf.generate_proof(solution)
 }
 
 
