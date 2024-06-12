@@ -11,6 +11,7 @@ use crate::qup::crypto::{QUPKeyPair, QUPCrypto};
 use crate::qup::state::QUPState;
 use crate::qup::utils::{validate_useful_work_solution, is_valid_vertex_cover, generate_history_proof};
 use crate::network::Network;
+use crate::qup::events::{EventSystem, QUPEvent};
 use std::time::Instant;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -25,7 +26,46 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
+    pub event_system: Arc<EventSystem>,
 }
+
+impl QUPConsensus {
+    pub fn new(
+        config: Arc<QUPConfig>,
+        state_manager: Arc<StateManager>,
+        key_pair: QUPKeyPair,
+        hdc_model: HDCModel,
+        node_type: NodeType,
+        blockchain: Arc<Blockchain>,
+        block_storage: Arc<BlockStorage>,
+        classical_node: Arc<ClassicalNode>,
+        quantum_node: Arc<QuantumNode>,
+        transaction_storage: Arc<TransactionStorage>,
+        network: Arc<Network<dyn QuantumComputationProvider>>,
+        qup_crypto: Arc<QUPCrypto>,
+        event_system: Arc<EventSystem>,
+    ) -> Self {
+        QUPConsensus {
+            config,
+            state,
+            key_pair,
+            hdc_model,
+            network,
+            network,
+            blockchain,
+            block_storage,
+            transaction_storage,
+            qup_crypto,
+            consensus_mechanism: ConsensusMechanism::Standard,
+            useful_work_generator: Box::new(StandardUsefulWorkGenerator::new()),
+            communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
+            event_system,
+        }
+    }
+
+    fn emit_event(&self, event: QUPEvent) {
+        self.event_system.emit(event);
+    }
 
 pub enum ConsensusMechanism {
     Standard,
@@ -338,6 +378,7 @@ fn adapt_consensus_algorithm(&mut self) {
         let results = self.collect_quantum_node_results(transaction)?;
         self.synchronize_and_validate(results)?;
 
+        self.emit_event(QUPEvent::UsefulWorkCompleted(solution.clone()));
         Ok(())
     }
 
@@ -730,6 +771,7 @@ pub fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
     };
     self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
 
+    self.emit_event(QUPEvent::VoteCast(vote.clone()));
     Ok(vote)
 }
 
@@ -816,6 +858,7 @@ pub fn propose_block(&self, transactions: Vec<Transaction>) -> Result<QUPBlock, 
     };
     self.network.broadcast(message.serialize(&self.qup_crypto)?)?;
 
+    self.emit_event(QUPEvent::NewBlockProposal(block.clone()));
     Ok(block)
 }
 
