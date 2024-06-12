@@ -1,7 +1,5 @@
-use aes_gcm::{
-    aead::{Aead, NewAead},
-    Aes256Gcm, KeyInit, Nonce,
-};
+use pqcrypto_kyber::kyber512::*;
+use pqcrypto_traits::kem::{Ciphertext, PublicKey, SecretKey};
 use log::{debug, error, info, trace};
 use rand::{rngs::OsRng, RngCore};
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey, VerifyOnly};
@@ -44,27 +42,19 @@ pub struct UsefulWorkSolution {
 }
 
 impl TransactionCommon for Transaction {
-    fn encrypt_details(&mut self, key: &[u8]) -> Result<()> {
-        let key = Aes256Gcm::new_from_slice(key)
-            .context("Invalid key length for encryption")?;
-        let nonce = Nonce::from_slice(b"unique nonce");
+    fn encrypt_details(&mut self, public_key: &PublicKey) -> Result<()> {
         let plaintext = serde_json::to_vec(&self)
             .context("Failed to serialize transaction details")?;
-        let ciphertext = key
-            .encrypt(nonce, plaintext.as_ref())
-            .context("Encryption failed")?;
-        self.common.encrypted_details = ciphertext;
+        let (encrypted_data, ciphertext) = QuantumSafeEncryption::encrypt_kyber(&plaintext, public_key);
+        self.common.encrypted_details = encrypted_data;
+        self.common.ciphertext = Some(ciphertext);
         Ok(())
     }
 
-    fn decrypt_details(&self, key: &[u8]) -> Result<Self> {
-        let key = Aes256Gcm::new_from_slice(key)
-            .context("Invalid key length for decryption")?;
-        let nonce = Nonce::from_slice(b"unique nonce");
-        let decrypted_details = key
-            .decrypt(nonce, &self.common.encrypted_details)
-            .context("Decryption failed")?;
-        serde_json::from_slice(&decrypted_details)
+    fn decrypt_details(&self, secret_key: &SecretKey) -> Result<Self> {
+        let ciphertext = self.common.ciphertext.as_ref().context("Ciphertext not found")?;
+        let decrypted_data = QuantumSafeEncryption::decrypt_kyber(ciphertext, secret_key);
+        serde_json::from_slice(&decrypted_data)
             .context("Failed to deserialize transaction details")
     }
 
