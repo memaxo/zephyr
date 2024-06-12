@@ -941,6 +941,68 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
             ConsensusAlgorithm::Secure
         }
     }
+
+    fn adjust_difficulty(&mut self) {
+        // Adjust the difficulty based on the average block time over a set number of previous blocks
+        let target_block_time = self.config.consensus_config.target_block_time;
+        let adjustment_interval = self.config.consensus_config.difficulty_adjustment_interval;
+        let latest_block_height = self.state.get_block_height().expect("Failed to get block height");
+
+        if latest_block_height % adjustment_interval == 0 {
+            let start_block_height = latest_block_height - adjustment_interval;
+            let start_block = self.block_storage.load_block_by_height(start_block_height).expect("Failed to load start block");
+            let end_block = self.block_storage.load_block_by_height(latest_block_height).expect("Failed to load end block");
+
+            let start_time = start_block.timestamp;
+            let end_time = end_block.timestamp;
+            let elapsed_time = end_time - start_time;
+            let average_block_time = elapsed_time / adjustment_interval as u64;
+
+            if average_block_time < target_block_time {
+                // Increase difficulty
+                self.config.consensus_config.difficulty += 1;
+            } else if average_block_time > target_block_time {
+                // Decrease difficulty
+                self.config.consensus_config.difficulty -= 1;
+            }
+        }
+    }
+
+    fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
+        // Distribute rewards to validators and delegators based on factors like stake, successful block proposals, and useful work solutions
+        let total_rewards = self.config.consensus_config.block_reward;
+        let mut rewards = HashMap::new();
+
+        // Reward the block proposer
+        let proposer_reward = total_rewards * self.config.consensus_config.proposer_reward_percentage / 100;
+        rewards.insert(block.proposer.clone(), proposer_reward);
+
+        // Reward validators based on their stake
+        let validator_rewards = total_rewards * self.config.consensus_config.validator_reward_percentage / 100;
+        let total_stake = self.state.get_total_stake();
+        for validator in self.state.get_validators() {
+            let stake = self.state.get_validator_stake(&validator).expect("Failed to get validator stake");
+            let reward = validator_rewards * stake / total_stake;
+            rewards.insert(validator, reward);
+        }
+
+        // Reward useful work solution providers
+        if let Some(solution) = &block.useful_work_solution {
+            let useful_work_rewards = total_rewards * self.config.consensus_config.useful_work_reward_percentage / 100;
+            let num_solutions = block.useful_work_solutions.len();
+            let reward_per_solution = useful_work_rewards / num_solutions as u64;
+            for solution in &block.useful_work_solutions {
+                rewards.insert(solution.provider.clone(), reward_per_solution);
+            }
+        }
+
+        // Distribute the rewards
+        for (address, reward) in rewards {
+            self.state.add_balance(&address, reward)?;
+        }
+
+        Ok(())
+    }
 use crate::qup::traits::{QuantumComputationProvider, QuantumKeyManagement};
 
 impl QuantumComputationProvider for QUPConsensus {
