@@ -147,8 +147,6 @@ fn adapt_consensus_algorithm(&mut self) {
                 self.consensus_mechanism = ConsensusMechanism::Secure;
                 self.config.validator_threshold = 0.75; // Increase validator threshold for higher security
             }
-            classical_node,
-            quantum_node,
         }
     }
 
