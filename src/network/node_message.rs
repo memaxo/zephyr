@@ -34,6 +34,7 @@ pub enum NodeMessage {
     QKDKeyConfirmation,
     QuantumStateDistribution(QuantumState),
     QuantumStateMeasurementResults(Vec<bool>),
+    pq_tls_connection: Option<PostQuantumTLSConnection>,
 }
 
 #[derive(Debug, Error)]
@@ -110,6 +111,28 @@ impl NodeMessage {
             NodeMessage::QuantumStateDistribution(_) => "quantum_state_distribution",
             NodeMessage::QuantumStateMeasurementResults(_) => "quantum_state_measurement_results",
         }
+
+        // Handle TLS-related messages
+        match message {
+            NodeMessage::TLSMessage(data) => {
+                if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+                    pq_tls_connection.send(&data).await.expect("Failed to send data over TLS");
+                } else {
+                    error!("TLS connection not established");
+                }
+            }
+            NodeMessage::TLSRequest => {
+                if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+                    let data = pq_tls_connection.receive().await.expect("Failed to receive data over TLS");
+                    self.send_message(NodeMessage::TLSResponse(data)).await;
+                } else {
+                    error!("TLS connection not established");
+                }
+            }
+            _ => {
+                // Handle other messages
+            }
+        }
     }
 }
 
@@ -167,7 +190,15 @@ pub struct NodeMessageHandler {
 
 impl NodeMessageHandler {
     pub fn new(crypto: QUPCrypto) -> Self {
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect("localhost:12345").await.expect("Failed to connect to server");
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.expect("Failed to establish TLS connection");
+
         NodeMessageHandler {
+            response_sender: None,
+            crypto,
+            pq_tls_connection: Some(pq_tls_connection),
+        }
             response_sender: None,
             crypto,
         }
@@ -223,6 +254,38 @@ impl NodeMessageHandler {
                 self.handle_quantum_state_measurement_results(results, sender)
                     .await
             }
+        }
+    }
+
+    async fn establish_tls_connection(&mut self, address: &str) -> Result<(), NodeMessageError> {
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect(address).await.map_err(|e| {
+            NodeMessageError::ConnectionError(format!("Failed to connect to {}: {}", address, e))
+        })?;
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.map_err(|e| {
+            NodeMessageError::ConnectionError(format!("TLS connection establishment failed: {}", e))
+        })?;
+        self.pq_tls_connection = Some(pq_tls_connection);
+        Ok(())
+    }
+
+    async fn send_tls(&mut self, data: &[u8]) -> Result<(), NodeMessageError> {
+        if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+            pq_tls_connection.send(data).await.map_err(|e| {
+                NodeMessageError::ConnectionError(format!("Failed to send data over TLS: {}", e))
+            })
+        } else {
+            Err(NodeMessageError::ConnectionError("TLS connection not established".to_string()))
+        }
+    }
+
+    async fn receive_tls(&mut self) -> Result<Vec<u8>, NodeMessageError> {
+        if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+            pq_tls_connection.receive().await.map_err(|e| {
+                NodeMessageError::ConnectionError(format!("Failed to receive data over TLS: {}", e))
+            })
+        } else {
+            Err(NodeMessageError::ConnectionError("TLS connection not established".to_string()))
         }
     }
 
