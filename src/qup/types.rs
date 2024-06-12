@@ -267,3 +267,21 @@ pub struct MarketEquilibriumSolution {
 }
 
 // Add more types and structs specific to the QUP module as needed
+use serde::{Serialize, Deserialize};
+use crate::qup::crypto::{QuantumSignature, QuantumHash};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct QuantumTransaction {
+    pub id: String,
+    pub data: Vec<u8>,
+    pub signature: QuantumSignature,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct QuantumBlock {
+    pub id: String,
+    pub transactions: Vec<QuantumTransaction>,
+    pub previous_hash: QuantumHash,
+    pub hash: QuantumHash,
+    pub signature: QuantumSignature,
+}
