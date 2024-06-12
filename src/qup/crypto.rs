@@ -4,11 +4,10 @@ use crate::crypto::post_quantum::mceliece::{McEliecePublicKey, McElieceSecretKey
 use crate::crypto::post_quantum::ntru::{NTRUPublicKey, NTRUSecretKey};
 use crate::qup::crypto_common::{Decrypt, Encrypt, KeyPair, Sign, Verify};
 
+use crate::secure_core::secure_vault::SecureVault;
+
 pub struct QUPCrypto {
-    pub dilithium_keypair: KeyPair<DilithiumPublicKey, DilithiumSecretKey>,
-    pub kyber_keypair: KeyPair<KyberPublicKey, KyberSecretKey>,
-    pub mceliece_keypair: KeyPair<McEliecePublicKey, McElieceSecretKey>,
-    pub ntru_keypair: KeyPair<NTRUPublicKey, NTRUSecretKey>,
+    secure_vault: SecureVault,
     pub fn verify(&self, data: &[u8], signature: &[u8], public_key: &impl Verify) -> Result<bool, String> {
         public_key.verify(data, signature).map_err(|e| e.to_string())
     }
@@ -31,13 +30,34 @@ pub struct QUPCrypto {
 }
 
 impl QUPCrypto {
-    pub fn new() -> Self {
-        QUPCrypto {
-            dilithium_keypair: KeyPair::new(DilithiumPublicKey::generate(), DilithiumSecretKey::generate()),
-            kyber_keypair: KeyPair::new(KyberPublicKey::generate(), KyberSecretKey::generate()),
-            mceliece_keypair: KeyPair::new(McEliecePublicKey::generate(), McElieceSecretKey::generate()),
-            ntru_keypair: KeyPair::new(NTRUPublicKey::generate(), NTRUSecretKey::generate()),
-        }
+    pub fn new(secure_vault: SecureVault) -> Self {
+        QUPCrypto { secure_vault }
+    }
+
+    pub fn generate_and_store_keys(&mut self) {
+        // Generate Kyber keys
+        let (kyber_public_key, kyber_secret_key) = pqcrypto_kyber::keypair();
+        self.secure_vault.store_kyber_keys("kyber_key", kyber_public_key, kyber_secret_key);
+
+        // Generate Classic McEliece keys
+        let (mceliece_public_key, mceliece_secret_key) = pqcrypto_classicmceliece::keypair();
+        self.secure_vault.store_mceliece_keys("mceliece_key", mceliece_public_key, mceliece_secret_key);
+
+        // Generate HQC keys
+        let (hqc_public_key, hqc_secret_key) = pqcrypto_hqc::keypair();
+        self.secure_vault.store_hqc_keys("hqc_key", hqc_public_key, hqc_secret_key);
+
+        // Generate Dilithium keys
+        let (dilithium_public_key, dilithium_secret_key) = pqcrypto_dilithium::keypair();
+        self.secure_vault.store_dilithium_keys("dilithium_key", dilithium_public_key, dilithium_secret_key);
+
+        // Generate Falcon keys
+        let (falcon_public_key, falcon_secret_key) = pqcrypto_falcon::keypair();
+        self.secure_vault.store_falcon_keys("falcon_key", falcon_public_key, falcon_secret_key);
+
+        // Generate SPHINCS+ keys
+        let (sphincsplus_public_key, sphincsplus_secret_key) = pqcrypto_sphincsplus::keypair();
+        self.secure_vault.store_sphincsplus_keys("sphincsplus_key", sphincsplus_public_key, sphincsplus_secret_key);
     }
 
     pub fn encrypt<P: Encrypt>(&self, data: &[u8], public_key: &P) -> Vec<u8> {
