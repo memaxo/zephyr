@@ -7,11 +7,14 @@ use crate::quantum_voting::quantum_communication::{
 };
 use crate::quantum_voting::quantum_key_distribution::QuantumKeyDistribution;
 use crate::qup::crypto::{QUPCrypto, QUPSignature};
-use libp2p::kad::{
-    record::store::MemoryStore, Kademlia, KademliaConfig, KademliaEvent, QueryResult,
+use libp2p::{
+    identity::Keypair,
+    kad::{
+        record::store::MemoryStore, Kademlia, KademliaConfig, KademliaEvent, QueryResult,
+    },
+    swarm::{SwarmBuilder, SwarmEvent},
+    Multiaddr, PeerId, Swarm,
 };
-use libp2p::swarm::{SwarmBuilder, SwarmEvent};
-use libp2p::{identity::Keypair, Multiaddr, PeerId, Swarm};
 use log::{debug, error, info};
 use std::collections::HashSet;
 use std::sync::Arc;

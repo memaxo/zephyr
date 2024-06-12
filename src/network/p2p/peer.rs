@@ -1,9 +1,13 @@
-use crate::network::tls::TLSStream;
 use crate::network::p2p::message::Message;
 use crate::crypto::identity::PublicKey;
+use libp2p::core::muxing::StreamMuxerBox;
+use libp2p::core::transport::Boxed;
+use libp2p::core::upgrade::{read_length_prefixed, write_length_prefixed};
+use libp2p::gossipsub::Gossipsub;
+use libp2p::{identity, PeerId};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
-use tokio::net::TcpStream;
+use std::io;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 #[derive(Debug, Clone)]

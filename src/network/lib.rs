@@ -19,6 +19,7 @@ pub use server::Server;
 pub use sync::state_sync::{StateSync, StateSyncMessage};
 pub use client::Client;
 
+use libp2p::Swarm;
 use std::sync::Arc;
 
 pub struct Network {
