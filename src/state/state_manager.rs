@@ -4,7 +4,8 @@ use crate::state::{chain_state::ChainState, state_db::StateDB};
 use crate::state::qup_storage::QUPStorage;
 use crate::chain::validator::ChainValidator;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 pub struct StateManager {
     state_db: Arc<RwLock<StateDB>>,
@@ -24,7 +25,7 @@ impl StateManager {
 
     pub fn get_account(&self, address: &str) -> Option<Account> {
         // Check the account cache first
-        if let Some(account) = self.account_cache.read().unwrap().get(address) {
+        if let Some(account) = self.account_cache.read().get(address) {
             return Some(account.clone());
         }
 
@@ -33,7 +34,6 @@ impl StateManager {
             // Update the account cache
             self.account_cache
                 .write()
-                .unwrap()
                 .insert(address.to_string(), account.clone());
             Some(account)
         } else {
@@ -48,7 +48,6 @@ impl StateManager {
         // Update the account cache
         self.account_cache
             .write()
-            .unwrap()
             .insert(account.address.clone(), account.clone());
     }
 
@@ -57,12 +56,12 @@ impl StateManager {
         self.state_db.write().unwrap().remove_account(address);
 
         // Remove the account from the cache
-        self.account_cache.write().unwrap().remove(address);
+        self.account_cache.write().remove(address);
     }
 
     pub fn account_exists(&self, address: &str) -> bool {
         // Check the account cache first
-        if self.account_cache.read().unwrap().contains_key(address) {
+        if self.account_cache.read().contains_key(address) {
             return true;
         }
 
@@ -90,7 +89,7 @@ impl StateManager {
     }
 
     pub fn update_chain_state(&self, new_state: ChainState) {
-        let mut state = self.chain_state.write().unwrap();
+        let mut state = self.chain_state.write();
         *state = new_state;
     }
 
