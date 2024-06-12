@@ -15,7 +15,10 @@ use libp2p::{
     Transport,
 };
 use log::{debug, error, info};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::time::{Duration, Instant};
+use governor::{Quota, RateLimiter};
+use nonzero_ext::nonzero;
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
 
@@ -24,11 +27,21 @@ pub struct Server {
     handler: Arc<dyn Handler>,
     peers: Arc<Mutex<HashMap<String, Peer>>>,
     crypto: Arc<PostQuantumCrypto>,
+    rate_limiter: Arc<RateLimiter<String>>,
+    blacklist: Arc<Mutex<HashSet<String>>>,
 }
+
+const RATE_LIMIT: u32 = 10; // 10 requests per second
+const BLACKLIST_THRESHOLD: u32 = 100; // 100 requests per minute
 
 impl Server {
     pub fn new(address: String, handler: Arc<dyn Handler>, crypto: Arc<PostQuantumCrypto>) -> Self {
+        let rate_limiter = Arc::new(RateLimiter::direct(Quota::per_second(nonzero!(RATE_LIMIT))));
+        let blacklist = Arc::new(Mutex::new(HashSet::new()));
+
         Server {
+            rate_limiter,
+            blacklist,
             address,
             handler,
             peers: Arc::new(Mutex::new(HashMap::new())),
@@ -46,7 +59,24 @@ impl Server {
                     let peer_address = addr.to_string();
                     debug!("New connection from {}", peer_address);
 
-                    let config = PostQuantumTLSConfig::new();
+                    let blacklist = self.blacklist.clone();
+                    let rate_limiter = self.rate_limiter.clone();
+
+                    if blacklist.lock().unwrap().contains(&peer_address) {
+                        error!("Connection attempt from blacklisted IP: {}", peer_address);
+                        continue;
+                    }
+
+                    if !rate_limiter.check_key(&peer_address).is_ok() {
+                        error!("Rate limit exceeded for IP: {}", peer_address);
+                        let mut blacklist = blacklist.lock().unwrap();
+                        *blacklist.entry(peer_address.clone()).or_insert(0) += 1;
+                        if *blacklist.get(&peer_address).unwrap() > BLACKLIST_THRESHOLD {
+                            blacklist.insert(peer_address.clone());
+                            error!("IP blacklisted: {}", peer_address);
+                        }
+                        continue;
+                    }
                     let handler = self.handler.clone();
                     let peers = self.peers.clone();
                     let crypto = self.crypto.clone();
@@ -168,6 +198,13 @@ async fn handle_connection(
 
     // Remove the peer from the list of connected peers
     peers.lock().unwrap().remove(&peer_address);
+
+    let mut blacklist = peers.lock().unwrap();
+    *blacklist.entry(peer_address.clone()).or_insert(0) += 1;
+    if *blacklist.get(&peer_address).unwrap() > BLACKLIST_THRESHOLD {
+        blacklist.insert(peer_address.clone());
+        error!("IP blacklisted: {}", peer_address);
+    }
 
     Ok(())
 }

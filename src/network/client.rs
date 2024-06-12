@@ -6,7 +6,11 @@ use crate::network::protocol::{ProtocolMessage, HANDSHAKE_TIMEOUT, PING_INTERVAL
 use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use crate::qup::crypto::PostQuantumCrypto;
 use log::{debug, error, info};
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use governor::{Quota, RateLimiter};
+use nonzero_ext::nonzero;
 use tokio::sync::oneshot;
 
 pub struct Client {
@@ -14,17 +18,32 @@ pub struct Client {
     handler: Arc<dyn Handler>,
     pq_tls_connection: Option<PostQuantumTLSConnection>,
     crypto: Arc<PostQuantumCrypto>,
+    rate_limiter: Arc<RateLimiter<String>>,
+    blacklist: Arc<Mutex<HashSet<String>>>,
 }
+
+const RATE_LIMIT: u32 = 10; // 10 requests per second
+const BLACKLIST_THRESHOLD: u32 = 100; // 100 requests per minute
 
 impl Client {
     pub fn new(peer_address: String, handler: Arc<dyn Handler>, crypto: Arc<PostQuantumCrypto>) -> Self {
         let peer = Arc::new(Peer::new(peer_address));
+        let rate_limiter = Arc::new(RateLimiter::direct(Quota::per_second(nonzero!(RATE_LIMIT))));
+        let blacklist = Arc::new(Mutex::new(HashSet::new()));
+
         Client {
+            rate_limiter,
+            blacklist,
             peer,
             handler,
             pq_tls_connection: None,
             crypto,
         }
+    let mut blacklist = self.blacklist.lock().unwrap();
+    *blacklist.entry(self.peer.address.clone()).or_insert(0) += 1;
+    if *blacklist.get(&self.peer.address).unwrap() > BLACKLIST_THRESHOLD {
+        blacklist.insert(self.peer.address.clone());
+        error!("IP blacklisted: {}", self.peer.address);
     }
 
     pub async fn start(&mut self) -> Result<(), NetworkError> {
@@ -32,6 +51,22 @@ impl Client {
 
         // Configure and establish the TLS connection using rustls
         let config = PostQuantumTLSConfig::new();
+        if self.blacklist.lock().unwrap().contains(&self.peer.address) {
+            error!("Connection attempt to blacklisted IP: {}", self.peer.address);
+            return Err(NetworkError::ConnectionError("Blacklisted IP".to_string()));
+        }
+
+        if !self.rate_limiter.check_key(&self.peer.address).is_ok() {
+            error!("Rate limit exceeded for IP: {}", self.peer.address);
+            let mut blacklist = self.blacklist.lock().unwrap();
+            *blacklist.entry(self.peer.address.clone()).or_insert(0) += 1;
+            if *blacklist.get(&self.peer.address).unwrap() > BLACKLIST_THRESHOLD {
+                blacklist.insert(self.peer.address.clone());
+                error!("IP blacklisted: {}", self.peer.address);
+            }
+            return Err(NetworkError::ConnectionError("Rate limit exceeded".to_string()));
+        }
+
         let stream = TcpStream::connect(&self.peer.address).await.map_err(|e| {
             error!("Failed to connect to peer: {}", e);
             NetworkError::ConnectionError(format!("Failed to connect to peer: {}", e))
