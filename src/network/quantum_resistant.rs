@@ -420,6 +420,35 @@ impl QuantumChannel {
 #[async_trait]
 pub trait QuantumResistantConnectionManager {
     async fn establish(&mut self, node_id: &str) -> Result<(PublicKey, SecretKey), NetworkError>;
+    async fn establish_tls(&mut self, node_id: &str) -> Result<(), NetworkError>;
+    async fn send_tls(&mut self, data: &[u8]) -> Result<(), NetworkError>;
+    async fn receive_tls(&mut self) -> Result<Vec<u8>, NetworkError>;
+    async fn establish_tls(&mut self, node_id: &str) -> Result<(), NetworkError> {
+        self.establish_tls_connection(node_id).await
+    }
+
+    async fn send_tls(&mut self, data: &[u8]) -> Result<(), NetworkError> {
+        if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+            pq_tls_connection.send(data).await.map_err(|e| {
+                error!("Failed to send data over TLS: {}", e);
+                NetworkError::ConnectionError(format!("Failed to send data over TLS: {}", e))
+            })
+        } else {
+            Err(NetworkError::ConnectionError("TLS connection not established".to_string()))
+        }
+    }
+
+    async fn receive_tls(&mut self) -> Result<Vec<u8>, NetworkError> {
+        if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
+            pq_tls_connection.receive().await.map_err(|e| {
+                error!("Failed to receive data over TLS: {}", e);
+                NetworkError::ConnectionError(format!("Failed to receive data over TLS: {}", e))
+            })
+        } else {
+            Err(NetworkError::ConnectionError("TLS connection not established".to_string()))
+        }
+    }
+
     async fn distribute_entangled_state(
         &mut self,
         state: &TimeBinState,
