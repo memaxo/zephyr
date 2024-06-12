@@ -19,7 +19,7 @@ pub enum MerkleTrieError {
 pub struct TrieNode {
     pub key: Arc<[u8]>,
     pub value: Option<Arc<[u8]>>,
-    pub children: HashMap<u8, Arc<TrieNode>>,
+    pub children: HashMap<Vec<u8>, Arc<TrieNode>>,
     pub signature: Option<PostQuantumSignature>,
 }
 
@@ -77,34 +77,52 @@ impl MerkleTrie {
         let mut current_node = self
             .root
             .get_or_insert_with(|| Arc::new(TrieNode::new(Arc::from(vec![]), None)));
-        let mut key_iter = key.iter();
+        let mut current_node = self.root.get_or_insert_with(|| Arc::new(TrieNode::new(Arc::from(vec![]), None)));
+        let mut key_slice = key;
 
-        loop {
-            if let Some(&byte) = key_iter.next() {
-                let node = current_node
-                    .children
-                    .entry(byte)
-                    .or_insert_with(|| Arc::new(TrieNode::new(Arc::from(vec![byte]), None)))
-                    .clone();
-                current_node = node;
-            } else {
-                current_node.value = Some(Arc::from(value));
-                break;
+        while !key_slice.is_empty() {
+            let mut found = false;
+            for (child_key, child_node) in &current_node.children {
+                if key_slice.starts_with(child_key) {
+                    current_node = child_node;
+                    key_slice = &key_slice[child_key.len()..];
+                    found = true;
+                    break;
+                }
+            }
+
+            if !found {
+                let new_node = Arc::new(TrieNode::new(Arc::from(key_slice.to_vec()), Some(Arc::from(value))));
+                current_node.children.insert(key_slice.to_vec(), new_node);
+                return;
             }
         }
+
+        Arc::make_mut(current_node).value = Some(Arc::from(value));
     }
 
     pub fn get(&self, key: &[u8]) -> Option<Arc<[u8]>> {
         let mut current_node = self.root.as_ref()?;
-        let mut key_iter = key.iter();
+        let mut current_node = self.root.as_ref()?;
+        let mut key_slice = key;
 
-        loop {
-            if let Some(&byte) = key_iter.next() {
-                current_node = current_node.children.get(&byte)?;
-            } else {
-                return current_node.value.clone();
+        while !key_slice.is_empty() {
+            let mut found = false;
+            for (child_key, child_node) in &current_node.children {
+                if key_slice.starts_with(child_key) {
+                    current_node = child_node;
+                    key_slice = &key_slice[child_key.len()..];
+                    found = true;
+                    break;
+                }
+            }
+
+            if !found {
+                return None;
             }
         }
+
+        current_node.value.clone()
     }
 
     pub fn remove(&mut self, key: &[u8], storage: &dyn Storage) -> Result<(), MerkleTrieError> {
@@ -117,22 +135,25 @@ impl MerkleTrie {
         node: &mut Option<Arc<TrieNode>>,
     ) -> Result<(), MerkleTrieError> {
         let mut current_node = Arc::make_mut(node.as_mut().ok_or(MerkleTrieError::NodeNotFound)?);
-        let mut key_iter = key.iter();
+        let mut key_slice = key;
 
-        if let Some(&byte) = key_iter.next() {
-            self.remove_recursive(
-                key_iter.as_slice(),
-                &mut current_node.children.get_mut(&byte).map(Arc::clone),
-            )?;
-
-            if current_node.children[&byte].is_leaf()
-                && current_node.children[&byte].value.is_none()
-            {
-                current_node.children.remove(&byte);
+        while !key_slice.is_empty() {
+            let mut found = false;
+            for (child_key, child_node) in &current_node.children {
+                if key_slice.starts_with(child_key) {
+                    current_node = Arc::make_mut(child_node);
+                    key_slice = &key_slice[child_key.len()..];
+                    found = true;
+                    break;
+                }
             }
-        } else {
-            current_node.value = None;
+
+            if !found {
+                return Err(MerkleTrieError::NodeNotFound);
+            }
         }
+
+        current_node.value = None;
 
         Ok(())
     }
@@ -156,8 +177,26 @@ impl MerkleTrie {
         let current_node = node?;
         proof.push(current_node.hash());
 
-        if let Some(&byte) = key.first() {
-            self.generate_proof_recursive(&key[1..], current_node.children.get(&byte), proof)?;
+        let mut current_node = node?;
+        proof.push(current_node.hash());
+
+        let mut key_slice = key;
+
+        while !key_slice.is_empty() {
+            let mut found = false;
+            for (child_key, child_node) in &current_node.children {
+                if key_slice.starts_with(child_key) {
+                    proof.push(child_key.clone());
+                    current_node = child_node;
+                    key_slice = &key_slice[child_key.len()..];
+                    found = true;
+                    break;
+                }
+            }
+
+            if !found {
+                return None;
+            }
         }
 
         Some(())
