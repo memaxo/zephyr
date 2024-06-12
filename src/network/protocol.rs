@@ -30,6 +30,16 @@ pub enum ProtocolMessage {
         credit: usize 
     },
     FlowControlAck,
+    TLSHandshake {
+        version: u32,
+        peer_id: String,
+    },
+    TLSKeyExchange {
+        public_key: Vec<u8>,
+    },
+    TLSEncryptedMessage {
+        data: Vec<u8>,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -186,7 +196,19 @@ impl MessageQueue {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QKDKey {
     // Fields for QKD key information
-    // ...
+    ProtocolMessage::TLSHandshake { version, peer_id } => {
+        let mut tls_handshake = root.init_tls_handshake();
+        tls_handshake.set_version(*version);
+        tls_handshake.set_peer_id(peer_id);
+    }
+    ProtocolMessage::TLSKeyExchange { public_key } => {
+        let mut tls_key_exchange = root.init_tls_key_exchange();
+        tls_key_exchange.set_public_key(public_key);
+    }
+    ProtocolMessage::TLSEncryptedMessage { data } => {
+        let mut tls_encrypted_message = root.init_tls_encrypted_message();
+        tls_encrypted_message.set_data(data);
+    }
 }
 
 impl ProtocolMessage {
@@ -216,8 +238,32 @@ impl ProtocolMessage {
                     block_commit.set_block(block);
                     block_commit.set_signature(signature);
                 }
-                // Serialization for other message types
-                // ...
+                ProtocolMessage::TLSHandshake { version, peer_id } => {
+                    let mut tls_handshake = root.init_tls_handshake();
+                    tls_handshake.set_version(*version);
+                    tls_handshake.set_peer_id(peer_id);
+                }
+                ProtocolMessage::TLSKeyExchange { public_key } => {
+                    let mut tls_key_exchange = root.init_tls_key_exchange();
+                    tls_key_exchange.set_public_key(public_key);
+                }
+                ProtocolMessage::TLSEncryptedMessage { data } => {
+                    let mut tls_encrypted_message = root.init_tls_encrypted_message();
+                    tls_encrypted_message.set_data(data);
+                }
+                ProtocolMessage::TLSHandshake { version, peer_id } => {
+                    let mut tls_handshake = root.init_tls_handshake();
+                    tls_handshake.set_version(*version);
+                    tls_handshake.set_peer_id(peer_id);
+                }
+                ProtocolMessage::TLSKeyExchange { public_key } => {
+                    let mut tls_key_exchange = root.init_tls_key_exchange();
+                    tls_key_exchange.set_public_key(public_key);
+                }
+                ProtocolMessage::TLSEncryptedMessage { data } => {
+                    let mut tls_encrypted_message = root.init_tls_encrypted_message();
+                    tls_encrypted_message.set_data(data);
+                }
             }
         }
         let serialized_data = rmps::to_vec_named(self)
@@ -269,7 +315,19 @@ mod protocol_message {
         pub ping: (),
         pub pong: (),
         // Fields for other message types
-        // ...
+        ProtocolMessage::TLSHandshake { version, peer_id } => {
+            let mut tls_handshake = root.init_tls_handshake();
+            tls_handshake.set_version(*version);
+            tls_handshake.set_peer_id(peer_id);
+        }
+        ProtocolMessage::TLSKeyExchange { public_key } => {
+            let mut tls_key_exchange = root.init_tls_key_exchange();
+            tls_key_exchange.set_public_key(public_key);
+        }
+        ProtocolMessage::TLSEncryptedMessage { data } => {
+            let mut tls_encrypted_message = root.init_tls_encrypted_message();
+            tls_encrypted_message.set_data(data);
+        }
     }
 }
     BlockProposal {
