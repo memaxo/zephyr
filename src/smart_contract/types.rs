@@ -155,6 +155,12 @@ pub enum UnaryOperator {
     Not,
 }
 
+pub trait CrossChainToken {
+    fn transfer(&self, recipient: String, amount: u64) -> Result<(), String>;
+    fn balance_of(&self, owner: String) -> Result<u64, String>;
+    fn approve(&self, spender: String, amount: u64) -> Result<(), String>;
+}
+
 #[derive(Debug, Clone)]
 pub struct TransactionContext {
     pub changes: HashMap<String, Value>,
