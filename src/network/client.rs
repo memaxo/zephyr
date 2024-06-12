@@ -3,9 +3,7 @@ use crate::network::handler::Handler;
 use crate::network::p2p::message::Message;
 use crate::network::p2p::peer::Peer;
 use crate::network::protocol::{ProtocolMessage, HANDSHAKE_TIMEOUT, PING_INTERVAL};
-use crate::network::post_quantum_tls::{
-    PostQuantumTLSConnection, PostQuantumTLSConnectionManager,
-};
+use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use crate::qup::crypto::PostQuantumCrypto;
 use log::{debug, error, info};
 use std::sync::Arc;
@@ -14,18 +12,17 @@ use tokio::sync::oneshot;
 pub struct Client {
     peer: Arc<Peer>,
     handler: Arc<dyn Handler>,
-    pq_tls_connection: PostQuantumTLSConnection,
+    pq_tls_connection: Option<PostQuantumTLSConnection>,
     crypto: Arc<PostQuantumCrypto>,
 }
 
 impl Client {
-    pub fn new(peer_address: String, handler: Arc<dyn Handler>, crypto: Arc<QUPCrypto>) -> Self {
+    pub fn new(peer_address: String, handler: Arc<dyn Handler>, crypto: Arc<PostQuantumCrypto>) -> Self {
         let peer = Arc::new(Peer::new(peer_address));
-        let pq_tls_connection = PostQuantumTLSConnection::new();
         Client {
             peer,
             handler,
-            quantum_connection,
+            pq_tls_connection: None,
             crypto,
         }
     }
@@ -33,23 +30,24 @@ impl Client {
     pub async fn start(&mut self) -> Result<(), NetworkError> {
         info!("Connecting to peer: {}", self.peer.address);
 
-        // Perform post-quantum TLS connection establishment
-        match self.pq_tls_connection.establish(&self.peer.address).await {
-            Ok((public_key, secret_key)) => {
-                debug!("Post-quantum TLS connection established with peer: {}", self.peer.address);
-            }
-            Err(e) => {
-                error!("Post-quantum TLS connection establishment failed: {}", e);
-                return Err(NetworkError::ConnectionError(format!(
-                    "Post-quantum TLS connection establishment failed: {}",
-                    e
-                )));
-            }
-        }
+        // Configure and establish the TLS connection using rustls
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect(&self.peer.address).await.map_err(|e| {
+            error!("Failed to connect to peer: {}", e);
+            NetworkError::ConnectionError(format!("Failed to connect to peer: {}", e))
+        })?;
+
+        let mut pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.map_err(|e| {
+            error!("TLS connection establishment failed: {}", e);
+            NetworkError::ConnectionError(format!("TLS connection establishment failed: {}", e))
+        })?;
+
+        self.pq_tls_connection = Some(pq_tls_connection);
+        info!("TLS connection established with peer: {}", self.peer.address);
 
         loop {
             // Receive messages using the quantum-resistant connection
-            match self.pq_tls_connection.receive_message(&self.peer.address).await {
+            match self.pq_tls_connection.as_mut().unwrap().receive().await {
                 Ok(message) => {
                     // Deserialize and handle the received message
                     match ProtocolMessage::deserialize(&message, &self.crypto) {
@@ -97,7 +95,7 @@ impl Client {
                                                 // Serialize and send the response using the quantum-resistant connection
                                                 match response.serialize(&self.crypto) {
                                                     Ok(serialized_response) => {
-                                                        if let Err(e) = self.pq_tls_connection.send_message(&self.peer.address, &serialized_response).await {
+                                                        if let Err(e) = self.pq_tls_connection.as_mut().unwrap().send(&serialized_response).await {
                                                             error!("Failed to send response message: {}", e);
                                                         }
                                                     }
