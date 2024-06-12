@@ -2,6 +2,7 @@ use crate::zkp_crate::math::FieldElement;
 use pqcrypto_dilithium::dilithium2::{keypair as dilithium_keypair, sign as dilithium_sign, verify as dilithium_verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, Signature as DilithiumSignature};
 use rand::rngs::OsRng;
 use num_bigint::BigUint;
+use zeroize::Zeroize;
 
 pub trait Hasher {
     fn new() -> Self;
@@ -26,11 +27,16 @@ impl QuantumResistantMerkleTree {
 
         let (dilithium_public_key, dilithium_secret_key) = dilithium_keypair();
 
-        QuantumResistantMerkleTree {
+        let tree = QuantumResistantMerkleTree {
             levels,
             dilithium_public_key,
             dilithium_secret_key,
         }
+        };
+
+        // Zeroize the secret key to prevent leakage
+        tree.dilithium_secret_key.zeroize();
+        tree
     }
 
     fn build_level(prev_level: &[FieldElement]) -> Vec<FieldElement> {

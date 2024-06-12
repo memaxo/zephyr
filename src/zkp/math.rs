@@ -3,6 +3,7 @@ use num_traits::{One, Zero};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 use c_kzg::{Blob, Bytes32, Bytes48, KzgCommitment, KzgProof, KzgSettings, CkzgError, BYTES_PER_BLOB, BYTES_PER_COMMITMENT, BYTES_PER_FIELD_ELEMENT, BYTES_PER_G1_POINT, BYTES_PER_G2_POINT, BYTES_PER_PROOF, FIELD_ELEMENTS_PER_BLOB};
 use sha2::{Sha256, Digest};
+use subtle::ConstantTimeEq;
 type Hasher = Sha256;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -10,37 +11,25 @@ pub struct FieldElement(BigUint);
 
 impl FieldElement {
     pub fn new(value: BigUint, modulus: &BigUint) -> Self {
-        FieldElement(value % modulus)
+        FieldElement(value.mod_floor(modulus))
     }
 
     pub fn zero(modulus: &BigUint) -> Self {
-        FieldElement(BigUint::zero() % modulus)
+        FieldElement(BigUint::zero().mod_floor(modulus))
     }
 
     pub fn one(modulus: &BigUint) -> Self {
-        FieldElement(BigUint::one() % modulus)
+        FieldElement(BigUint::one().mod_floor(modulus))
     }
 
     pub fn random(modulus: &BigUint) -> Self {
         let mut rng = rand::thread_rng();
-        let value = rng.gen_biguint(modulus.bits());
-        FieldElement(value % modulus)
+        let value = rng.gen_biguint_below(modulus);
+        FieldElement(value)
     }
 
     pub fn pow(&self, exponent: &BigUint, modulus: &BigUint) -> Self {
-        let mut result = FieldElement::one(modulus);
-        let mut base = self.clone();
-        let mut exp = exponent.clone();
-
-        while !exp.is_zero() {
-            if exp.bit(0) {
-                result = result * base.clone();
-            }
-            base = base.clone() * base;
-            exp >>= 1;
-        }
-
-        result
+        FieldElement(self.0.modpow(exponent, modulus))
     }
 
     pub fn generator(modulus: &BigUint) -> Self {
@@ -65,10 +54,7 @@ impl Add for FieldElement {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        let mut result = self.0 + other.0;
-        if result >= self.modulus() {
-            result -= self.modulus();
-        }
+        let result = self.0.add_mod(&other.0, &self.modulus());
         FieldElement(result)
     }
 }
@@ -83,10 +69,7 @@ impl Sub for FieldElement {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        let mut result = self.0 - other.0;
-        if result >= self.modulus() {
-            result += self.modulus();
-        }
+        let result = self.0.sub_mod(&other.0, &self.modulus());
         FieldElement(result)
     }
 }
@@ -101,7 +84,8 @@ impl Mul for FieldElement {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self {
-        FieldElement(self.0 * other.0 % self.modulus())
+        let result = self.0.mul_mod(&other.0, &self.modulus());
+        FieldElement(result)
     }
 }
 
