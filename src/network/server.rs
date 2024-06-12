@@ -4,14 +4,19 @@ use crate::network::p2p::peer::Peer;
 use crate::network::protocol::{
     ProtocolMessage, HANDSHAKE_TIMEOUT, MAX_MESSAGE_SIZE, PING_INTERVAL, PONG_TIMEOUT,
 };
-use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use crate::qup::crypto::PostQuantumCrypto;
+use libp2p::{
+    core::upgrade,
+    futures::StreamExt,
+    mplex,
+    noise::{Keypair, NoiseConfig, X25519Spec},
+    swarm::{Swarm, SwarmBuilder},
+    tcp::TokioTcpConfig,
+    Transport,
+};
 use log::{debug, error, info};
 use std::collections::HashMap;
-use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
-use std::thread;
-use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 
 pub struct Server {
