@@ -167,7 +167,7 @@ impl TransactionCommon for Transaction {
     }
 }
 
-impl Transaction {
+impl TransactionInterface for Transaction {
     /// Encrypts transaction details.
     pub fn encrypt_details(&mut self, key: &[u8]) -> Result<()> {
         let key = Aes256Gcm::new_from_slice(key)
@@ -476,4 +476,11 @@ impl Transaction {
 
         Ok(())
     }
+}
+pub trait TransactionInterface {
+    fn encrypt_details(&mut self, secure_vault: &SecureVault) -> Result<(), TransactionError>;
+    fn decrypt_details(&mut self, secure_vault: &SecureVault) -> Result<(), TransactionError>;
+    fn verify_signature(&self, secure_vault: &SecureVault) -> Result<(), TransactionError>;
+    fn sign(&mut self, secure_vault: &SecureVault) -> Result<(), TransactionError>;
+    fn apply_to_state(&self, state: &mut State) -> Result<(), TransactionError>;
 }
