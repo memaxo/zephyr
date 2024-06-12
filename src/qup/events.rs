@@ -5,6 +5,11 @@ pub enum QUPEvent {
     NewBlockProposal(QUPBlock),
     VoteCast(QUPVote),
     UsefulWorkCompleted(UsefulWorkSolution),
+    NewTransaction(Transaction),
+    BlockValidated(BlockValidationResult),
+    ConsensusStateChanged(ConsensusState),
+    PeerConnected(PeerId),
+    PeerDisconnected(PeerId),
 }
 
 pub struct EventSystem {
