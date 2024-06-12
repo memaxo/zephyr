@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
-use c_kzg::{KZGCommitmentScheme, KZGCommitment, KZGProof};
+use c_kzg::{Blob, Bytes32, Bytes48, KzgCommitment, KzgProof, KzgSettings, CkzgError, BYTES_PER_BLOB, BYTES_PER_COMMITMENT, BYTES_PER_FIELD_ELEMENT, BYTES_PER_G1_POINT, BYTES_PER_G2_POINT, BYTES_PER_PROOF, FIELD_ELEMENTS_PER_BLOB};
 use sha2::{Sha256, Digest};
 type Hasher = Sha256;
 
@@ -114,11 +114,14 @@ impl MulAssign for FieldElement {
 #[derive(Clone, Debug)]
 pub struct PolynomialCommitment {
     pub coefficients: Vec<FieldElement>,
+    pub commitment: KzgCommitment,
 }
 
 impl PolynomialCommitment {
-    pub fn new(coefficients: Vec<FieldElement>) -> Self {
-        PolynomialCommitment { coefficients }
+    pub fn new(coefficients: Vec<FieldElement>, settings: &KzgSettings) -> Result<Self, CkzgError> {
+        let blob = Blob::from(coefficients.clone());
+        let commitment = KzgCommitment::new(&blob, settings)?;
+        Ok(PolynomialCommitment { coefficients, commitment })
     }
 
     pub fn evaluate(&self, point: &FieldElement) -> FieldElement {
@@ -133,16 +136,9 @@ impl PolynomialCommitment {
         result
     }
 
-    pub fn verify(&self, point: &FieldElement, value: &FieldElement, opening: &FieldElement) -> bool {
-        let commitment = self.evaluate(point);
-        let mut hasher = Hasher::new();
-        hasher.update(&commitment);
-        hasher.update(point);
-        let challenge = hasher.finalize();
-
-        let lhs = value.pow(&challenge, &self.modulus());
-        let rhs = opening.clone();
-
-        lhs == rhs
+    pub fn verify(&self, point: &FieldElement, value: &FieldElement, proof: &KzgProof, settings: &KzgSettings) -> Result<bool, CkzgError> {
+        let commitment = self.commitment.clone();
+        let result = KzgCommitment::verify(&commitment, &point.to_bytes(), &value.to_bytes(), &proof, settings)?;
+        Ok(result)
     }
 }
