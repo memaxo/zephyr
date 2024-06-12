@@ -9,24 +9,23 @@ pub struct QUPCrypto {
     pub kyber_keypair: KeyPair<KyberPublicKey, KyberSecretKey>,
     pub mceliece_keypair: KeyPair<McEliecePublicKey, McElieceSecretKey>,
     pub ntru_keypair: KeyPair<NTRUPublicKey, NTRUSecretKey>,
-    pub fn verify(&self, data: &[u8], signature: &[u8], public_key: &impl Verify) -> bool {
-        public_key.verify(data, signature)
+    pub fn verify(&self, data: &[u8], signature: &[u8], public_key: &impl Verify) -> Result<bool, String> {
+        public_key.verify(data, signature).map_err(|e| e.to_string())
     }
 
     pub fn sign(&self, data: &[u8]) -> Vec<u8> {
         self.dilithium_keypair.secret_key.sign(data)
     }
-    }
 
-    pub fn verify_transaction_signature(&self, transaction_data: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
+    pub fn verify_transaction_signature(&self, transaction_data: &[u8], signature: &[u8], public_key: &[u8]) -> Result<bool, String> {
         self.verify(transaction_data, signature, public_key)
     }
 
-    pub fn verify_block_signature(&self, block_data: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
+    pub fn verify_block_signature(&self, block_data: &[u8], signature: &[u8], public_key: &[u8]) -> Result<bool, String> {
         self.verify(block_data, signature, public_key)
     }
 
-    pub fn verify_vote_signature(&self, vote_data: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
+    pub fn verify_vote_signature(&self, vote_data: &[u8], signature: &[u8], public_key: &[u8]) -> Result<bool, String> {
         self.verify(vote_data, signature, public_key)
     }
 }
