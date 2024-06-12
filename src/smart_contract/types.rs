@@ -43,8 +43,7 @@ pub enum Operation {
     If { condition: Expression, then_branch: Vec<Operation>, else_branch: Vec<Operation> },
     Loop { condition: Expression, body: Vec<Operation> },
     FunctionCall { name: String, args: Vec<Expression> },
-    // Add a new variant to represent unsupported operations
-    Unsupported,
+    OracleCall { url: String, key: String },
     Return { value: Expression },
     Break,
     Continue,
