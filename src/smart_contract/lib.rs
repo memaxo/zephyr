@@ -3,12 +3,14 @@ pub mod gas;
 pub mod interpreter;
 pub mod parser;
 pub mod execution_context;
+pub mod smart_contract_interface;
 
 pub use types::{SmartContract, Operation, Value, Expression, BinaryOperator, UnaryOperator, TransactionContext};
 pub use gas::{GasCost, calculate_operation_cost, calculate_expression_cost, calculate_contract_cost};
 pub use interpreter::Interpreter;
 pub use parser::Parser;
 pub use execution_context::ExecutionContext;
+pub use smart_contract_interface::SmartContractInterface;
 
 use std::collections::HashMap;
 
