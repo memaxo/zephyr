@@ -1,5 +1,48 @@
 use crate::smart_contract::types::{Value, TransactionContext};
 use std::collections::{HashMap, VecDeque};
+use std::collections::HashSet;
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub enum Role {
+    Admin,
+    User,
+}
+
+pub struct ExecutionContext {
+    pub state: HashMap<String, Value>,
+    pub transaction_stack: VecDeque<TransactionContext>,
+    pub gas_used: u64,
+    pub gas_limit: u64,
+    pub roles: HashMap<String, HashSet<Role>>,
+}
+
+impl ExecutionContext {
+    pub fn new(gas_limit: u64) -> Self {
+        ExecutionContext {
+            state: HashMap::new(),
+            transaction_stack: VecDeque::new(),
+            gas_used: 0,
+            gas_limit,
+            roles: HashMap::new(),
+        }
+        Ok(())
+    }
+
+    pub fn add_role(&mut self, user: String, role: Role) {
+        self.roles.entry(user).or_insert_with(HashSet::new).insert(role);
+    }
+
+    pub fn has_role(&self, user: &str, role: &Role) -> bool {
+        self.roles.get(user).map_or(false, |roles| roles.contains(role))
+    }
+
+    fn check_permission(&self, user: &str, required_role: Role) -> Result<(), String> {
+        if self.has_role(user, &required_role) {
+            Ok(())
+        } else {
+            Err(format!("Access denied for user: {}. Required role: {:?}", user, required_role))
+        }
+    }
 
 pub struct ExecutionContext {
     pub state: HashMap<String, Value>,
@@ -34,7 +77,8 @@ impl ExecutionContext {
         self.transaction_stack.pop_front();
     }
 
-    pub fn set_value(&mut self, key: String, value: Value) {
+    pub fn set_value(&mut self, user: &str, key: String, value: Value) -> Result<(), String> {
+        self.check_permission(user, Role::Admin)?;
         if let Some(tx) = self.transaction_stack.front_mut() {
             tx.changes.insert(key, value);
         } else {
@@ -42,13 +86,14 @@ impl ExecutionContext {
         }
     }
 
-    pub fn get_value(&self, key: &str) -> Option<&Value> {
+    pub fn get_value(&self, user: &str, key: &str) -> Result<Option<&Value>, String> {
+        self.check_permission(user, Role::User)?;
         for tx in &self.transaction_stack {
             if let Some(value) = tx.changes.get(key) {
-                return Some(value);
+                return Ok(Some(value));
             }
         }
-        self.state.get(key)
+        Ok(self.state.get(key))
     }
 
     pub fn has_value(&self, key: &str) -> bool {
@@ -60,7 +105,8 @@ impl ExecutionContext {
         self.state.contains_key(key)
     }
 
-    pub fn remove_value(&mut self, key: &str) {
+    pub fn remove_value(&mut self, user: &str, key: &str) -> Result<(), String> {
+        self.check_permission(user, Role::Admin)?;
         if let Some(tx) = self.transaction_stack.front_mut() {
             tx.changes.remove(key);
         } else {
