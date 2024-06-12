@@ -8,8 +8,8 @@ use crate::qup::validator::QUPValidator;
 use crate::secure_core::secure_vault::SecureVault;
 use log::{debug, info};
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
+use crossbeam_utils::thread;
 
 pub struct Miner {
     blockchain: Arc<Mutex<Blockchain>>,
@@ -48,25 +48,29 @@ impl Miner {
         let qup_consensus = self.qup_consensus.clone();
         let secure_vault = self.secure_vault.clone();
 
-        let mining_thread = thread::spawn(move || loop {
-            thread::sleep(Duration::from_millis(mining_interval));
+        let mining_thread = thread::scope(|s| {
+            s.spawn(move |_| {
+                loop {
+                    thread::sleep(Duration::from_millis(mining_interval));
 
-            let transactions = transaction_pool.lock().unwrap().get_transactions();
-            let block_template = self.block_producer.create_block_template(transactions);
+                    let transactions = transaction_pool.lock().unwrap().get_transactions();
+                    let block_template = self.block_producer.create_block_template(transactions);
 
-            let mined_block = self.mine_block(block_template);
+                    let mined_block = self.mine_block(block_template);
 
-            if let Some(block) = mined_block {
-                let mut qup_consensus = qup_consensus.lock().unwrap();
-                if qup_consensus.validate_block(&block) {
-                    let mut blockchain = blockchain.lock().unwrap();
-                    blockchain.add_block(block);
-                    info!("Mined and added a new block to the blockchain");
-                } else {
-                    debug!("Mined block failed validation");
+                    if let Some(block) = mined_block {
+                        let mut qup_consensus = qup_consensus.lock().unwrap();
+                        if qup_consensus.validate_block(&block) {
+                            let mut blockchain = blockchain.lock().unwrap();
+                            blockchain.add_block(block);
+                            info!("Mined and added a new block to the blockchain");
+                        } else {
+                            debug!("Mined block failed validation");
+                        }
+                    }
                 }
-            }
-        });
+            });
+        }).unwrap();
 
         self.mining_thread = Some(mining_thread);
     }
