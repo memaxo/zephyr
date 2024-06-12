@@ -4,6 +4,7 @@ use crate::network::peer::Peer;
 use crate::network::quantum_resistant::{
     QuantumResistantConnection, QuantumResistantConnectionManager,
 };
+use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use crate::quantum_voting::quantum_key_distribution::QuantumKeyDistribution;
 use crate::qup::consensus::QUPMessage;
 use crate::qup::crypto::QUPCrypto;
@@ -21,6 +22,7 @@ pub struct NetworkManager {
     message_sender: mpsc::Sender<Message>,
     crypto: QUPCrypto,
     qkd: Option<QuantumKeyDistribution>,
+    pq_tls_connection: Option<PostQuantumTLSConnection>,
 }
 
 impl NetworkManager {
@@ -34,8 +36,24 @@ impl NetworkManager {
             Some(QuantumKeyDistribution::new())
         } else {
             None
+            pq_tls_connection: None,
         };
-        let network_manager = NetworkManager {
+
+        // Configure and establish the TLS connection using rustls
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect(&network_manager.config.listen_address).await.map_err(|e| {
+            error!("Failed to connect to peer: {}", e);
+            NetworkError::ConnectionError(format!("Failed to connect to peer: {}", e))
+        })?;
+
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.map_err(|e| {
+            error!("TLS connection establishment failed: {}", e);
+            NetworkError::ConnectionError(format!("TLS connection establishment failed: {}", e))
+        })?;
+
+        network_manager.pq_tls_connection = Some(pq_tls_connection);
+        info!("TLS connection established with peer: {}", network_manager.config.listen_address);
+        let mut network_manager = NetworkManager {
             config,
             peers: Arc::new(RwLock::new(HashMap::new())),
             validator,
@@ -52,7 +70,7 @@ impl NetworkManager {
         // Initialize peers
         self.initialize_peers().await?;
 
-        // Start listening for incoming connections
+        // Start listening for incoming TLS connections
         self.listen().await?;
 
         // Connect to bootstrap nodes
@@ -92,8 +110,29 @@ impl NetworkManager {
 
         loop {
             let (stream, peer_address) = listener.accept().await?;
+            let config = PostQuantumTLSConfig::new();
+            let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.map_err(|e| {
+                error!("TLS connection establishment failed: {}", e);
+                NetworkError::ConnectionError(format!("TLS connection establishment failed: {}", e))
+            })?;
+
             let peer_id = self.generate_peer_id(&peer_address)?;
-            let connection = QuantumResistantConnection::new(stream);
+            let peer = Peer::new(peer_id.clone(), peer_address.to_string());
+
+            // Spawn a task to handle the connection
+            let peers = self.peers.clone();
+            tokio::spawn(async move {
+                if let Err(e) = self.handle_connection(pq_tls_connection, peer, peers).await {
+                    error!("Error handling connection: {}", e);
+                }
+            });
+        }
+        info!("Listening on {}", listen_address);
+
+        loop {
+            let (stream, peer_address) = listener.accept().await?;
+            let peer_id = self.generate_peer_id(&peer_address)?;
+            let connection = QuantumResistantConnection::new(true);
             let peer = Peer::new(peer_id.clone(), peer_address.to_string());
 
             // Spawn a task to handle the connection
@@ -110,7 +149,7 @@ impl NetworkManager {
         let bootstrap_nodes = self.config.bootstrap_nodes.clone();
         for node_address in bootstrap_nodes {
             let stream = tokio::net::TcpStream::connect(&node_address).await?;
-            let connection = QuantumResistantConnection::new(stream);
+            let connection = QuantumResistantConnection::new(true);
             let peer_id = self.generate_peer_id(&node_address)?;
             let peer = Peer::new(peer_id.clone(), node_address.clone());
 
