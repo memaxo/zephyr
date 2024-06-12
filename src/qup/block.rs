@@ -14,6 +14,7 @@ use crate::qup::error::Error;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use parking_lot::RwLock;
+use crossbeam_utils::thread;
 use smallvec::SmallVec;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

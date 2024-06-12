@@ -15,11 +15,12 @@ use crate::network::Network;
 use crate::qup::events::{EventSystem, QUPEvent};
 use std::time::Instant;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 use rayon::prelude::*;
 use std::sync::Arc;
+use crossbeam_utils::thread;
 
 use crate::chain::blockchain::Blockchain;
 
