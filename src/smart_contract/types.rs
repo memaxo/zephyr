@@ -14,10 +14,22 @@ pub struct SmartContract {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IBCPacketData {
+    pub sequence: u64,
+    pub timeout_height: u64,
+    pub timeout_timestamp: u64,
+    pub source_port: String,
+    pub source_channel: String,
+    pub dest_port: String,
+    pub dest_channel: String,
+    pub data: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CrossChainMessage {
     pub source_chain: String,
     pub destination_chain: String,
-    pub payload: String,
+    pub packet_data: IBCPacketData,
     pub timestamp: u64,
     pub signature: String,
 }
@@ -27,6 +39,9 @@ pub enum CrossChainOperation {
     ReceiveMessage { message: CrossChainMessage },
     QueryState { chain_id: String, key: String },
     TransferAssets { chain_id: String, amount: u64 },
+    IBCReceivePacket { packet: IBCPacketData },
+    IBCAcknowledgePacket { packet: IBCPacketData },
+    IBCTimeoutPacket { packet: IBCPacketData },
 }
 
 impl SmartContract {
