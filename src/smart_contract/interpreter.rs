@@ -270,6 +270,20 @@ impl Interpreter {
                 *gas_limit -= gas_cost;
                 Ok(None)
             },
+            CrossChainOperation::OracleRequest { request } => {
+                // Logic to request data from an oracle
+                info!("Requesting data from oracle: {:?}", request);
+                let provider = ChainlinkOracleProvider {}; // Use Chainlink provider for now
+                let request_id = provider.request_data(request)?;
+                Ok(Some(Value::Integer(request_id as i64)))
+            },
+            CrossChainOperation::OracleResponse { request_id } => {
+                // Logic to retrieve oracle response
+                info!("Retrieving oracle response for request ID: {}", request_id);
+                let provider = ChainlinkOracleProvider {}; // Use Chainlink provider for now
+                let response = provider.get_response(request_id as u64)?;
+                Ok(Some(response.result))
+            },
         }
     }
     
