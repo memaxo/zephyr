@@ -34,7 +34,9 @@ chrono = "0.4.35"
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
 regex = "1.10.3"
-libp2p = { version = "0.53.2", features = ["tcp-tokio", "dns-tokio", "websocket-tokio", "noise", "mplex", "gossipsub", "identify", "ping", "mdns"] }
+libp2p = { version = "0.52", features = ["tcp", "tls", "dns", "async-std", "noise", "yamux", "websocket", "ping", "macros"] }
+    async-std = { version = "1.12.0", features = ["attributes"] }
+    tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 config = "0.14.0"
 curve25519-dalek = "4.1.2"
 rand_core = "0.6.4"
@@ -58,3 +60,4 @@ pqcrypto-dilithium = "0.5.0"
 slog = "2.7.0"
 slog-async = "2.7.0"
 slog-term = "2.9.0"
+rustls-post-quantum = "0.1.0"
