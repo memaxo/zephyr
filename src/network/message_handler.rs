@@ -5,14 +5,14 @@ use libp2p::floodsub::{Floodsub, FloodsubEvent, Topic};
 use libp2p::gossipsub::{Gossipsub, GossipsubEvent, IdentTopic as Topic, MessageId, ValidationMode};
 use libp2p::swarm::Swarm;
 use libp2p::{identity, PeerId};
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use tokio::net::TcpStream;
 use log::{error, info};
 
 pub struct MessageHandler {
     floodsub: Floodsub,
     gossipsub: Gossipsub,
-    peers: HashSet<PeerId>,
+    peers: BTreeSet<PeerId>,
     pq_tls_connection: Option<PostQuantumTLSConnection>,
 }
 
@@ -33,7 +33,7 @@ impl MessageHandler {
             pq_tls_connection: Some(pq_tls_connection),
             floodsub,
             gossipsub,
-            peers: HashSet::new(),
+            peers: BTreeSet::new(),
         }
     }
 
