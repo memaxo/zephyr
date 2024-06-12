@@ -100,32 +100,32 @@ async fn handle_connection(
             }
         };
 
-        match protocol_message {
-            ProtocolMessage::Ping => {
+        match validate_protocol_message(&protocol_message) {
+            Ok(ProtocolMessage::Ping) => {
                 let pong_msg = ProtocolMessage::Pong;
                 let serialized_pong = pong_msg.serialize(&crypto)?;
                 pq_tls_connection
                     .send(&serialized_pong)
                     .await?;
             }
-            ProtocolMessage::Pong => {
+            Ok(ProtocolMessage::Pong) => {
                 // Received pong response, do nothing
             }
-            ProtocolMessage::QKDKeyRequest => {
+            Ok(ProtocolMessage::QKDKeyRequest) => {
                 // Handle QKD key request
                 handle_qkd_key_request(&mut pq_tls_connection, &peer_address, &crypto).await?;
             }
-            ProtocolMessage::QKDKeyResponse(key) => {
+            Ok(ProtocolMessage::QKDKeyResponse(key)) => {
                 // Handle QKD key response
                 handle_qkd_key_response(&mut pq_tls_connection, &peer_address, key, &crypto)
                     .await?;
             }
-            ProtocolMessage::QKDKeyConfirmation => {
+            Ok(ProtocolMessage::QKDKeyConfirmation) => {
                 // Handle QKD key confirmation
                 handle_qkd_key_confirmation(&mut pq_tls_connection, &peer_address, &crypto)
                     .await?;
             }
-            ProtocolMessage::QuantumStateDistribution(state) => {
+            Ok(ProtocolMessage::QuantumStateDistribution(state)) => {
                 // Handle quantum state distribution
                 handle_quantum_state_distribution(
                     &mut pq_tls_connection,
@@ -135,7 +135,7 @@ async fn handle_connection(
                 )
                 .await?;
             }
-            ProtocolMessage::QuantumStateMeasurementResults(results) => {
+            Ok(ProtocolMessage::QuantumStateMeasurementResults(results)) => {
                 // Handle quantum state measurement results
                 handle_quantum_state_measurement_results(
                     &mut pq_tls_connection,
@@ -144,6 +144,10 @@ async fn handle_connection(
                     &crypto,
                 )
                 .await?;
+            }
+            Err(e) => {
+                error!("Invalid protocol message: {}", e);
+                break;
             }
             _ => {
                 let zephyr_message = Message::from_protocol_message(protocol_message)?;

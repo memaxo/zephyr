@@ -52,39 +52,43 @@ impl Client {
                     // Deserialize and handle the received message
                     match ProtocolMessage::deserialize(&message, &self.crypto) {
                         Ok(protocol_message) => {
-                            match protocol_message {
-                                ProtocolMessage::Pong => {
+                            match validate_protocol_message(&protocol_message) {
+                                Ok(ProtocolMessage::Pong) => {
                                     // Received pong response, do nothing
                                 }
-                                ProtocolMessage::QKDKeyRequest => {
+                                Ok(ProtocolMessage::QKDKeyRequest) => {
                                     // Handle QKD key request
                                     if let Err(e) = self.handle_qkd_key_request().await {
                                         error!("Failed to handle QKD key request: {}", e);
                                     }
                                 }
-                                ProtocolMessage::QKDKeyResponse(key) => {
+                                Ok(ProtocolMessage::QKDKeyResponse(key)) => {
                                     // Handle QKD key response
                                     if let Err(e) = self.handle_qkd_key_response(key).await {
                                         error!("Failed to handle QKD key response: {}", e);
                                     }
                                 }
-                                ProtocolMessage::QKDKeyConfirmation => {
+                                Ok(ProtocolMessage::QKDKeyConfirmation) => {
                                     // Handle QKD key confirmation
                                     if let Err(e) = self.handle_qkd_key_confirmation().await {
                                         error!("Failed to handle QKD key confirmation: {}", e);
                                     }
                                 }
-                                ProtocolMessage::QuantumStateDistribution(state) => {
+                                Ok(ProtocolMessage::QuantumStateDistribution(state)) => {
                                     // Handle quantum state distribution
                                     if let Err(e) = self.handle_quantum_state_distribution(state).await {
                                         error!("Failed to handle quantum state distribution: {}", e);
                                     }
                                 }
-                                ProtocolMessage::QuantumStateMeasurementResults(results) => {
+                                Ok(ProtocolMessage::QuantumStateMeasurementResults(results)) => {
                                     // Handle quantum state measurement results
                                     if let Err(e) = self.handle_quantum_state_measurement_results(results).await {
                                         error!("Failed to handle quantum state measurement results: {}", e);
                                     }
+                                }
+                                Err(e) => {
+                                    error!("Invalid protocol message: {}", e);
+                                    break;
                                 }
                                 _ => {
                                     match Message::from_protocol_message(protocol_message) {
