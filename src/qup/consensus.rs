@@ -23,6 +23,9 @@ use std::sync::Arc;
 use crossbeam_utils::thread;
 
 use crate::chain::blockchain::Blockchain;
+use crate::zkp::prover::Prover;
+use crate::zkp::zk_starks::ZkStarksProof;
+use crate::zkp::crypto::verify_quantum_merkle_proof;
 
 pub enum ConsensusAlgorithm {
     Standard,
@@ -30,10 +33,41 @@ pub enum ConsensusAlgorithm {
     Secure,
 }
 
+impl QUPConsensus {
+    pub fn verify_zkp(&self, proof: &ZkStarksProof) -> bool {
+        // Implement ZKP verification logic
+        // This is a placeholder function and should be customized based on the specific ZKP scheme
+        proof.verify()
+    }
+
+    pub fn private_leader_election(&self) -> Result<NodeId, ConsensusError> {
+        // Implement private leader election using ZKPs
+        // This is a placeholder function and should be customized based on the specific ZKP scheme
+        let leader_id = NodeId::new();
+        Ok(leader_id)
+    }
+
+    pub fn secure_voting(&self, vote: QUPVote) -> Result<(), ConsensusError> {
+        // Implement secure voting using ZKPs
+        // This is a placeholder function and should be customized based on the specific ZKP scheme
+        self.process_vote(vote)
+    }
+
 impl ConsensusInterface for QUPConsensus {
     fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
         use crate::chain::validation::block_validator::validate_block;
-        validate_block(block, &self.qup_crypto, &self.qup_state)
+        // Validate the block using existing validation logic
+        let is_valid = validate_block(block, &self.qup_crypto, &self.qup_state)?;
+
+        // Integrate ZKP verification for PoUW results
+        if let Some(useful_work_solution) = &block.useful_work_solution {
+            let proof = ZkStarksProof::new(vec![useful_work_solution.clone()]);
+            if !self.verify_zkp(&proof) {
+                return Err(ConsensusError::InvalidProof);
+            }
+        }
+
+        Ok(is_valid)
     }
 
     fn process_transaction(&mut self, transaction: Transaction) -> Result<(), ConsensusError> {
