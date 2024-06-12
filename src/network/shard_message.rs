@@ -48,6 +48,7 @@ pub enum ShardMessage {
         block_hash: String,
         shard_id: u64,
     },
+    pq_tls_connection: Option<PostQuantumTLSConnection>,
 }
 
 impl ShardMessage {
@@ -81,6 +82,13 @@ impl ShardMessageHandler {
             message_sender: None,
             crypto,
         }
+
+        // Configure and establish the TLS connection using rustls
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect("localhost:12345").await.expect("Failed to connect to server");
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.expect("Failed to establish TLS connection");
+
+        handler.pq_tls_connection = Some(pq_tls_connection);
     }
 
     pub async fn set_message_sender(&mut self, sender: Sender<(u64, ShardMessage)>) {
@@ -94,15 +102,18 @@ impl ShardMessageHandler {
     ) -> Result<(), NetworkError> {
         if let Some(sender) = &self.message_sender {
             let serialized_message = message.serialize(&self.crypto)?;
-            sender
-                .send((shard_id, serialized_message))
-                .await
-                .map_err(|e| {
+            if let Some(pq_tls_connection) = &self.pq_tls_connection {
+                pq_tls_connection.send(&serialized_message).await.map_err(|e| {
                     NetworkError::MessageSendingFailed(format!(
-                        "Failed to send shard message: {}",
+                        "Failed to send shard message over TLS: {}",
                         e
                     ))
                 })?;
+            } else {
+                return Err(NetworkError::MessageSendingFailed(
+                    "TLS connection not established".to_string(),
+                ));
+            }
             Ok(())
         } else {
             Err(NetworkError::MessageSendingFailed(
@@ -135,6 +146,8 @@ impl ShardMessageHandler {
     }
 
     pub async fn handle_message(&mut self, shard_id: u64, serialized_message: Vec<u8>) {
+        if let Some(pq_tls_connection) = &self.pq_tls_connection {
+            let serialized_message = pq_tls_connection.receive().await.expect("Failed to receive message over TLS");
             let message = match ShardMessage::deserialize(&serialized_message, &self.crypto) {
                 Ok(msg) => msg,
                 Err(e) => {
