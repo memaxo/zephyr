@@ -18,7 +18,36 @@ pub struct FriQueryRoundProof {
     pub polynomial_values: Vec<FieldElement>,
 }
 
-pub struct ZkStarksVerifier {
+pub struct AggregatedFriProof {
+    pub aggregated_commitments: Vec<PolynomialCommitment>,
+    pub aggregated_evaluations: Vec<FieldElement>,
+    pub aggregated_fri_proof: FriProof,
+}
+
+impl AggregatedFriProof {
+    pub fn new(proofs: Vec<ZkStarksProof>) -> Self {
+        let mut aggregated_commitments = Vec::new();
+        let mut aggregated_evaluations = Vec::new();
+        let mut aggregated_fri_proof = FriProof {
+            commit_phase_merkle_roots: Vec::new(),
+            query_round_proofs: Vec::new(),
+            final_poly_merkle_root: FieldElement::zero(&BigUint::from(1u32) << 256),
+        };
+
+        for proof in proofs {
+            aggregated_commitments.extend(proof.commitments);
+            aggregated_evaluations.extend(proof.evaluations);
+            aggregated_fri_proof.commit_phase_merkle_roots.extend(proof.fri_proof.commit_phase_merkle_roots);
+            aggregated_fri_proof.query_round_proofs.extend(proof.fri_proof.query_round_proofs);
+        }
+
+        AggregatedFriProof {
+            aggregated_commitments,
+            aggregated_evaluations,
+            aggregated_fri_proof,
+        }
+    }
+}
     pub security_level: usize,
     pub num_queries: usize,
     pub field_size: FieldElement,
