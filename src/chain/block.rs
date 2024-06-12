@@ -1,4 +1,5 @@
 use crate::chain::blockchain::Blockchain;
+use crate::qup::traits::QuantumComputationProvider;
 use crate::chain::transaction::Transaction;
 use crate::chain::common::{BlockCommon, BlockFields};
 use crate::parallel::parallel_map::parallel_map;

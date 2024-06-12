@@ -57,7 +57,7 @@ impl QUPConsensus {
         classical_node: Arc<ClassicalNode>,
         quantum_node: Arc<QuantumNode>,
         transaction_storage: Arc<TransactionStorage>,
-        network: Arc<Network>,
+        network: Arc<Network<dyn QuantumComputationProvider>>,
         qup_crypto: Arc<QUPCrypto>,
     ) -> Self {
         QUPConsensus {
