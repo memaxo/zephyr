@@ -2,7 +2,7 @@ use pqcrypto_kyber::kyber512::*;
 use pqcrypto_traits::kem::{Ciphertext, PublicKey, SecretKey};
 use log::{debug, error, info, trace};
 use rand::{rngs::OsRng, RngCore};
-use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey, VerifyOnly};
+use pqcrypto_dilithium::dilithium2::{self, PublicKey, SecretKey, sign, verify};
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
@@ -59,20 +59,18 @@ impl TransactionCommon for Transaction {
     }
 
     fn verify_signature(&self, public_key: &PublicKey, qup_crypto: &QUPCrypto) -> Result<()> {
-        let transaction_data = bincode::serialize(&self).context("Failed to serialize transaction")?;
-        if crate::qup::crypto::verify_signature(&transaction_data, &self.common.signature, public_key) {
+        let message = self.calculate_hash();
+        if verify(&message, &self.common.signature, public_key).is_ok() {
             Ok(())
         } else {
             anyhow::bail!("Failed to verify transaction signature")
         }
     }
 
-    fn sign(&mut self, private_key: &SecretKey) -> Result<()> {
-        let secp = Secp256k1::signing_only();
-        let message = Message::from_slice(&self.calculate_hash())
-            .context("Failed to create message from hash")?;
-        let (sig, _) = secp.sign_ecdsa(&message, private_key);
-        self.common.signature = sig.serialize_compact().to_vec();
+    fn sign(&mut self, secret_key: &SecretKey) -> Result<()> {
+        let message = self.calculate_hash();
+        let signature = sign(&message, secret_key);
+        self.common.signature = signature.to_vec();
         Ok(())
     }
 

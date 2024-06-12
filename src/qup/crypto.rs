@@ -1,4 +1,4 @@
-use crate::crypto::post_quantum::dilithium::{DilithiumPublicKey, DilithiumSecretKey};
+use pqcrypto_dilithium::dilithium2::{PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, sign, verify};
 use crate::crypto::post_quantum::kyber::{KyberPublicKey, KyberSecretKey};
 use crate::crypto::post_quantum::mceliece::{McEliecePublicKey, McElieceSecretKey};
 use crate::crypto::post_quantum::ntru::{NTRUPublicKey, NTRUSecretKey};
@@ -13,8 +13,8 @@ pub struct QUPCrypto {
         public_key.verify(data, signature).map_err(|e| e.to_string())
     }
 
-    pub fn sign(&self, data: &[u8]) -> Vec<u8> {
-        self.dilithium_keypair.secret_key.sign(data)
+    pub fn sign(&self, data: &[u8], secret_key: &DilithiumSecretKey) -> Vec<u8> {
+        sign(data, secret_key).to_vec()
     }
 
     pub fn verify_transaction_signature(&self, transaction_data: &[u8], signature: &[u8], public_key: &[u8]) -> Result<bool, String> {
@@ -49,8 +49,8 @@ impl QUPCrypto {
     }
 
     pub fn sign<S: Sign>(&self, data: &[u8], secret_key: &S) -> Vec<u8> {
-pub fn verify_signature<P: Verify>(data: &[u8], signature: &[u8], public_key: &P) -> bool {
-    public_key.verify(data, signature)
+pub fn verify_signature(data: &[u8], signature: &[u8], public_key: &DilithiumPublicKey) -> bool {
+    verify(data, signature, public_key).is_ok()
 }
     // Implement quantum-resistant decryption here
     Ok(data.to_vec()) // Placeholder
