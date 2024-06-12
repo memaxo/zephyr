@@ -14,10 +14,13 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use log::{info, error};
+use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
+use tokio::net::TcpStream;
 
 pub struct ConnectionManager {
     swarm: Swarm<NoiseConfig<YamuxConfig>>,
     known_peers: Arc<RwLock<HashSet<PeerId>>>,
+    pq_tls_connections: Arc<RwLock<HashMap<PeerId, PostQuantumTLSConnection>>>,
 }
 
 impl ConnectionManager {
@@ -42,6 +45,13 @@ impl ConnectionManager {
             swarm,
             known_peers: Arc::new(RwLock::new(HashSet::new())),
         }
+
+        let pq_tls_connections = Arc::new(RwLock::new(HashMap::new()));
+
+        ConnectionManager {
+            swarm,
+            known_peers: Arc::new(RwLock::new(HashSet::new())),
+            pq_tls_connections,
     }
 
     pub async fn start(&mut self) {
@@ -60,15 +70,37 @@ impl ConnectionManager {
         }
     }
 
-    pub async fn connect(&mut self, addr: Multiaddr) {
-        match self.swarm.dial(addr.clone()) {
-            Ok(_) => info!("Dialed {:?}", addr),
-            Err(e) => error!("Failed to dial {:?}: {:?}", addr, e),
-        }
+    pub async fn connect(&mut self, addr: Multiaddr) -> Result<(), NetworkError> {
+        let stream = TcpStream::connect(&addr).await.map_err(|e| {
+            error!("Failed to connect to {:?}: {}", addr, e);
+            NetworkError::ConnectionError(format!("Failed to connect to {:?}: {}", addr, e))
+        })?;
+
+        let config = PostQuantumTLSConfig::new();
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.map_err(|e| {
+            error!("TLS connection establishment failed: {}", e);
+            NetworkError::ConnectionError(format!("TLS connection establishment failed: {}", e))
+        })?;
+
+        let peer_id = self.generate_peer_id(&addr)?;
+        self.pq_tls_connections.write().await.insert(peer_id, pq_tls_connection);
+        info!("TLS connection established with {:?}", addr);
+
+        Ok(())
     }
 
-    pub async fn disconnect(&mut self, peer_id: PeerId) {
-        self.swarm.disconnect_peer_id(peer_id).expect("Failed to disconnect peer");
+    pub async fn disconnect(&mut self, peer_id: PeerId) -> Result<(), NetworkError> {
+        if let Some(mut pq_tls_connection) = self.pq_tls_connections.write().await.remove(&peer_id) {
+            pq_tls_connection.close().await.map_err(|e| {
+                error!("Failed to close TLS connection: {}", e);
+                NetworkError::ConnectionError(format!("Failed to close TLS connection: {}", e))
+            })?;
+            info!("TLS connection closed with peer {:?}", peer_id);
+        } else {
+            error!("No TLS connection found for peer {:?}", peer_id);
+            return Err(NetworkError::ConnectionError(format!("No TLS connection found for peer {:?}", peer_id)));
+        }
+        Ok(())
     }
 
     pub async fn add_known_peer(&self, peer_id: PeerId) {
