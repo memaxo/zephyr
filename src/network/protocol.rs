@@ -33,6 +33,11 @@ pub enum ProtocolMessage {
         credit: usize 
     },
     FlowControlAck,
+
+    // New message type for batched messages
+    Batch {
+        messages: Vec<ProtocolMessage>,
+    },
     // Existing message types...
 
     // New flow control message types
@@ -281,6 +286,17 @@ impl ProtocolMessage {
                     let mut tls_encrypted_message = root.init_tls_encrypted_message();
                     tls_encrypted_message.set_data(data);
                 }
+                ProtocolMessage::Batch { messages } => {
+                    let mut batch = root.init_batch();
+                    let mut message_list = batch.init_messages(messages.len() as u32);
+                    for (i, message) in messages.iter().enumerate() {
+                        let mut msg = message_list.borrow().get(i as u32);
+                        match message {
+                            // Serialize each message in the batch
+                            // ...
+                        }
+                    }
+                }
             }
         }
         let serialized_data = rmps::to_vec_named(self)
@@ -394,6 +410,8 @@ pub enum ProtocolError {
     QKDFailed(String),
     #[error("Quantum state distribution failed: {0}")]
     QuantumStateDistributionFailed(String),
+    #[error("Batch processing failed: {0}")]
+    BatchProcessingFailed(String),
 }
 
 // Cap'n Proto schema definition
@@ -403,6 +421,13 @@ mod protocol_message {
         pub ping: (),
         pub pong: (),
         // Fields for other message types
+        pub batch: Batch,
+    }
+
+    #[derive(capnp::Serialize, capnp::Deserialize)]
+    pub struct Batch {
+        pub messages: List<ProtocolMessage>,
+    }
         ProtocolMessage::TLSHandshake { version, peer_id } => {
             let mut tls_handshake = root.init_tls_handshake();
             tls_handshake.set_version(*version);
