@@ -116,8 +116,8 @@ impl QUPConsensus {
             communication_protocol: Box::new(CommunicationProtocol::new(node_type)),
 fn adapt_consensus_algorithm(&mut self) {
     // Assess the current network load and security threats
-    let network_load = self.state.get_network_load();
-    let security_threats = self.assess_security_threats();
+    let network_load = self.state.get_network_load()?;
+    let security_threats = self.assess_security_threats()?;
 
     // Determine the appropriate consensus algorithm based on the assessment
     let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
@@ -156,8 +156,8 @@ fn adapt_consensus_algorithm(&mut self) {
         // Assess the current needs of the network
         // This can be customized based on the specific requirements and metrics
         // For example, consider factors like transaction throughput, storage capacity, etc.
-        let transaction_throughput = self.state.get_transaction_throughput();
-        let storage_capacity = self.state.get_storage_capacity();
+        let transaction_throughput = self.state.get_transaction_throughput()?;
+        let storage_capacity = self.state.get_storage_capacity()?;
 
         NetworkNeeds {
             transaction_throughput,
@@ -170,8 +170,8 @@ fn adapt_consensus_algorithm(&mut self) {
         // Assess the current threats to the network
         // This can be customized based on the specific types of threats and attack vectors
         // For example, consider factors like network attacks, spam transactions, etc.
-        let network_attack_rate = self.state.get_network_attack_rate();
-        let spam_transaction_rate = self.state.get_spam_transaction_rate();
+        let network_attack_rate = self.state.get_network_attack_rate()?;
+        let spam_transaction_rate = self.state.get_spam_transaction_rate()?;
 
         NetworkThreats {
             network_attack_rate,
@@ -187,6 +187,10 @@ fn adapt_consensus_algorithm(&mut self) {
         if needs.transaction_throughput > self.config.throughput_threshold && threats.network_attack_rate > self.config.attack_threshold {
             UsefulWorkType::Enhanced
         } else if needs.storage_capacity < self.config.storage_threshold {
+            UsefulWorkType::StorageOptimized
+        } else {
+            UsefulWorkType::Standard
+        }
             UsefulWorkType::StorageOptimized
         } else {
             UsefulWorkType::Standard
@@ -245,7 +249,7 @@ fn adapt_consensus_algorithm(&mut self) {
 
     pub fn synchronize_results(&self) {
         // Collect results from all nodes
-        let results = self.collect_results_from_nodes();
+        let results = self.collect_results_from_nodes()?;
 
         // Validate and integrate results
         for (problem, solution) in results {
@@ -294,10 +298,10 @@ fn adapt_consensus_algorithm(&mut self) {
 
     pub fn receive_task_from_classical_node(&self, task: &str) {
         // Parse the task into a transaction
-        let transaction: Transaction = serde_json::from_str(task).expect("Failed to parse task");
+        let transaction: Transaction = serde_json::from_str(task).map_err(|_| ConsensusError::InvalidTransaction)?;
 
         // Allocate and execute the task
-        self.allocate_and_execute_task(transaction).expect("Failed to allocate and execute task");
+        self.allocate_and_execute_task(transaction)?;
     }
 
     pub fn perform_useful_work_on_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
@@ -555,6 +559,20 @@ fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSo
     // This can be customized based on the specific requirements of the useful work problem
     match problem {
         UsefulWorkProblem::Knapsack(knapsack_problem) => {
+            // Implement a simple greedy algorithm to solve the knapsack problem
+            let mut total_weight = 0;
+            let selected_items: Vec<bool> = knapsack_problem.weights.par_iter().enumerate().map(|(i, &weight)| {
+                if total_weight + weight <= knapsack_problem.capacity {
+                    total_weight += weight;
+                    true
+                } else {
+                    false
+                }
+            }).collect();
+
+            UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
+        }
+        UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
             // Implement a simple greedy algorithm to solve the knapsack problem
             let mut total_weight = 0;
             let selected_items: Vec<bool> = knapsack_problem.weights.par_iter().enumerate().map(|(i, &weight)| {
