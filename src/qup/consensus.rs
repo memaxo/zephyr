@@ -673,8 +673,6 @@ fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), Consensus
     }
 
     Ok(())
-
-    Ok(())
 }
 
 fn process_propose_common(&self, block: &QUPBlock) -> Result<(), ConsensusError> {
@@ -691,8 +689,6 @@ fn process_propose_common(&self, block: &QUPBlock) -> Result<(), ConsensusError>
     if similarity < self.config.similarity_threshold {
         return Err(ConsensusError::InsufficientSimilarity);
     }
-
-    Ok(())
 
     Ok(())
 }
