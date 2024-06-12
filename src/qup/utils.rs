@@ -6,17 +6,6 @@ use crate::qup::types::{
 };
 use rand::Rng;
 
-pub fn calculate_block_hash(block_header: &QUPBlockHeader) -> Hash {
-    let data = [
-        &block_header.version.to_le_bytes(),
-        &block_header.prev_block_hash,
-        &block_header.merkle_root,
-        &block_header.timestamp.to_le_bytes(),
-        &block_header.difficulty.to_le_bytes(),
-        &block_header.nonce.to_le_bytes(),
-    ].concat();
-    calculate_hash(&data)
-}
 
 pub fn is_valid_vertex_cover(graph: &Vec<Vec<usize>>, vertex_cover: &Vec<usize>) -> bool {
     let mut covered_edges = vec![vec![false; graph.len()]; graph.len()];
@@ -39,17 +28,9 @@ pub fn is_valid_vertex_cover(graph: &Vec<Vec<usize>>, vertex_cover: &Vec<usize>)
     true
 }
 
-pub fn calculate_transaction_hash(transaction: &QUPTransaction) -> Hash {
-    let mut hasher = Hasher::new();
-    hasher.update(&transaction.from);
-    hasher.update(&transaction.to);
-    hasher.update(&transaction.amount.to_le_bytes());
-    hasher.update(&transaction.signature);
-    hasher.finalize()
-}
 
 pub fn verify_transaction_signature(transaction: &QUPTransaction) -> bool {
-    let message = calculate_transaction_hash(transaction);
+    let message = calculate_hash(&transaction.to_bytes());
     let public_key = get_public_key_from_address(&transaction.from);
     let qup_crypto = QUPCrypto::new();
     qup_crypto.verify_transaction_signature(&message, &transaction.signature, &public_key)
