@@ -1,4 +1,5 @@
 use crate::chain::common::TransactionCommon;
+use crate::utils::hashing::calculate_hash;
 
 impl TransactionCommon for QUPTransaction {
     fn encrypt_details(&mut self, key: &[u8]) -> Result<()> {
@@ -33,7 +34,7 @@ impl TransactionCommon for QUPTransaction {
 
     fn sign(&mut self, private_key: &SecretKey) -> Result<()> {
         let secp = Secp256k1::signing_only();
-        let message = Message::from_slice(&self.calculate_hash())
+        let message = Message::from_slice(&calculate_hash(&self.to_bytes()))
             .context("Failed to create message from hash")?;
         let (sig, _) = secp.sign_ecdsa(&message, private_key);
         self.common.signature = sig.serialize_compact().to_vec();
