@@ -155,45 +155,21 @@ impl Block {
     }
 
     pub fn verify_transactions(&self, secure_vault: &SecureVault) -> Result<(), BlockError> {
-        use rayon::ThreadPoolBuilder;
-        use std::sync::Mutex;
+        self.transactions.par_iter().try_for_each(|tx| {
+            tx.verify_signature(secure_vault).map_err(|e| {
+                BlockError::InvalidTransactions(format!(
+                    "Transaction signature verification failed: {}",
+                    e
+                ))
+            })
+        })?;
 
-        let tx_hashes = Arc::new(Mutex::new(HashSet::new()));
-        let num_threads = std::cmp::min(self.transactions.len(), num_cpus::get());
-        let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
-
-        let verification_results: Vec<_> = pool.install(|| {
-            self.transactions
-                .par_iter()
-                .map(|tx| {
-                    let tx_hash = tx.calculate_hash();
-                    let mut tx_hashes = tx_hashes.lock().unwrap();
-                    if tx_hashes.contains(&tx_hash) {
-                        Err(BlockError::DuplicateTransaction(tx.clone()))
-                    } else {
-                        tx_hashes.insert(tx_hash);
-                        drop(tx_hashes); // Release the lock before verifying the signature
-                        tx.verify_signature(secure_vault).map_err(|e| {
-                            BlockError::InvalidTransactions(format!(
-                                "Transaction signature verification failed: {}",
-                                e
-                            ))
-                        })
-                    }
-                })
-                .collect()
-        });
-
-        if verification_results.iter().any(|r| r.is_err()) {
-            let errors: Vec<String> = verification_results
-                .into_iter()
-                .filter_map(|r| r.err())
-                .map(|e| format!("{}", e))
-                .collect();
-            Err(BlockError::InvalidTransactions(errors.join("; ")))
-        } else {
-            Ok(())
+        let tx_hashes: HashSet<_> = self.transactions.par_iter().map(|tx| tx.calculate_hash()).collect();
+        if tx_hashes.len() != self.transactions.len() {
+            return Err(BlockError::DuplicateTransaction);
         }
+
+        Ok(())
     }
 
     pub fn sign(&mut self, qup_crypto: &QUPCrypto) -> Result<(), BlockError> {
