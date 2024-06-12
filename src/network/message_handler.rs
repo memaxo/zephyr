@@ -1,4 +1,5 @@
-use crate::network::p2p::message::Message;
+use crate::network::message::Message;
+use prost::Message as _;
 use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use libp2p::floodsub::{Floodsub, FloodsubEvent, Topic};
 use libp2p::gossipsub::{Gossipsub, GossipsubEvent, IdentTopic as Topic, MessageId, ValidationMode};
@@ -57,8 +58,9 @@ impl MessageHandler {
     pub fn publish(&mut self, topic: &str, message: Message) {
         let topic = Topic::new(topic);
         if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
-            let data = message.serialize().unwrap();
-            pq_tls_connection.send(&data).await.expect("Failed to send message over TLS");
+            let mut buf = Vec::with_capacity(message.encoded_len());
+            message.encode(&mut buf).expect("Failed to encode message");
+            pq_tls_connection.send(&buf).await.expect("Failed to send message over TLS");
         } else {
             error!("TLS connection not established");
         }
@@ -70,8 +72,13 @@ impl MessageHandler {
                 Some(FloodsubEvent::Message(message)) => {
                     if let Some(pq_tls_connection) = &mut self.pq_tls_connection {
                         let data = pq_tls_connection.receive().await.expect("Failed to receive message over TLS");
-                        if let Ok(msg) = Message::deserialize(&data) {
-                            // Handle the message
+                        match Message::decode(&data[..]) {
+                            Ok(msg) => {
+                                // Handle the message
+                            },
+                            Err(e) => {
+                                error!("Failed to decode message: {}", e);
+                            }
                         }
                     } else {
                         error!("TLS connection not established");
@@ -82,8 +89,13 @@ impl MessageHandler {
                     message_id: _,
                     message,
                 }) => {
-                    if let Ok(msg) = Message::deserialize(&message.data) {
-                        // Handle the message
+                    match Message::decode(&message.data[..]) {
+                        Ok(msg) => {
+                            // Handle the message  
+                        },
+                        Err(e) => {
+                            error!("Failed to decode gossipsub message: {}", e);
+                        }
                     }
                 }
                 _ => {}

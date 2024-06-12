@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package network;
+
+message Message {
+  string topic = 1;
+  bytes payload = 2;
+}
