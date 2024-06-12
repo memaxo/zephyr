@@ -4,8 +4,6 @@ impl<P, S> KeyPair<P, S> {
     }
 }
 
-pub fn verify_signature<P: Verify>(public_key: &P, signature: &[u8], data: &[u8]) -> bool {
-    public_key.verify(data, signature)
 }
 
 pub trait Encrypt {

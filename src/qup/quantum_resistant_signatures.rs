@@ -37,10 +37,6 @@ impl QuantumResistantSignature {
         signature: &QUPSignature,
         public_key: &QUPPublicKey,
     ) -> bool {
-        let xmss_public_key = xmss::PublicKey::from_bytes(&public_key.to_bytes())
-            .expect("Failed to parse XMSS public key");
-        let xmss_signature = XmssSignature::from_bytes(&signature.to_bytes())
-            .expect("Failed to parse XMSS signature");
-        xmss_public_key.verify(message, &xmss_signature).is_ok()
+        crate::qup::crypto::verify_signature(message, &signature.to_bytes(), &public_key)
     }
 }

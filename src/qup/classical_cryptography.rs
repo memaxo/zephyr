@@ -16,7 +16,7 @@ impl QuantumCryptography for ClassicalCryptographyImpl {
     }
 
     fn verify_vote_signature(&self, vote: &Vote, signature: &QuantumDigitalSignature, quantum_key: &QuantumKey) -> Result<bool, VotingError> {
-        // Classical signature verification logic
+        crate::qup::crypto::verify_signature(vote, signature, quantum_key)
     }
 
     fn hash_vote(&self, vote: &Vote) -> Result<QuantumHash, VotingError> {

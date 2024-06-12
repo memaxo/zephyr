@@ -37,7 +37,7 @@ pub fn verify_block_signature(
 ) -> bool {
     let message = calculate_block_hash(block_header);
     let qup_crypto = QUPCrypto::new();
-    qup_crypto.verify_block_signature(&message, signature, public_key)
+    crate::qup::crypto::verify_signature(&message, signature, public_key)
 }
 
 pub fn verify_vote_signature(vote: &QUPVote) -> bool {

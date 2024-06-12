@@ -27,9 +27,11 @@ impl TransactionCommon for QUPTransaction {
     }
 
     fn verify_signature(&self, public_key: &PublicKey, qup_crypto: &QUPCrypto) -> Result<()> {
-        qup_crypto
-            .verify_signature(public_key, &self.common.signature, &self.calculate_hash())
-            .context("Failed to verify transaction signature")
+        if crate::qup::crypto::verify_signature(&self.calculate_hash(), &self.common.signature, public_key) {
+            Ok(())
+        } else {
+            anyhow::bail!("Failed to verify transaction signature")
+        }
     }
 
     fn sign(&mut self, private_key: &SecretKey) -> Result<()> {

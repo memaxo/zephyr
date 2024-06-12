@@ -50,9 +50,9 @@ pub fn validate_transaction(
     }
 
     // Verify the transaction's post-quantum signature
-    qup_crypto
-        .verify_transaction_signature(transaction)
-        .map_err(ValidationError::TransactionValidationError)?;
+    if !crate::qup::crypto::verify_signature(&transaction.calculate_hash(), &transaction.signature, &transaction.public_key) {
+        return Err(ValidationError::TransactionValidationError("Failed to verify transaction signature".to_string()));
+    }
 
     // Verify the zero-knowledge proof
     let proof_inputs = [

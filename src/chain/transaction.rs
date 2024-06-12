@@ -70,7 +70,7 @@ impl TransactionCommon for Transaction {
 
     fn verify_signature(&self, public_key: &PublicKey, qup_crypto: &QUPCrypto) -> Result<()> {
         let transaction_data = bincode::serialize(&self).context("Failed to serialize transaction")?;
-        if qup_crypto.verify_transaction_signature(&transaction_data, &self.common.signature, &public_key.serialize()) {
+        if crate::qup::crypto::verify_signature(&transaction_data, &self.common.signature, public_key) {
             Ok(())
         } else {
             anyhow::bail!("Failed to verify transaction signature")

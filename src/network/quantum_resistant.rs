@@ -230,7 +230,7 @@ impl QuantumResistantConnection {
         })?;
 
         // Verify the signature
-        self.verify_signature(&encrypted_message, &signature)?;
+        crate::qup::crypto::verify_signature(&encrypted_message, &signature, &self.keypair.public_key)?;
 
         // Decrypt the message using the shared secret key
         let encoded_message = self.decrypt_message(&encrypted_message)?;

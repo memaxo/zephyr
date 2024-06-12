@@ -1,6 +1,7 @@
 use crate::chain::transaction::Transaction;
 use crate::qup::config::QUPConfig;
-use crate::qup::crypto::{hash, QUPSignature, Hash};
+use crate::qup::crypto::{QUPSignature, Hash};
+use crate::utils::hashing::calculate_hash;
 use crate::chain::common::{BlockCommon, BlockFields};
 use crate::storage::block_storage::BlockStorage;
 use crate::qup::state::QUPState;
@@ -26,28 +27,6 @@ pub struct QUPBlock {
 }
 
 impl BlockCommon for QUPBlock {
-    fn calculate_hash(&self) -> String {
-        let mut hasher = hash::Hasher::new();
-        hasher.update(&self.common.timestamp.to_le_bytes());
-        for tx in &self.common.transactions {
-            hasher.update(&tx.hash());
-        }
-        hasher.update(&self.prev_block_hash);
-
-        if let Some(problem) = &self.common.useful_work {
-            hasher.update(&bincode::serialize(problem).unwrap());
-        }
-
-        if let Some(solution) = &self.useful_work_solution {
-            hasher.update(&bincode::serialize(solution).unwrap());
-        }
-
-        for proof in &self.history_proof {
-            hasher.update(proof);
-        }
-
-        hasher.finalize()
-    }
 
     fn verify_signature(&self, qup_crypto: &QUPCrypto, qup_state: &QUPState) -> Result<(), BlockError> {
         if let Some(signature) = &self.common.validator_signature {
@@ -155,7 +134,7 @@ impl BlockCommon for QUPBlock {
     }
 
     pub fn sign(&mut self, validator: &QUPValidator) {
-        let block_hash = self.hash();
+        let block_hash = calculate_hash(&self.to_bytes());
         self.validator_signature = validator.sign(&block_hash);
     }
 

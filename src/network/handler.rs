@@ -75,7 +75,7 @@ impl Handler for HandlerImpl {
     fn handle_block(&self, peer: &Peer, block: Block) {
         // Verify the block signature
         let block_data = bincode::serialize(&block).unwrap();
-        if !self.qup_crypto.verify_block_signature(&block_data, &signature, &self.state.get_validator_public_key(&block.proposer).unwrap()) {
+        if !crate::qup::crypto::verify_signature(&block_data, &signature, &self.state.get_validator_public_key(&block.proposer).unwrap()) {
             error!("Invalid block signature from peer: {}", peer.id);
             return;
         }
