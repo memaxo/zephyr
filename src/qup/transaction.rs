@@ -1,5 +1,7 @@
 use crate::chain::common::TransactionCommon;
 use crate::utils::hashing::calculate_hash;
+use crossbeam_utils::thread;
+use parking_lot::RwLock;
 
 impl TransactionCommon for QUPTransaction {
     fn encrypt_details(&mut self, key: &[u8]) -> Result<()> {
@@ -64,7 +66,7 @@ impl TransactionCommon for QUPTransaction {
     }
 
     fn apply_to_state(&self, state: &mut Arc<RwLock<State>>) -> Result<()> {
-        let mut state_lock = state.write().unwrap();
+        let mut state_lock = state.write();
 
         // Validate the transaction
         self.validate(&state_lock)?;
@@ -92,46 +94,52 @@ impl TransactionCommon for QUPTransaction {
     }
 
     fn validate(&self, state: &State) -> Result<()> {
-        // Check if the sender account exists
-        if !state.account_exists(&self.common.sender) {
-            anyhow::bail!(format!("Sender account not found: {}", self.common.sender));
-        }
+        thread::scope(|s| {
+            let sender_exists = s.spawn(|_| state.account_exists(&self.common.sender));
+            let amount_positive = s.spawn(|_| self.common.amount > 0.0);
+            let sender_account = s.spawn(|_| {
+                state
+                    .get_account(&self.common.sender)
+                    .context(format!("Sender account not found: {}", self.common.sender))
+            });
+            let nonce_valid = s.spawn(|_| {
+                let account = sender_account.join().unwrap()?;
+                Ok(account.nonce == self.common.nonce)
+            });
+            let signature_valid = s.spawn(|_| self.verify_signature(&self.sender_public_key()?));
+            let post_quantum_signature_valid =
+                s.spawn(|_| self.verify_post_quantum_signature(&self.sender_post_quantum_public_key()?));
+            let proof_valid = s.spawn(|_| {
+                let proof_data = [
+                    self.common.sender.as_bytes(),
+                    self.common.receiver.as_bytes(),
+                    &self.common.amount.to_be_bytes(),
+                    self.sp_key.expose_secret(),
+                ]
+                .concat();
+                verify_proof(&self.common.proof.proof_hash, &proof_data)
+                    .context("Failed to verify zero-knowledge proof")
+            });
 
-        // Check if the transaction amount is positive
-        if self.common.amount <= 0.0 {
-            anyhow::bail!("Transaction amount must be positive");
-        }
+            if !sender_exists.join().unwrap() {
+                anyhow::bail!(format!("Sender account not found: {}", self.common.sender));
+            }
+            if !amount_positive.join().unwrap() {
+                anyhow::bail!("Transaction amount must be positive");
+            }
+            let sender_account = sender_account.join().unwrap()?;
+            if sender_account.balance < self.common.amount {
+                anyhow::bail!(format!("Insufficient balance for sender: {}", self.common.sender));
+            }
+            if !nonce_valid.join().unwrap()? {
+                anyhow::bail!(format!("Invalid nonce for sender: {}", self.common.sender));
+            }
+            signature_valid.join().unwrap()?;
+            post_quantum_signature_valid.join().unwrap()?;
+            proof_valid.join().unwrap()?;
 
-        // Check if the sender has sufficient balance
-        let sender_account = state
-            .get_account(&self.common.sender)
-            .context(format!("Sender account not found: {}", self.common.sender))?;
-        if sender_account.balance < self.common.amount {
-            anyhow::bail!(format!("Insufficient balance for sender: {}", self.common.sender));
-        }
-
-        // Check if the nonce is valid
-        if sender_account.nonce != self.common.nonce {
-            anyhow::bail!(format!("Invalid nonce for sender: {}", self.common.sender));
-        }
-
-        // Verify the transaction signature
-        self.verify_signature(&self.sender_public_key()?)?;
-
-        // Verify the post-quantum signature
-        self.verify_post_quantum_signature(&self.sender_post_quantum_public_key()?)?;
-
-        // Verify the zero-knowledge proof
-        let proof_data = [
-            self.common.sender.as_bytes(),
-            self.common.receiver.as_bytes(),
-            &self.common.amount.to_be_bytes(),
-            self.sp_key.expose_secret(),
-        ]
-        .concat();
-        verify_proof(&self.common.proof.proof_hash, &proof_data)
-            .context("Failed to verify zero-knowledge proof")?;
-
-        Ok(())
+            Ok(())
+        })
+        .unwrap()
     }
 }
