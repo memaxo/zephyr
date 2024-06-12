@@ -13,6 +13,7 @@ use crate::qup::types::{UsefulWorkProblem, UsefulWorkSolution};
 use crate::qup::error::Error;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use parking_lot::RwLock;
 use smallvec::SmallVec;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

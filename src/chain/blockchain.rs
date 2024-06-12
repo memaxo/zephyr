@@ -3,7 +3,8 @@ use log::{debug, error, info, trace, warn};
 use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::collections::{HashSet, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::{Mutex, RwLock};
 use thiserror::Error;
 use tokio::fs;
 
@@ -50,8 +51,8 @@ pub struct Blockchain {
     chain: Arc<RwLock<Vec<Arc<Block>>>>,
     storage: Arc<BlockchainStorage>,
     secure_storage: Arc<SecureStorage>,
-    state: Arc<RwLock<ChainState>>,
-    state_mutex: Arc<Mutex<()>>,
+    state: Arc<parking_lot::RwLock<ChainState>>,
+    state_mutex: Arc<parking_lot::Mutex<()>>,
     state_transition: Arc<StateTransition>,
     qup_config: Arc<QUPConfig>,
     qup_state: Arc<QUPState>,
