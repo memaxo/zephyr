@@ -15,3 +15,4 @@ pub use delegator::QUPDelegator;
 pub use hdcomm::{HDCommunication, UsefulWork, UsefulWorkProblem, UsefulWorkSolution};
 pub use state::QUPState;
 pub use validator::QUPValidator;
+pub use qup_interface::QUPInterface;

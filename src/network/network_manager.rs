@@ -10,6 +10,7 @@ use crate::quantum_voting::quantum_key_distribution::QuantumKeyDistribution;
 use crate::qup::consensus::QUPMessage;
 use crate::qup::crypto::QUPCrypto;
 use crate::qup::validator::QUPValidator;
+use crate::qup::qup_interface::QUPInterface;
 use crate::utils::error::{NetworkError, Result};
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
@@ -20,6 +21,7 @@ pub struct NetworkManager {
     config: Arc<NetworkConfig>,
     peers: Arc<RwLock<HashMap<String, Peer>>>,
     validator: Option<QUPValidator>,
+    qup: Arc<dyn QUPInterface + Send + Sync>,
     message_sender: mpsc::Sender<Message>,
     crypto: QUPCrypto,
     qkd: Option<QuantumKeyDistribution>,
@@ -71,6 +73,7 @@ impl NetworkManager {
         config: Arc<NetworkConfig>,
         validator: Option<QUPValidator>,
         crypto: QUPCrypto,
+        qup: Arc<dyn QUPInterface + Send + Sync>,
     ) -> (Self, mpsc::Receiver<Message>) {
         let (message_sender, message_receiver) = crossbeam_utils::unbounded();
         let qkd = if config.use_quantum {
@@ -85,6 +88,7 @@ impl NetworkManager {
             validator,
             message_sender,
             crypto,
+            qup,
             qkd,
             pq_tls_connection: None,
         };
