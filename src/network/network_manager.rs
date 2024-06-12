@@ -1,6 +1,7 @@
 use crate::network::config::NetworkConfig;
 use crate::network::message::{Message, MessageType};
 use crate::network::peer::Peer;
+use crate::network::network_interface::NetworkInterface;
 use crate::network::quantum_resistant::{
     QuantumResistantConnection, QuantumResistantConnectionManager,
 };
@@ -23,6 +24,46 @@ pub struct NetworkManager {
     crypto: QUPCrypto,
     qkd: Option<QuantumKeyDistribution>,
     pq_tls_connection: Option<PostQuantumTLSConnection>,
+}
+
+impl NetworkInterface for NetworkManager {
+    fn broadcast_message(&self, message: Message) -> Result<()> {
+        // Serialize and sign the message using post-quantum cryptography
+        let serialized_message = bincode::serialize(&message)?;
+        let signature = self.crypto.sign(&serialized_message)?;
+        let signed_message = Message::SignedMessage { message, signature };
+
+        // Broadcast the signed message to all connected peers
+        let peers = self.peers.read();
+        for peer in peers.values() {
+            peer.send(signed_message.clone())?;
+        }
+        Ok(())
+    }
+
+    fn send_message(&self, message: Message, peer_id: &str) -> Result<()> {
+        // Serialize and sign the message using post-quantum cryptography
+        let serialized_message = bincode::serialize(&message)?;
+        let signature = self.crypto.sign(&serialized_message)?;
+        let signed_message = Message::SignedMessage { message, signature };
+
+        // Send the signed message to the specified peer
+        let peers = self.peers.read();
+        if let Some(peer) = peers.get(peer_id) {
+            peer.send(signed_message)?;
+            Ok(())
+        } else {
+            Err(NetworkError::PeerNotFound)
+        }
+    }
+
+    fn receive_message(&self) -> Result<Message> {
+        // Receive a message from the message receiver channel
+        match self.message_receiver.recv() {
+            Ok(message) => Ok(message),
+            Err(_) => Err(NetworkError::ReceiveError),
+        }
+    }
 }
 
 impl NetworkManager {
