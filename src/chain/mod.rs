@@ -6,7 +6,7 @@ mod certificate_authority;
 pub(crate) mod node;
 pub(crate) mod quantum_entropy;
 mod state_channel;
-pub(crate) mod validation;
+mod validation;
 mod wallet;
 mod sharding;
 mod governance;

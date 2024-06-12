@@ -25,6 +25,7 @@ use crate::network::tls::{TLSConnectionError, TLSListener};
 use crate::qup::block::QUPBlock;
 use crate::qup::traits::QuantumComputationProvider;
 use crate::utils::node_id::NodeId;
+use crate::qup::traits::QuantumComputationProvider;
 use crate::error_handling::mod::NetworkError;
 use log::{debug, error, info, warn};
 use std::collections::{HashMap, HashSet};
@@ -45,7 +46,7 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn new(config: &NetworkConfig, consensus: Arc<dyn Consensus>, network_error_handler: Arc<dyn NetworkErrorHandler>) -> Self {
+    pub fn new(config: &NetworkConfig, consensus: Arc<dyn Consensus>, network_error_handler: Arc<dyn NetworkErrorHandler>, qup_provider: Arc<dyn QuantumComputationProvider>) -> Self {
         let (peer_tx, peer_rx) = channel(config.peer_channel_capacity);
         Network {
             peers: RwLock::new(HashMap::new()),
@@ -57,7 +58,8 @@ impl Network {
             max_peers: config.max_peers,
             max_inbound_peers: config.max_inbound_peers,
             peer_channel: (peer_tx, peer_rx),
-            network_error_handler
+            network_error_handler,
+            qup_provider,
         }
     }
 

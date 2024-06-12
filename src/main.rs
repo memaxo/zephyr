@@ -22,7 +22,7 @@ use std::{
     sync::{Arc, Mutex},
     process,
 };
-use crate::{chain::Blockchain, ui::start_ui};
+use crate::{chain::Blockchain, ui::start_ui, qup::interface::{QUPBlockProposal, QUPVoteHandler, QUPStateProvider}, qup::consensus::QUPConsensus};
 use log::{info, LevelFilter};
 use env_logger::{Builder, Env};
 
@@ -42,7 +42,17 @@ async fn main() {
     };
     let blockchain = Arc::new(Mutex::new(blockchain));
 
-    // Launch the API server
+    // Create a QUPConsensus instance
+    let qup_consensus = QUPConsensus {
+        // Initialize fields
+    };
+
+    // Inject QUP traits
+    let block_proposal: Arc<dyn QUPBlockProposal> = Arc::new(qup_consensus);
+    let vote_handler: Arc<dyn QUPVoteHandler> = Arc::new(qup_consensus);
+    let state_provider: Arc<dyn QUPStateProvider> = Arc::new(qup_consensus);
+
+    // Launch the API server with QUP dependencies
     let api_server = api::start_server(blockchain.clone());
 
     // Launch the network server
