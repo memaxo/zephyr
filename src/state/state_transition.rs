@@ -153,12 +153,15 @@ impl StateTransition {
                     e
                 ))
             })
-        })?;
+        })
+        .unwrap();
 
         let state_root = self.state_manager.get_state_root();
         if block.header.state_root != state_root {
             // Revert the applied transactions if the state root doesn't match
-            self.revert_block(block)?;
+            self.revert_block(block).map_err(|_| {
+                StateTransitionError::BlockValidationFailed("State root mismatch".to_string())
+            })?;
             return Err(StateTransitionError::BlockValidationFailed(
                 "State root mismatch".to_string(),
             ));
@@ -199,7 +202,8 @@ impl StateTransition {
                     e
                 ))
             })
-        })?;
+        })
+        .unwrap();
 
         Ok(())
     }
