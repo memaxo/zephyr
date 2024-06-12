@@ -123,7 +123,30 @@ impl StateTransition {
     }
 
     pub fn apply_block(&self, block: &Block) -> Result<(), StateTransitionError> {
-        block.transactions.par_iter().try_for_each(|transaction| {
+        crossbeam_utils::thread::scope(|s| {
+            let results: Vec<Result<(), StateTransitionError>> = block
+                .transactions
+                .par_iter()
+                .map(|transaction| {
+                    s.spawn(|_| {
+                        self.apply(transaction).map_err(|e| {
+                            StateTransitionError::StateUpdateError(format!(
+                                "Failed to apply transaction: {}",
+                                e
+                            ))
+                        })
+                    })
+                })
+                .collect();
+
+            // Check if any errors occurred during parallel execution
+            for result in results {
+                result?;
+            }
+
+            Ok(())
+        })
+        .unwrap();
             self.apply(transaction).map_err(|e| {
                 StateTransitionError::StateUpdateError(format!(
                     "Failed to apply transaction: {}",
@@ -145,7 +168,31 @@ impl StateTransition {
     }
 
     pub fn revert_block(&self, block: &Block) -> Result<(), StateTransitionError> {
-        block.transactions.par_iter().rev().try_for_each(|transaction| {
+        crossbeam_utils::thread::scope(|s| {
+            let results: Vec<Result<(), StateTransitionError>> = block
+                .transactions
+                .par_iter()
+                .rev()
+                .map(|transaction| {
+                    s.spawn(|_| {
+                        self.revert(transaction).map_err(|e| {
+                            StateTransitionError::StateUpdateError(format!(
+                                "Failed to revert transaction: {}",
+                                e
+                            ))
+                        })
+                    })
+                })
+                .collect();
+
+            // Check if any errors occurred during parallel execution
+            for result in results {
+                result?;
+            }
+
+            Ok(())
+        })
+        .unwrap();
             self.revert(transaction).map_err(|e| {
                 StateTransitionError::StateUpdateError(format!(
                     "Failed to revert transaction: {}",
