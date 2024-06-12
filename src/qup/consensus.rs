@@ -38,12 +38,9 @@ impl QUPConsensus {
         node_type: NodeType,
         blockchain: Arc<Blockchain>,
         block_storage: Arc<BlockStorage>,
-        classical_node: Arc<ClassicalNode>,
-        quantum_node: Arc<QuantumNode>,
         transaction_storage: Arc<TransactionStorage>,
         network: Arc<Network<dyn QuantumComputationProvider + QuantumKeyManagement>>,
         qup_crypto: Arc<dyn QuantumKeyManagement>,
-        event_system: Arc<EventSystem>,
     ) -> Self {
         QUPConsensus {
             config,
@@ -79,10 +76,11 @@ pub struct QUPConsensus {
     pub state_manager: Arc<StateManager>,
     pub key_pair: QUPKeyPair,
     pub hdc_model: HDCModel,
-    pub network: Arc<Network>,
+    pub network: Arc<Network<dyn QuantumComputationProvider + QuantumKeyManagement>>,
     pub block_storage: Arc<BlockStorage>,
     pub transaction_storage: Arc<TransactionStorage>,
     pub qup_crypto: QUPCrypto,
+    pub state: QUPState,
 }
 
 impl QUPConsensus {
