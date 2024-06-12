@@ -973,8 +973,19 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
     }
 
     fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
-        // Distribute rewards to validators and delegators based on factors like stake, successful block proposals, and useful work solutions
-        let total_rewards = self.config.consensus_config.block_reward;
+        let total_rewards = self.calculate_total_rewards(block);
+        let rewards = self.calculate_rewards(block, total_rewards);
+        
+        self.rewards.distribute_rewards(&rewards.keys().cloned().collect::<Vec<_>>(), total_rewards, &mut self.state, &self.connection_manager).await?;
+
+        Ok(())
+    }
+
+    fn calculate_total_rewards(&self, block: &QUPBlock) -> u64 {
+        self.config.consensus_config.block_reward
+    }
+
+    fn calculate_rewards(&self, block: &QUPBlock, total_rewards: u64) -> HashMap<String, u64> {
         let mut rewards = HashMap::new();
 
         // Reward the block proposer
@@ -1000,12 +1011,7 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
             }
         }
 
-        // Distribute the rewards
-        for (address, reward) in rewards {
-            self.state.add_balance(&address, reward)?;
-        }
-
-        Ok(())
+        rewards
     }
 use crate::qup::traits::{QuantumComputationProvider, QuantumKeyManagement};
 
