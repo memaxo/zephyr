@@ -111,6 +111,84 @@ impl MessageQueue {
         self.outbound_credit += credit;
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum ProtocolMessage {
+    Ping,
+    Pong,
+    Handshake {
+        version: u32,
+        peer_id: String,
+        peer_address: String,
+    },
+    BlockRequest {
+        block_hash: String,
+    },
+    BlockResponse {
+        block: Vec<u8>,
+        signature: QUPSignature,
+    },
+    TransactionBroadcast {
+        transaction: Vec<u8>,
+        signature: QUPSignature,
+    },
+    PeerDiscovery {
+        peer_addresses: Vec<String>,
+    },
+    StateSyncRequest {
+        shard_id: u64,
+    },
+    StateSyncResponse {
+        shard_id: u64,
+        state: Vec<u8>,
+    },
+    QKDKeyRequest,
+    QKDKeyResponse {
+        key: QKDKey,
+    },
+    QKDKeyConfirmation,
+    QuantumStateDistribution {
+        state: QuantumState,
+    },
+    QuantumStateMeasurementResults {
+        results: Vec<bool>,
+    },
+    ClassicalKeyExchange {
+        public_key: Vec<u8>,
+    },
+    ClassicalKeyExchangeResponse {
+        public_key: Vec<u8>,
+    },
+    QuantumKeyExchange {
+        public_key: Vec<u8>,
+    },
+    QuantumKeyExchangeResponse {
+        public_key: Vec<u8>,
+    },
+    QUPMessage {
+        message: Vec<u8>,
+        signature: QUPSignature,
+    },
+    UsefulWorkProblem {
+        problem: Vec<u8>,
+    },
+    UsefulWorkSolution {
+        solution: Vec<u8>,
+        signature: QUPSignature,
+    },
+    BlockProposal {
+        block: Vec<u8>,
+        signature: QUPSignature,
+    },
+    Vote {
+        vote: Vec<u8>,
+        signature: QUPSignature,
+    },
+    BlockCommit {
+        block: Vec<u8>,
+        signature: QUPSignature,
+    },
+}
     Ping,
     Pong,
     Handshake {
@@ -149,68 +227,66 @@ impl MessageQueue {
     QuantumStateDistribution {
         state: QuantumState,
     },
-    QuantumStateMeasurementResults {
-        results: Vec<bool>,
-    },
-    ClassicalKeyExchange {
-        public_key: Vec<u8>,
-    },
-    ClassicalKeyExchangeResponse {
-        public_key: Vec<u8>,
-    },
-    QuantumKeyExchange {
-        public_key: Vec<u8>,
-    },
-    QuantumKeyExchangeResponse {
-        public_key: Vec<u8>,
-    },
-    StateSyncRequest {
-        shard_id: u64,
-    },
-    StateSyncResponse {
-        shard_id: u64,
-        state: Vec<u8>,
-    },
-    QUPMessage {
-        message: Vec<u8>,
-        signature: QUPSignature,
-    },
-    UsefulWorkProblem {
-        problem: Vec<u8>,
-    },
-    UsefulWorkSolution {
-        solution: Vec<u8>,
-        signature: QUPSignature,
-    },
-    BlockProposal {
-        block: Vec<u8>,
-        signature: QUPSignature,
-    },
-    Vote {
-        vote: Vec<u8>,
-        signature: QUPSignature,
-    },
-    BlockCommit {
-        block: Vec<u8>,
-        signature: QUPSignature,
-    },
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QKDKey {
     // Fields for QKD key information
-    ProtocolMessage::TLSHandshake { version, peer_id } => {
-        let mut tls_handshake = root.init_tls_handshake();
-        tls_handshake.set_version(*version);
-        tls_handshake.set_peer_id(peer_id);
+}
+
+impl ProtocolMessage {
+    pub fn serialize(&self, crypto: &QUPCrypto) -> Result<Vec<u8>, ProtocolError> {
+        let mut message = Builder::new_default();
+        {
+            let root = message.init_root::<protocol_message::Builder>();
+            match self {
+                ProtocolMessage::Ping => {
+                    root.set_ping(());
+                }
+                ProtocolMessage::Pong => {
+                    root.set_pong(());
+                }
+                ProtocolMessage::BlockProposal { block, signature } => {
+                    let mut block_proposal = root.init_block_proposal();
+                    block_proposal.set_block(block);
+                    block_proposal.set_signature(signature);
+                }
+                ProtocolMessage::Vote { vote, signature } => {
+                    let mut vote_msg = root.init_vote();
+                    vote_msg.set_vote(vote);
+                    vote_msg.set_signature(signature);
+                }
+                ProtocolMessage::BlockCommit { block, signature } => {
+                    let mut block_commit = root.init_block_commit();
+                    block_commit.set_block(block);
+                    block_commit.set_signature(signature);
+                }
+                ProtocolMessage::TLSHandshake { version, peer_id } => {
+                    let mut tls_handshake = root.init_tls_handshake();
+                    tls_handshake.set_version(*version);
+                    tls_handshake.set_peer_id(peer_id);
+                }
+                ProtocolMessage::TLSKeyExchange { public_key } => {
+                    let mut tls_key_exchange = root.init_tls_key_exchange();
+                    tls_key_exchange.set_public_key(public_key);
+                }
+                ProtocolMessage::TLSEncryptedMessage { data } => {
+                    let mut tls_encrypted_message = root.init_tls_encrypted_message();
+                    tls_encrypted_message.set_data(data);
+                }
+            }
+        }
+        let serialized_data = rmps::to_vec_named(self)
+            .map_err(|e| ProtocolError::SerializationFailed(e.to_string()))?;
+        let compressed_data = encode_all(&serialized_data[..], 1)  
+            .map_err(|e| ProtocolError::CompressionFailed(e.to_string()))?;
+        crypto.encrypt(&compressed_data)
+            .map_err(|e| ProtocolError::EncryptionFailed(e.to_string()))
     }
-    ProtocolMessage::TLSKeyExchange { public_key } => {
-        let mut tls_key_exchange = root.init_tls_key_exchange();
-        tls_key_exchange.set_public_key(public_key);
-    }
-    ProtocolMessage::TLSEncryptedMessage { data } => {
-        let mut tls_encrypted_message = root.init_tls_encrypted_message();
-        tls_encrypted_message.set_data(data);
+
+    pub fn deserialize(data: &[u8], crypto: &QUPCrypto) -> Result<Self, ProtocolError> {
+        let decrypted_data = crypto.decrypt(data)
+            .map_err(|e| ProtocolError::DecryptionFailed(e.to_string()))?;
+        let decompressed_data = decode_all(&decrypted_data).map_err(|e| ProtocolError::DecompressionFailed(e.to_string()))?;
+        rmps::from_slice(&decompressed_data).map_err(|e| ProtocolError::DeserializationFailed(e.to_string()))
     }
 }
 
