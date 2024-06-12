@@ -6,6 +6,7 @@ use bincode::serialize;
 use lru_cache::LruCache;
 use rocksdb::{Options, DB};
 use serde::{Deserialize, Serialize};
+use bincode::serialize;
 use std::path::Path;
 
 pub struct StateDB {
