@@ -60,7 +60,9 @@ use crate::qup::types::{QuantumBlock, QuantumTransaction};
 use crate::qup::crypto::{QuantumKeyManagement, QuantumSignature};
 use crate::qup::error::CryptoError;
 
-pub fn encrypt_quantum_data(data: &[u8], key: &QuantumKey) -> Result<Vec<u8>, CryptoError> {
+pub fn verify_signature<P: Verify>(data: &[u8], signature: &[u8], public_key: &P) -> bool {
+    public_key.verify(data, signature)
+}
     // Implement quantum-resistant encryption here
     Ok(data.to_vec()) // Placeholder
 }
