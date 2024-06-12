@@ -1,5 +1,7 @@
 use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryOperator, Value};
 use std::collections::HashSet;
+use parking_lot::Mutex;
+use crossbeam::thread;
 
 pub struct Function {
     pub name: String,
@@ -73,14 +75,14 @@ impl Interpreter {
             Operation::If { condition, then_branch, else_branch } => {
                 let condition_value = self.evaluate_expression(condition, context, gas_limit)?;
                 if Self::truthy(&condition_value) {
-                    Self::execute_operations(then_branch, context, gas_limit, &self.gas_cost)
+                    Self::execute_operations_parallel(then_branch, context, gas_limit, &self.gas_cost)
                 } else {
-                    Self::execute_operations(else_branch, context, gas_limit, &self.gas_cost)
+                    Self::execute_operations_parallel(else_branch, context, gas_limit, &self.gas_cost)
                 }
             },
             Operation::Loop { condition, body } => {
                 while Self::truthy(&self.evaluate_expression(condition, context, gas_limit)?) {
-                    match Self::execute_operations(body, context, gas_limit, &self.gas_cost) {
+                    match Self::execute_operations_parallel(body, context, gas_limit, &self.gas_cost) {
                         Ok(_) => {},
                         Err(e) => {
                             if e == "break" {
@@ -139,6 +141,28 @@ impl Interpreter {
                 return Ok(Some(value));
             }
         }
+        Ok(None)
+    }
+
+    fn execute_operations_parallel(
+        operations: &[Operation],
+        context: &mut HashMap<String, Value>,
+        gas_limit: &mut u64,
+        gas_cost: &GasCost,
+    ) -> Result<Option<Value>, String> {
+        let context = Mutex::new(context);
+        let gas_limit = Mutex::new(gas_limit);
+
+        thread::scope(|s| {
+            for operation in operations {
+                s.spawn(|_| {
+                    let mut context = context.lock();
+                    let mut gas_limit = gas_limit.lock();
+                    Interpreter::execute_operation(operation, &mut context, &mut gas_limit, gas_cost)
+                });
+            }
+        }).unwrap();
+
         Ok(None)
     }
 
