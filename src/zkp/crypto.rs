@@ -27,12 +27,11 @@ impl QuantumResistantMerkleTree {
 
         let (dilithium_public_key, dilithium_secret_key) = dilithium_keypair();
 
-        let tree = QuantumResistantMerkleTree {
+        QuantumResistantMerkleTree {
             levels,
             dilithium_public_key,
             dilithium_secret_key,
         }
-        };
 
         // Zeroize the secret key to prevent leakage
         tree.dilithium_secret_key.zeroize();
@@ -106,5 +105,5 @@ pub fn verify_quantum_merkle_proof(
     }
 
     let message = proof.iter().map(|p| p.to_bytes()).flatten().collect::<Vec<u8>>();
-    dilithium_verify(&message, dilithium_signature, dilithium_public_key).is_ok() &&
+    dilithium_verify(&message, dilithium_signature, dilithium_public_key).is_ok()
 }
