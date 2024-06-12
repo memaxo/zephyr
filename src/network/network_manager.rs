@@ -12,8 +12,8 @@ use crate::qup::validator::QUPValidator;
 use crate::utils::error::{NetworkError, Result};
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use parking_lot::RwLock;
+use crossbeam_utils::thread;
 
 pub struct NetworkManager {
     config: Arc<NetworkConfig>,
@@ -31,7 +31,7 @@ impl NetworkManager {
         validator: Option<QUPValidator>,
         crypto: QUPCrypto,
     ) -> (Self, mpsc::Receiver<Message>) {
-        let (message_sender, message_receiver) = mpsc::channel(config.message_channel_size);
+        let (message_sender, message_receiver) = crossbeam_utils::unbounded();
         let qkd = if config.use_quantum {
             Some(QuantumKeyDistribution::new())
         } else {
@@ -237,8 +237,8 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
-        while let Some(message) = self.message_receiver.recv().await {
+    fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
+        while let Some(message) = self.message_receiver.recv() {
             match message {
                 Message::SignedMessage { message, signature } => {
                     // Verify the message signature using post-quantum cryptography
@@ -316,7 +316,7 @@ impl NetworkManager {
             Ok(())
         }
 
-    async fn handle_connection(
+    fn handle_connection(
         &self,
         mut connection: QuantumResistantConnection,
         peer: Peer,
