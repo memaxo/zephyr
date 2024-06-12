@@ -4,9 +4,7 @@ use crate::network::p2p::peer::Peer;
 use crate::network::protocol::{
     ProtocolMessage, HANDSHAKE_TIMEOUT, MAX_MESSAGE_SIZE, PING_INTERVAL, PONG_TIMEOUT,
 };
-use crate::network::post_quantum_tls::{
-    PostQuantumTLSConnection, PostQuantumTLSConnectionManager,
-};
+use crate::network::tls::{PostQuantumTLSConnection, PostQuantumTLSConfig};
 use crate::qup::crypto::PostQuantumCrypto;
 use log::{debug, error, info};
 use std::collections::HashMap;
@@ -33,7 +31,7 @@ impl Server {
         }
     }
 
-    pub async fn start(&self) {
+    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         let listener = TcpListener::bind(&self.address).expect("Failed to bind server");
         info!("Server listening on {}", self.address);
 
@@ -43,15 +41,21 @@ impl Server {
                     let peer_address = addr.to_string();
                     debug!("New connection from {}", peer_address);
 
+                    let config = PostQuantumTLSConfig::new();
                     let handler = self.handler.clone();
                     let peers = self.peers.clone();
                     let crypto = self.crypto.clone();
 
                     tokio::spawn(async move {
-                        if let Err(e) =
-                            handle_connection(stream, peer_address, handler, peers, crypto).await
-                        {
-                            error!("Error handling connection: {}", e);
+                        match PostQuantumTLSConnection::new(stream, config).await {
+                            Ok(mut pq_tls_connection) => {
+                                if let Err(e) = handle_connection(pq_tls_connection, peer_address, handler, peers, crypto).await {
+                                    error!("Error handling connection: {}", e);
+                                }
+                            }
+                            Err(e) => {
+                                error!("TLS connection establishment failed: {}", e);
+                            }
                         }
                     });
                 }
@@ -64,32 +68,17 @@ impl Server {
 }
 
 async fn handle_connection(
-    stream: TcpStream,
+    mut pq_tls_connection: PostQuantumTLSConnection,
     peer_address: String, 
     handler: Arc<dyn Handler>,
     peers: Arc<Mutex<HashMap<String, Peer>>>,
     crypto: Arc<PostQuantumCrypto>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Perform quantum-resistant connection establishment
-    let mut pq_tls_connection = PostQuantumTLSConnection::new();
-    match pq_tls_connection.establish(&peer_address).await {
-        Ok((public_key, secret_key)) => {
-            debug!(
-                "Post-quantum TLS connection established with peer: {}",
-                peer_address
-            );
-        }
-        Err(e) => {
-            error!("Failed to establish post-quantum TLS connection: {}", e);
-            return Err(e.into());
-        }
-    }
-
     let mut peer = Peer::new(peer_address.clone());
 
     loop {
         // Receive messages using the quantum-resistant connection
-        let message = match pq_tls_connection.receive_message(&peer_address).await {
+        let message = match pq_tls_connection.receive().await {
             Ok(msg) => msg,
             Err(e) => {
                 error!("Failed to receive message over post-quantum TLS: {}", e);
@@ -111,7 +100,7 @@ async fn handle_connection(
                 let pong_msg = ProtocolMessage::Pong;
                 let serialized_pong = pong_msg.serialize(&crypto)?;
                 pq_tls_connection
-                    .send_message(&peer_address, &serialized_pong)
+                    .send(&serialized_pong)
                     .await?;
             }
             ProtocolMessage::Pong => {
@@ -119,22 +108,22 @@ async fn handle_connection(
             }
             ProtocolMessage::QKDKeyRequest => {
                 // Handle QKD key request
-                handle_qkd_key_request(&mut quantum_connection, &peer_address, &crypto).await?;
+                handle_qkd_key_request(&mut pq_tls_connection, &peer_address, &crypto).await?;
             }
             ProtocolMessage::QKDKeyResponse(key) => {
                 // Handle QKD key response
-                handle_qkd_key_response(&mut quantum_connection, &peer_address, key, &crypto)
+                handle_qkd_key_response(&mut pq_tls_connection, &peer_address, key, &crypto)
                     .await?;
             }
             ProtocolMessage::QKDKeyConfirmation => {
                 // Handle QKD key confirmation
-                handle_qkd_key_confirmation(&mut quantum_connection, &peer_address, &crypto)
+                handle_qkd_key_confirmation(&mut pq_tls_connection, &peer_address, &crypto)
                     .await?;
             }
             ProtocolMessage::QuantumStateDistribution(state) => {
                 // Handle quantum state distribution
                 handle_quantum_state_distribution(
-                    &mut quantum_connection,
+                    &mut pq_tls_connection,
                     &peer_address,
                     state,
                     &crypto,
@@ -144,7 +133,7 @@ async fn handle_connection(
             ProtocolMessage::QuantumStateMeasurementResults(results) => {
                 // Handle quantum state measurement results
                 handle_quantum_state_measurement_results(
-                    &mut quantum_connection,
+                    &mut pq_tls_connection,
                     &peer_address,
                     results,
                     &crypto,
@@ -161,7 +150,7 @@ async fn handle_connection(
                     // Serialize and send the response using the quantum-resistant connection
                     let serialized_response = response.serialize(&crypto)?;
                     pq_tls_connection  
-                        .send_message(&peer_address, &serialized_response)
+                        .send(&serialized_response)
                         .await?;
                 }
             }
