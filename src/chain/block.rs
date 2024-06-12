@@ -45,7 +45,7 @@ pub enum BlockError {
     MaxMiningAttemptsReached,
 }
 
-impl BlockCommon for Block {
+impl BlockInterface for Block {
     fn calculate_hash(&self) -> String {
         let data = [
             &self.common.timestamp.to_le_bytes(),
@@ -68,8 +68,7 @@ impl BlockCommon for Block {
                     "Failed to verify block signature: {}",
                     e
                 ))
-                return Err(BlockError::InvalidUsefulWork("Failed to verify useful work".to_string()));
-            }
+            })?;
             
             // Verify history proof if present
             if let Some(proof) = &self.qup_block_header.history_proof {
@@ -92,19 +91,14 @@ impl BlockCommon for Block {
         self.verify_signature(qup_provider, qup_state)?;
         if let Some(useful_work) = &self.useful_work {
             if !qup_provider.validate_useful_work(useful_work) {
-                BlockError::InvalidUsefulWork(format!("Failed to verify useful work: {}", e))
-            })?;
+                return Err(BlockError::InvalidUsefulWork(format!("Failed to verify useful work: {}", e)));
+            }
         }
         Ok(())
     }
 
-    fn apply(&self, state: &mut QUPState) -> Result<(), Error> {
-        // Implement the logic to update QUP-specific state
-        Ok(())
-    }
-    fn update_qup_state(&self, qup_state: &mut QUPState) -> Result<(), BlockError> {
-        // Implement the logic to update QUP-specific state
-        Ok(())
+    fn apply(&self, state: &mut QUPState) -> Result<(), BlockError> {
+        self.update_qup_state(state)
     }
 }
 
@@ -352,4 +346,10 @@ impl Block {
             ))
         }
     }
+}
+pub trait BlockInterface {
+    fn calculate_hash(&self) -> String;
+    fn verify_signature(&self, qup_crypto: &QUPCrypto, qup_state: &QUPState) -> Result<(), BlockError>;
+    fn validate(&self, qup_provider: &dyn QuantumComputationProvider, qup_state: &QUPState) -> Result<(), BlockError>;
+    fn apply(&self, state: &mut QUPState) -> Result<(), BlockError>;
 }
