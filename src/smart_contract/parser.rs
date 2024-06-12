@@ -1,4 +1,5 @@
 use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryOperator, Value};
+use log::info;
 use std::collections::HashMap;
 
 pub struct Parser;
@@ -17,6 +18,7 @@ impl Parser {
             i += 1;
         }
 
+        info!("Parsed contract with {} operations", operations.len());
         Ok(operations)
     }
 

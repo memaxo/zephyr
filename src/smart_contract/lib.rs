@@ -1,4 +1,5 @@
 pub mod types;
+pub mod logging;
 pub mod gas;
 pub mod interpreter;
 pub mod parser;
@@ -19,6 +20,7 @@ use std::collections::HashMap;
 
 pub fn execute_contract(contract: &SmartContract, gas_limit: u64) -> Result<HashMap<String, Value>, String> {
     let operations = Parser::parse_contract(&contract.code)?;
+    info!("Executing contract: {}", contract.name);
     let symbolic_engine = SymbolicExecutionEngine::new();
     let states = symbolic_engine.execute(&operations);
     Ok(states)

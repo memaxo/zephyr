@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use log::info;
 use regex::Regex;
 use serde::{Serialize, Deserialize};
 use std::collections::{HashMap, HashSet};
@@ -36,6 +37,7 @@ impl SmartContract {
 
     pub fn sanitize(&mut self) {
         self.name = self.name.chars().filter(|c| c.is_alphanumeric() || *c == '_').collect();
+        info!("Sanitized contract name: {}", self.name);
         self.code = self.code.trim().to_string();
         self.author = self.author.trim().to_string();
     }

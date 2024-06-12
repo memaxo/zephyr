@@ -1,4 +1,5 @@
 use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryOperator, Value};
+use log::info;
 
 pub struct GasCost {
     pub set_cost: u64,
@@ -10,7 +11,9 @@ pub struct GasCost {
     pub return_cost: u64,
     pub break_cost: u64,
     pub continue_cost: u64,
-}
+};
+    info!("Calculated gas cost for operation {:?}: {}", operation, cost);
+    cost
 
 impl Default for GasCost {
     fn default() -> Self {
@@ -29,7 +32,7 @@ impl Default for GasCost {
 }
 
 pub fn calculate_operation_cost(operation: &Operation, gas_cost: &GasCost) -> u64 {
-    match operation {
+    let cost = match operation {
         Operation::Set { .. } => gas_cost.set_cost,
         Operation::If { then_branch, else_branch, .. } => {
             let then_cost: u64 = then_branch.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum();

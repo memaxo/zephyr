@@ -1,4 +1,5 @@
 mod types;
+mod logging;
 mod execution_context;
 mod parser;
 mod interpreter;

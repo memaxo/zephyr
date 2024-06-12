@@ -1,4 +1,5 @@
 use crate::smart_contract::types::{Value, TransactionContext};
+use log::info;
 use std::collections::{HashMap, VecDeque, HashSet};
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
@@ -30,7 +31,8 @@ impl ExecutionContext {
     }
 
     pub fn add_role(&mut self, user: String, role: Role) {
-        self.roles.entry(user).or_insert_with(HashSet::new).insert(role);
+        self.roles.entry(user.clone()).or_insert_with(HashSet::new).insert(role);
+        info!("Added role {:?} to user {}", role, user);
     }
 
     pub fn has_role(&self, user: &str, role: &Role) -> bool {

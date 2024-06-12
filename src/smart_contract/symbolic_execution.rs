@@ -1,4 +1,5 @@
 use crate::smart_contract::types::{Operation, Expression, Value, BinaryOperator, UnaryOperator};
+use log::info;
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug, Clone)]
@@ -29,6 +30,7 @@ impl SymbolicExecutionEngine {
 
     pub fn execute(&self, operations: &[Operation]) -> Vec<SymbolicState> {
         let mut states = Vec::new();
+        info!("Starting symbolic execution with {} operations", operations.len());
         let mut queue = VecDeque::new();
         queue.push_back(self.initial_state.clone());
 

@@ -1,5 +1,7 @@
 use crate::smart_contract::types::{SmartContract, ContractState};
 use crate::utils::error::Result;
+use crate::smart_contract::logging::init_logging;
+use log::info;
 
 pub trait SmartContractInterface {
     fn deploy_contract(&self, contract: SmartContract) -> Result<String>;
@@ -15,7 +17,9 @@ pub struct ProxyContract {
 
 impl ProxyContract {
     pub fn new(target_contract_id: String) -> Self {
-        ProxyContract { target_contract_id }
+        let proxy_contract = ProxyContract { target_contract_id };
+        info!("ProxyContract created with target_contract_id: {}", target_contract_id);
+        proxy_contract
     }
 
     pub fn upgrade(&mut self, new_target_contract_id: String) {

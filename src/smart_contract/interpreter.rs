@@ -1,4 +1,5 @@
 use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryOperator, Value};
+use log::info;
 use std::collections::HashSet;
 use parking_lot::Mutex;
 use crossbeam::thread;
@@ -61,6 +62,7 @@ impl Interpreter {
         gas_limit: &mut u64,
     ) -> Result<Option<Value>, String> {
         let gas_cost = calculate_operation_cost(operation, &self.gas_cost);
+        info!("Executing operation: {:?}, Gas cost: {}", operation, gas_cost);
         if *gas_limit < gas_cost {
             return Err("Insufficient gas".to_string());
         }
