@@ -234,6 +234,42 @@ impl Interpreter {
                 *gas_limit -= gas_cost;
                 Ok(None)
             },
+            CrossChainOperation::HTLCLock { htlc } => {
+                // Lock assets in an HTLC
+                info!("Locking {} assets in HTLC with hash {}", htlc.amount, hex::encode(&htlc.hash));
+                htlc.lock(context)?;
+                // Deduct gas for locking assets
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                Ok(None)
+            },
+            CrossChainOperation::HTLCUnlock { htlc, secret } => {
+                // Unlock assets from an HTLC
+                info!("Unlocking HTLC with hash {}", hex::encode(&htlc.hash));
+                htlc.unlock(secret, context)?;
+                // Deduct gas for unlocking assets
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                Ok(None)
+            },
+            CrossChainOperation::HTLCRefund { htlc } => {
+                // Refund assets from an expired HTLC
+                info!("Refunding expired HTLC with hash {}", hex::encode(&htlc.hash));
+                htlc.refund(context)?;
+                // Deduct gas for refunding assets
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                Ok(None)
+            },
         }
     }
     
