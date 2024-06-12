@@ -51,7 +51,8 @@ pub fn calculate_transaction_hash(transaction: &QUPTransaction) -> Hash {
 pub fn verify_transaction_signature(transaction: &QUPTransaction) -> bool {
     let message = calculate_transaction_hash(transaction);
     let public_key = get_public_key_from_address(&transaction.from);
-    Signature::verify(&message, &transaction.signature, &public_key)
+    let qup_crypto = QUPCrypto::new();
+    qup_crypto.verify_transaction_signature(&message, &transaction.signature, &public_key)
 }
 
 pub fn verify_block_signature(
@@ -60,7 +61,8 @@ pub fn verify_block_signature(
     public_key: &[u8],
 ) -> bool {
     let message = calculate_block_hash(block_header);
-    Signature::verify(&message, signature, public_key)
+    let qup_crypto = QUPCrypto::new();
+    qup_crypto.verify_block_signature(&message, signature, public_key)
 }
 
 pub fn verify_vote_signature(vote: &QUPVote) -> bool {
@@ -71,7 +73,8 @@ pub fn verify_vote_signature(vote: &QUPVote) -> bool {
 
     let message = vote.block_hash;
     let public_key = get_public_key_from_address(&vote.voter);
-    Signature::verify(&message, &vote.signature, &public_key)
+    let qup_crypto = QUPCrypto::new();
+    qup_crypto.verify_vote_signature(&message, &vote.signature, &public_key)
 }
 
 pub fn generate_random_useful_work_problem() -> UsefulWorkProblem {

@@ -69,9 +69,12 @@ impl TransactionCommon for Transaction {
     }
 
     fn verify_signature(&self, public_key: &PublicKey, qup_crypto: &QUPCrypto) -> Result<()> {
-        qup_crypto
-            .verify_signature(public_key, &self.common.signature, &self.calculate_hash())
-            .context("Failed to verify transaction signature")
+        let transaction_data = bincode::serialize(&self).context("Failed to serialize transaction")?;
+        if qup_crypto.verify_transaction_signature(&transaction_data, &self.common.signature, &public_key.serialize()) {
+            Ok(())
+        } else {
+            anyhow::bail!("Failed to verify transaction signature")
+        }
     }
 
     fn sign(&mut self, private_key: &SecretKey) -> Result<()> {

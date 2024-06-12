@@ -16,6 +16,19 @@ pub struct QUPCrypto {
     pub fn sign(&self, data: &[u8]) -> Vec<u8> {
         self.dilithium_keypair.secret_key.sign(data)
     }
+    }
+
+    pub fn verify_transaction_signature(&self, transaction_data: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
+        self.verify(transaction_data, signature, public_key)
+    }
+
+    pub fn verify_block_signature(&self, block_data: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
+        self.verify(block_data, signature, public_key)
+    }
+
+    pub fn verify_vote_signature(&self, vote_data: &[u8], signature: &[u8], public_key: &[u8]) -> bool {
+        self.verify(vote_data, signature, public_key)
+    }
 }
 
 impl QUPCrypto {

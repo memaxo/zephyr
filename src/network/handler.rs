@@ -74,7 +74,8 @@ impl Handler for HandlerImpl {
 
     fn handle_block(&self, peer: &Peer, block: Block) {
         // Verify the block signature
-        if !self.verify_block_signature(&block, &signature) {
+        let block_data = bincode::serialize(&block).unwrap();
+        if !self.qup_crypto.verify_block_signature(&block_data, &signature, &self.state.get_validator_public_key(&block.proposer).unwrap()) {
             error!("Invalid block signature from peer: {}", peer.id);
             return;
         }
@@ -103,7 +104,8 @@ impl Handler for HandlerImpl {
     
     fn handle_transaction(&self, peer: &Peer, transaction: Transaction) {
         // Verify the transaction signature
-        if !self.verify_transaction_signature(&transaction, &signature) {
+        let transaction_data = bincode::serialize(&transaction).unwrap();
+        if !self.qup_crypto.verify_transaction_signature(&transaction_data, &signature, &self.state.get_validator_public_key(&transaction.sender).unwrap()) {
             error!("Invalid transaction signature from peer: {}", peer.id);
             return;
         }
@@ -221,7 +223,8 @@ impl Handler for HandlerImpl {
     fn handle_block_proposal(&self, peer: &Peer, block_proposal: BlockProposal) {
         debug!("Received block proposal from peer: {}", peer.id);
         // Verify the block proposal signature
-        if !self.verify_block_proposal_signature(&block_proposal) {
+        let proposer_public_key = self.state.get_validator_public_key(&block_proposal.proposer).unwrap();
+        if !self.qup_crypto.verify_block_signature(&block_proposal.block, &block_proposal.signature, &proposer_public_key) {
             error!("Invalid block proposal signature from peer: {}", peer.id);
             return;
         }
@@ -242,7 +245,8 @@ impl Handler for HandlerImpl {
     fn handle_vote(&self, peer: &Peer, vote: Vote) {
         debug!("Received vote from peer: {}", peer.id);
         // Verify the vote signature
-        if !self.verify_vote_signature(&vote) {
+        let voter_public_key = self.state.get_validator_public_key(&vote.voter).unwrap();
+        if !self.qup_crypto.verify_vote_signature(&vote.vote, &vote.signature, &voter_public_key) {
             error!("Invalid vote signature from peer: {}", peer.id);
             return;
         }
@@ -263,7 +267,8 @@ impl Handler for HandlerImpl {
     fn handle_block_commit(&self, peer: &Peer, block_commit: BlockCommit) {
         debug!("Received block commit from peer: {}", peer.id);
         // Verify the block commit signature
-        if !self.verify_block_commit_signature(&block_commit) {
+        let committer_public_key = self.state.get_validator_public_key(&block_commit.committer).unwrap();
+        if !self.qup_crypto.verify_block_signature(&block_commit.block, &block_commit.signature, &committer_public_key) {
             error!("Invalid block commit signature from peer: {}", peer.id);
             return;
         }
