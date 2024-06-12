@@ -1,5 +1,6 @@
 use crate::qup::types::UsefulWorkSolution;
 use sha3::{Digest, Sha3_256};
+use crate::error::ConsensusError;
 
 pub struct VDF;
 
@@ -16,10 +17,10 @@ impl VDF {
         hasher.finalize().to_vec()
     }
 
-    pub fn verify_proof(&self, proof: &[u8]) -> Result<bool, ConsensusError> {
+    pub fn verify_proof(&self, solution: &UsefulWorkSolution, proof: &[u8]) -> Result<bool, ConsensusError> {
         // Implement the VDF proof verification logic
         // For simplicity, we'll assume the proof is valid if it matches the expected hash
-        let expected_proof = self.generate_proof(&UsefulWorkSolution::default());
+        let expected_proof = self.generate_proof(solution);
         Ok(proof == expected_proof)
     }
 }

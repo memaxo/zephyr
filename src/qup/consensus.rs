@@ -227,7 +227,11 @@ impl QUPConsensus {
         }
     }
 
-    pub fn validate_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
+    pub fn validate_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution, proof: &[u8]) -> bool {
+        if !self.vdf.verify_proof(solution, proof).unwrap_or(false) {
+            return false;
+        }
+
         match problem {
             UsefulWorkProblem::Knapsack(knapsack_problem) => {
                 let total_weight: u64 = solution
@@ -308,24 +312,21 @@ impl QUPConsensus {
         self.solve_useful_work_problem(problem)
     }
 
-    pub fn submit_proof_to_classical_node(&self, proof: &[u8]) {
-        // Deserialize the proof into a useful work solution
-        let solution: UsefulWorkSolution = bincode::deserialize(proof).expect("Failed to deserialize proof");
-
+    pub fn submit_proof_to_classical_node(&self, solution: &UsefulWorkSolution, proof: &[u8]) {
         // Get the corresponding useful work problem
-        let problem = self.state.get_useful_work_problem(&solution).expect("Failed to get useful work problem");
+        let problem = self.state.get_useful_work_problem(solution).expect("Failed to get useful work problem");
 
         // Validate and integrate the results
-        if self.validate_and_integrate_results(&problem, &solution) {
+        if self.validate_and_integrate_results(&problem, solution, proof) {
             // Broadcast the solution to other nodes
-            let message = NetworkMessage::UsefulWorkSolution(solution);
+            let message = NetworkMessage::UsefulWorkSolution(solution.clone());
             self.communication_protocol.send_message(message).expect("Failed to send useful work solution");
         }
     }
 
-    pub fn validate_and_integrate_results(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
+    pub fn validate_and_integrate_results(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution, proof: &[u8]) -> bool {
         // Validate and integrate useful work results into the blockchain
-        if self.validate_useful_work(problem, solution) {
+        if self.validate_useful_work(problem, solution, proof) {
             self.integrate_results(problem, solution);
             true
         } else {
