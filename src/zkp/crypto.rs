@@ -1,5 +1,5 @@
 use crate::zkp_crate::math::FieldElement;
-use blake3::Hasher as Blake3Hasher; // Corrected import
+use pqcrypto_picnic::picnic_l1_fs::Hasher as PicnicHasher;
 use crystals_dilithium::{dilithium2 as Dilithium, Keypair, PublicKey, Signature};
 use rand::rngs::OsRng;
 use num_bigint::BigUint;
@@ -10,11 +10,11 @@ pub trait Hasher {
     fn finalize(self) -> FieldElement;
 }
 
-pub struct Blake3bHasher(Blake3Hasher); // Adjusted to use Blake3Hasher
+pub struct QuantumResistantHasher(PicnicHasher);
 
-impl Hasher for Blake3bHasher {
+impl Hasher for QuantumResistantHasher {
     fn new() -> Self {
-        Blake3bHasher(Blake3Hasher::new())
+        QuantumResistantHasher(PicnicHasher::new())
     }
 
     fn update(&mut self, data: &[u8]) {
@@ -54,7 +54,7 @@ impl QuantumResistantMerkleTree {
         let mut level = Vec::new();
 
         for i in (0..prev_level.len()).step_by(2) {
-            let mut hasher = Blake3bHasher::new();
+            let mut hasher = QuantumResistantHasher::new();
             hasher.update(&prev_level[i].to_bytes());
             if i + 1 < prev_level.len() {
                 hasher.update(&prev_level[i + 1].to_bytes());
