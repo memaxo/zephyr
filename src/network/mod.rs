@@ -13,6 +13,7 @@ mod quantum_resistant;
 mod node_message;
 mod shard_message;
 mod qup_message;
+mod peer_discovery;
 
 use crate::chain::block::Block;
 use crate::chain::consensus::{Consensus, ConsensusType};
