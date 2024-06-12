@@ -14,6 +14,7 @@ mod node_message;
 mod shard_message;
 mod qup_message;
 mod peer_discovery;
+mod message_handler;
 mod connection_manager;
 
 use crate::chain::block::Block;
