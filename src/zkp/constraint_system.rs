@@ -1,5 +1,6 @@
 use crate::zkp_crate::math::FieldElement;
 use std::collections::HashMap;
+use thiserror::Error;
 
 pub trait ConstraintSystem {
     fn new() -> Self;
@@ -48,18 +49,19 @@ impl RangeConstraint {
         RangeConstraint { variable, bitwidth }
     }
 
-    pub fn enforce(&self, cs: &mut impl ConstraintSystem) {
+    pub fn enforce(&self, cs: &mut impl ConstraintSystem) -> Result<(), ConstraintSystemError> {
         let mut accumulator = Expression::constant(FieldElement::zero());
         let one = Expression::constant(FieldElement::one());
         let two = Expression::constant(FieldElement::from(2));
 
         for i in 0..self.bitwidth {
             let bit = Expression::variable(cs.alloc_variable(FieldElement::zero()));
-            cs.enforce_constraint(bit.clone() * (one.clone() - bit.clone()), Expression::constant(FieldElement::zero()));
+            cs.enforce_constraint(bit.clone() * (one.clone() - bit.clone()), Expression::constant(FieldElement::zero()))?;
             accumulator = accumulator + bit * two.pow(FieldElement::from(i as u64));
         }
 
-        cs.enforce_constraint(Expression::variable(self.variable.clone()), accumulator);
+        cs.enforce_constraint(Expression::variable(self.variable.clone()), accumulator)?;
+        Ok(())
     }
 }
 
@@ -74,8 +76,14 @@ impl EqualsConstraint {
     }
 
     pub fn enforce(&self, cs: &mut impl ConstraintSystem) {
-        cs.enforce_constraint(self.a.clone(), self.b.clone());
+        cs.enforce_constraint(self.a.clone(), self.b.clone())
     }
+}
+
+#[derive(Error, Debug)]
+pub enum ConstraintSystemError {
+    #[error("Constraint failed: {0}")]
+    ConstraintFailed(String),
 }
 
 pub struct ConstraintSystemImpl {
@@ -107,24 +115,28 @@ impl ConstraintSystem for ConstraintSystemImpl {
         Variable(index)
     }
 
-    fn enforce_constraint(&mut self, lhs: Expression, rhs: Expression) {
+    fn enforce_constraint(&mut self, lhs: Expression, rhs: Expression) -> Result<(), ConstraintSystemError> {
         self.constraints.push((lhs, rhs));
     }
 
-    fn evaluate(&self, expression: &Expression) -> FieldElement {
-        match expression {
+    fn evaluate(&self, expression: &Expression) -> Result<FieldElement, ConstraintSystemError> {
+        let result = match expression {
             Expression::Constant(value) => value.clone(),
-            Expression::Variable(variable) => self.variable_map[variable].clone(),
+            Expression::Variable(variable) => self.variable_map.get(variable)
+                .ok_or_else(|| ConstraintSystemError::ConstraintFailed(format!("Variable {:?} not found", variable)))?
+                .clone(),
             Expression::Add(lhs, rhs) => {
-                let lhs_value = self.evaluate(lhs);
-                let rhs_value = self.evaluate(rhs);
+                let lhs_value = self.evaluate(lhs)?;
+                let rhs_value = self.evaluate(rhs)?;
                 lhs_value + rhs_value
             }
             Expression::Mul(lhs, rhs) => {
-                let lhs_value = self.evaluate(lhs);
-                let rhs_value = self.evaluate(rhs);
+                let lhs_value = self.evaluate(lhs)?;
+                let rhs_value = self.evaluate(rhs)?;
                 lhs_value * rhs_value
             }
+        };
+        Ok(result)
         }
     }
 }
