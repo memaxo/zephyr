@@ -35,10 +35,10 @@ pub struct CommunicationProtocol {
 }
 
 impl CommunicationProtocol {
-    pub async fn send_model_update(&self, model: &HDCModel, recipient: &str
+    pub async fn send_model_update(&self, model: &HDCModel, recipient: &str) 
 -> Result<(), ConsensusError> {
         let serialized_model = bincode::serialize(model)?;
-        let compressed_model = self.compress_data(&serialized_model).await?
+        let compressed_model = self.compress_data(&serialized_model).await?;
         let encrypted_model = self.encrypt_with_qkd(&compressed_model,
 recipient)?;
         let message = NetworkMessage::ModelUpdate {
@@ -152,8 +152,8 @@ ConsensusError> {
 
         // Remove the shared key and quantum channel for the disconnected
 peer
-        self.shared_keys.remove(peer);
-        self.quantum_channels.remove(peer);
+        self.shared_keys.remove(peer.to_string());
+        self.quantum_channels.remove(peer.to_string());
 
         Ok(())
     }
@@ -179,7 +179,7 @@ peer
     fn establish_quantum_channel(&mut self, peer: &str) -> Result<(),
 ConsensusError> {
         // Establish a quantum communication channel with the peer
-        let quantum_channel = self.quantum_channel.establish_channel(peer)?
+        let quantum_channel = self.quantum_channel.establish_channel(peer)?;
         self.quantum_channels.insert(peer.to_string(), quantum_channel);
         Ok(())
     }
@@ -192,7 +192,7 @@ ConsensusError> {
         Ok(())
     }
 
-    pub async fn receive_message(&self) -> Result<QUPMessage, ConsensusErro
+    pub async fn receive_message(&self) -> Result<QUPMessage, ConsensusError> 
 {
         let serialized_message = self.receiver.receive().await?;
         let network_message: NetworkMessage =
@@ -238,7 +238,7 @@ ConsensusError> {
         send_message(recipient, message)
     }
 
-    pub fn receive_result(&self, message: NetworkMessage) -> Result<Vec<u8>
+    pub fn receive_result(&self, message: NetworkMessage) -> Result<Vec<u8>,
 ConsensusError> {
         if let NetworkMessage::Result { result, signature } = message {
             verify_signature(&result, &signature, &self.key_pair)?;
