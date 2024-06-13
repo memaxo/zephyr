@@ -17,6 +17,10 @@ pub struct DatasetShard {
             let handle = std::thread::spawn(move || {
                 let mut model = HDCModel::new();
                 model.add_stage(stage);
+                model.quantize(8); // Quantize model parameters to 8 bits
+                model
+                let mut model = HDCModel::new();
+                model.add_stage(stage);
                 model
             });
             handles.push(handle);
@@ -99,7 +103,8 @@ impl DistributedTrainer {
             let dataset_shard = self.partitioned_dataset.get_shard(node).unwrap().to_vec();
             let handle = std::thread::spawn(move || {
                 let model = HDCModel::new();
-                let trained_model = model.train(&dataset_shard);
+                let mut trained_model = model.train(&dataset_shard);
+                trained_model.dequantize(); // Dequantize model parameters after training
                 trained_model
             });
             handles.push(handle);
@@ -115,6 +120,7 @@ impl DistributedTrainer {
 
         let aggregated_model = self.aggregate_models(models);
         let metrics = evaluate_model(&aggregated_model);
+        println!("Model accuracy after quantization: {:?}", metrics);
 
         TrainingResult {
             model: aggregated_model,
@@ -163,7 +169,8 @@ impl DistributedTrainer {
             let dataset_shard = self.partitioned_dataset.get_shard(node).unwrap().to_vec();
             let handle = std::thread::spawn(move || {
                 let model = HDCModel::new();
-                let trained_model = model.train(&dataset_shard);
+                let mut trained_model = model.train(&dataset_shard);
+                trained_model.dequantize(); // Dequantize model parameters after training
                 trained_model
             });
             handles.push(handle);
@@ -405,7 +412,8 @@ impl DistributedTrainer {
             let dataset_shard = self.partitioned_dataset.get_shard(node).unwrap().to_vec();
             let handle = std::thread::spawn(move || {
                 let model = HDCModel::new();
-                let trained_model = model.train(&dataset_shard);
+                let mut trained_model = model.train(&dataset_shard);
+                trained_model.dequantize(); // Dequantize model parameters after training
                 trained_model
             });
             handles.push(handle);

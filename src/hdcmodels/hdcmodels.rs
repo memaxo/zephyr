@@ -17,6 +17,15 @@ pub struct HDCModel {
 }
 
 impl HDCModel {
+    pub fn quantize(&mut self, bits: u8) {
+        // Placeholder for quantization logic
+        // Convert model parameters to lower precision
+    }
+
+    pub fn dequantize(&mut self) {
+        // Placeholder for dequantization logic
+        // Convert model parameters back to original precision
+    }
     pub fn new(similarity_metric: SimilarityMetric) -> Self {
         HDCModel {
             dimension: 5000,
