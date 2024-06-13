@@ -47,7 +47,7 @@ impl ConstraintSystem for ConstraintSystemImpl {
         let result = match expression {
             Expression::Constant(value) => value.clone(),
             Expression::Variable(variable) => self.variable_map.get(variable)
-                .expect(&format!("Variable {:?} not found", variable))
+                .ok_or_else(|| format!("Variable {:?} not found", variable))?
                 .clone(),
             Expression::Add(lhs, rhs) => {
                 let lhs_value = self.evaluate(lhs);
@@ -180,6 +180,7 @@ impl ConstraintSystem for ConstraintSystemImpl {
 
     fn enforce_constraint(&mut self, lhs: Expression, rhs: Expression) -> Result<(), ConstraintSystemError> {
         self.constraints.push((lhs, rhs));
+        Ok(())
     }
 
     fn evaluate(&self, expression: &Expression) -> Result<FieldElement, ConstraintSystemError> {
