@@ -13,18 +13,38 @@ pub trait UsefulWorkSolutionTrait {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UsefulWorkProblem {
+    // Optimization problems
     Knapsack(KnapsackProblem),
     VertexCover(VertexCoverProblem),
     TravelingSalesman(TravelingSalesmanProblem),
     JobScheduling(JobSchedulingProblem),
     BinPacking(BinPackingProblem),
-    MaximumFlow(MaximumFlowProblem),
-    ShortestPath(ShortestPathProblem),
-    MinimumSpanningTree(MinimumSpanningTreeProblem),
     ResourceAllocation(ResourceAllocationProblem),
     VehicleRouting(VehicleRoutingProblem),
     PortfolioOptimization(PortfolioOptimizationProblem),
     MarketEquilibrium(MarketEquilibriumProblem),
+    SupplyChainOptimization(SupplyChainProblem),
+
+    // Graph problems
+    MaximumFlow(MaximumFlowProblem),
+    ShortestPath(ShortestPathProblem),
+    MinimumSpanningTree(MinimumSpanningTreeProblem),
+    GraphColoring(GraphColoringProblem),
+    NetworkFlow(NetworkFlowProblem),
+
+    // Machine learning problems
+    ModelTraining(ModelTrainingProblem),
+    HyperparameterTuning(HyperparameterTuningProblem),
+    FeatureSelection(FeatureSelectionProblem),
+    DataClustering(DataClusteringProblem),
+    AnomalyDetection(AnomalyDetectionProblem),
+
+    // Scientific computing problems
+    MatrixFactorization(MatrixFactorizationProblem),
+    EigenvalueProblem(EigenvalueProblem),
+    DifferentialEquations(DifferentialEquationsProblem),
+    IntegralEquations(IntegralEquationsProblem),
+    QuantumSimulation(QuantumSimulationProblem),
 }
 
     // Define the StandardUsefulWorkGenerator struct
@@ -307,4 +327,129 @@ pub struct SupplyChainProblem {
 
 pub struct SupplyChainSolution {
     pub optimized_supply_chain: Vec<usize>,
+}
+
+pub struct GraphColoringProblem {
+    pub graph: Vec<Vec<usize>>,
+    pub num_colors: usize,
+}
+
+pub struct GraphColoringSolution {
+    pub node_colors: Vec<usize>,
+}
+
+pub struct NetworkFlowProblem {
+    pub graph: Vec<Vec<(usize, usize)>>,
+    pub source: usize,
+    pub sink: usize,
+}
+
+pub struct NetworkFlowSolution {
+    pub max_flow: usize,
+    pub flow_edges: Vec<(usize, usize, usize)>,
+}
+
+pub struct ModelTrainingProblem {
+    pub dataset: Vec<Vec<f64>>,
+    pub labels: Vec<usize>,
+    pub model_architecture: String,
+}
+
+pub struct ModelTrainingSolution {
+    pub trained_model: Vec<f64>,
+    pub accuracy: f64,
+}
+
+pub struct HyperparameterTuningProblem {
+    pub dataset: Vec<Vec<f64>>,
+    pub labels: Vec<usize>,
+    pub model_architecture: String,
+    pub hyperparameter_space: Vec<(String, Vec<f64>)>,
+}
+
+pub struct HyperparameterTuningSolution {
+    pub best_hyperparameters: Vec<(String, f64)>,
+    pub best_accuracy: f64,
+}
+
+pub struct FeatureSelectionProblem {
+    pub dataset: Vec<Vec<f64>>,
+    pub labels: Vec<usize>,
+    pub num_features: usize,
+}
+
+pub struct FeatureSelectionSolution {
+    pub selected_features: Vec<usize>,
+    pub accuracy: f64,
+}
+
+pub struct DataClusteringProblem {
+    pub dataset: Vec<Vec<f64>>,
+    pub num_clusters: usize,
+}
+
+pub struct DataClusteringSolution {
+    pub cluster_assignments: Vec<usize>,
+    pub cluster_centroids: Vec<Vec<f64>>,
+}
+
+pub struct AnomalyDetectionProblem {
+    pub dataset: Vec<Vec<f64>>,
+    pub contamination_rate: f64,
+}
+
+pub struct AnomalyDetectionSolution {
+    pub anomaly_scores: Vec<f64>,
+    pub anomaly_labels: Vec<bool>,
+}
+
+pub struct MatrixFactorizationProblem {
+    pub matrix: Vec<Vec<f64>>,
+    pub rank: usize,
+}
+
+pub struct MatrixFactorizationSolution {
+    pub factor_matrices: (Vec<Vec<f64>>, Vec<Vec<f64>>),
+    pub reconstruction_error: f64,
+}
+
+pub struct EigenvalueProblem {
+    pub matrix: Vec<Vec<f64>>,
+    pub num_eigenvalues: usize,
+}
+
+pub struct EigenvalueSolution {
+    pub eigenvalues: Vec<f64>,
+    pub eigenvectors: Vec<Vec<f64>>,
+}
+
+pub struct DifferentialEquationsProblem {
+    pub equation: String,
+    pub initial_conditions: Vec<f64>,
+    pub time_range: (f64, f64),
+}
+
+pub struct DifferentialEquationsSolution {
+    pub time_points: Vec<f64>,
+    pub solution_values: Vec<Vec<f64>>,
+}
+
+pub struct IntegralEquationsProblem {
+    pub equation: String,
+    pub domain: (f64, f64),
+}
+
+pub struct IntegralEquationsSolution {
+    pub integral_value: f64,
+}
+
+pub struct QuantumSimulationProblem {
+    pub hamiltonian: Vec<Vec<f64>>,
+    pub initial_state: Vec<f64>,
+    pub time_steps: usize,
+}
+
+pub struct QuantumSimulationSolution {
+    pub final_state: Vec<f64>,
+    pub measurement_probabilities: Vec<f64>,
 }
