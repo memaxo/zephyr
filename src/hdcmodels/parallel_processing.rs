@@ -12,7 +12,8 @@ impl ParallelHDCTrainer {
     }
 
     pub fn train(&self, model: &mut HDCModel, dataset: &Dataset) -> Vec<Vec<f64>> {
-        let partitioned_data = self.partition_data(dataset);
+        let num_threads = self.num_threads.min(num_cpus::get());
+        let partitioned_data = self.partition_data(dataset, num_threads);
 
         let trained_models: Vec<Vec<Vec<f64>>> = partitioned_data
             .par_iter()
@@ -25,11 +26,11 @@ impl ParallelHDCTrainer {
         self.merge_trained_models(trained_models)
     }
 
-    fn partition_data(&self, dataset: &Dataset) -> Vec<Dataset> {
-        let mut partitions = Vec::with_capacity(self.num_threads);
-        let partition_size = dataset.len() / self.num_threads;
+    fn partition_data(&self, dataset: &Dataset, num_threads: usize) -> Vec<Dataset> {
+        let mut partitions = Vec::with_capacity(num_threads);
+        let partition_size = dataset.len() / num_threads;
 
-        for i in 0..self.num_threads {
+        for i in 0..num_threads {
             let start = i * partition_size;
             let end = if i == self.num_threads - 1 {
                 dataset.len()
@@ -64,7 +65,8 @@ impl ParallelHDCValidator {
     }
 
     pub fn validate(&self, model: &mut HDCModel, dataset: &Dataset, trained_model: &[Vec<f64>]) {
-        let partitioned_data = self.partition_data(dataset);
+        let num_threads = self.num_threads.min(num_cpus::get());
+        let partitioned_data = self.partition_data(dataset, num_threads);
 
         let validation_results: Vec<(f64, f64)> = partitioned_data
             .par_iter()
@@ -81,11 +83,11 @@ impl ParallelHDCValidator {
             / validation_results.len() as f64;
     }
 
-    fn partition_data(&self, dataset: &Dataset) -> Vec<Dataset> {
-        let mut partitions = Vec::with_capacity(self.num_threads);
-        let partition_size = dataset.len() / self.num_threads;
+    fn partition_data(&self, dataset: &Dataset, num_threads: usize) -> Vec<Dataset> {
+        let mut partitions = Vec::with_capacity(num_threads);
+        let partition_size = dataset.len() / num_threads;
 
-        for i in 0..self.num_threads {
+        for i in 0..num_threads {
             let start = i * partition_size;
             let end = if i == self.num_threads - 1 {
                 dataset.len()
@@ -117,7 +119,8 @@ impl ParallelHDCInference {
         queries: &[String],
         trained_model: &[Vec<f64>],
     ) -> Vec<String> {
-        let query_chunks = queries.chunks(queries.len() / self.num_threads);
+        let num_threads = self.num_threads.min(num_cpus::get());
+        let query_chunks = queries.chunks(queries.len() / num_threads);
 
         let results: Vec<Vec<String>> = query_chunks
             .into_par_iter()
