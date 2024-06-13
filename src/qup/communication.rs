@@ -1,6 +1,6 @@
 use crate::qup::block::QUPBlock;
 use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, 
-verify_signature, hash_data};
+verify_signature, hash_data, delta_encode, delta_decode};
 use crate::qup::state::QUPState;
 use crate::network::{NetworkMessage, QUPMessage, UsefulWorkProblem,
 UsefulWorkSolution, NetworkSender, NetworkReceiver, discover_peers,
