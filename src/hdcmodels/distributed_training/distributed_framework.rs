@@ -23,6 +23,12 @@ pub struct DistributedTrainingNode {
     training_data: Option<Dataset>,
     aggregator_channel: Option<Sender<DistributedTrainingMessage>>,
     trainer_channel: Option<Receiver<DistributedTrainingMessage>>,
+    local_model: Option<HDCModel>,
+    node: Node,
+    hdc_model: Arc<HDCModel>,
+    training_data: Option<Dataset>,
+    aggregator_channel: Option<Sender<DistributedTrainingMessage>>,
+    trainer_channel: Option<Receiver<DistributedTrainingMessage>>,
 }
 
 impl DistributedTrainingNode {
@@ -53,6 +59,45 @@ impl DistributedTrainingNode {
     }
 
     async fn training_loop(&mut self) {
+        while let Some(message) = self.trainer_channel.as_mut().unwrap().recv().await {
+            match message {
+                DistributedTrainingMessage::InitializeTraining(_) => {
+                    // Perform any necessary initialization steps
+                }
+                DistributedTrainingMessage::TrainingData(dataset) => {
+                    self.training_data = Some(dataset);
+                    self.train_local_model().await;
+                }
+                DistributedTrainingMessage::AggregatedModel(model) => {
+                    self.receive_aggregated_model(model).await;
+                }
+                DistributedTrainingMessage::TrainingComplete => {
+                    break;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    async fn train_local_model(&mut self) {
+        if let Some(dataset) = &self.training_data {
+            let trained_model = self.hdc_model.train(dataset);
+            self.local_model = Some(trained_model);
+            self.send_model_update().await;
+        }
+    }
+
+    async fn send_model_update(&self) {
+        if let Some(local_model) = &self.local_model {
+            let model_params = local_model.get_parameters();
+            let message = DistributedTrainingMessage::TrainedModel(model_params);
+            self.node.send_message(Message::TrainingUpdate(message)).await;
+        }
+    }
+
+    async fn receive_aggregated_model(&mut self, model: Vec<Vec<f64>>) {
+        *self.hdc_model = Arc::new(HDCModel::from_model(model));
+    }
         while let Some(message) = self.trainer_channel.as_mut().unwrap().recv().await {
             match message {
                 DistributedTrainingMessage::InitializeTraining(_) => {
