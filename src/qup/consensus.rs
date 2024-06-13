@@ -223,12 +223,41 @@ impl QUPConsensus {
         // Example: Adding a model aggregation round
         self.aggregate_model_round()?;
 
+        // Periodically trigger model evaluation
+        if self.state.get_epoch() % self.config.evaluation_interval == 0 {
+            self.evaluate_model()?;
+        }
+
         // Continue with the standard consensus process
         self.propose_block()?;
         self.collect_votes()?;
         self.commit_block()?;
 
         Ok(())
+    }
+
+    fn evaluate_model(&mut self) -> Result<(), ConsensusError> {
+        // Evaluate the model on each node's local data shard
+        let evaluation_score = evaluate_model_on_shard(&self.hdc_model, &self.state);
+
+        // Collect evaluation scores from all nodes
+        let evaluation_scores = self.collect_evaluation_scores()?;
+
+        // Aggregate the evaluation scores
+        let aggregated_score = aggregate_evaluation_results(&evaluation_scores);
+
+        // Log the aggregated evaluation score
+        info!("Aggregated model evaluation score: {}", aggregated_score);
+
+        // TODO: Make adjustments to the training process based on the evaluation score if necessary
+
+        Ok(())
+    }
+
+    fn collect_evaluation_scores(&self) -> Result<Vec<f64>, ConsensusError> {
+        // Placeholder for collecting evaluation scores from all nodes
+        // This can be customized based on the specific communication protocol
+        Ok(vec![])
     }
 }
 
