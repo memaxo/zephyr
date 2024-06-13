@@ -28,35 +28,12 @@ impl HDCModel {
         }
     }
 
-    pub fn train(&mut self, dataset: &Dataset) -> Vec<Vec<f64>> {
-        let start_time = Instant::now();
-
-        let encoded_data: Vec<Vec<f64>> = dataset
-            .iter()
-            .map(|item| match item {
-                DataItem::RustCode(code) => encode_rust_code(code, self.dimension),
-                DataItem::NaturalLanguage(text) => encode_natural_language(text, self.dimension),
-                DataItem::TransactionalData(data) => {
-                    encode_transactional_data(data, self.dimension)
-                }
-                DataItem::SmartContract(contract) => {
-                    encode_smart_contract(contract, self.dimension, 3)
-                }
-            })
-            .collect();
-
-        let num_samples = encoded_data.len();
-        let num_features = encoded_data[0].len();
-
-        // Initialize weight matrix with zeros
+    fn train_single_model(&self, encoded_data: &[Vec<f64>], num_samples: usize, num_features: usize) -> Vec<Vec<f64>> {
         let mut weights = vec![vec![0.0; num_features]; num_samples];
-
-        // Set up training parameters
         let epochs = 50;
         let batch_size = 64;
         let learning_rate = 0.001;
 
-        // Perform training using mini-batch gradient descent
         for epoch in 0..epochs {
             let mut batch_indices: Vec<usize> = (0..num_samples).collect();
             batch_indices.shuffle(&mut rand::thread_rng());
@@ -113,16 +90,141 @@ impl HDCModel {
             }
         }
 
+        weights
+    }
+
+    pub fn train(&mut self, dataset: &Dataset) -> Vec<Vec<f64>> {
+        let start_time = Instant::now();
+
+        let encoded_data: Vec<Vec<f64>> = dataset
+            .iter()
+            .map(|item| match item {
+                DataItem::RustCode(code) => encode_rust_code(code, self.dimension),
+                DataItem::NaturalLanguage(text) => encode_natural_language(text, self.dimension),
+                DataItem::TransactionalData(data) => {
+                    encode_transactional_data(data, self.dimension)
+                }
+                DataItem::SmartContract(contract) => {
+                    encode_smart_contract(contract, self.dimension, 3)
+                }
+            })
+            .collect();
+
+        let num_samples = encoded_data.len();
+        let num_features = encoded_data[0].len();
+
+        // Initialize weight matrix with zeros
+        let mut weights = vec![vec![0.0; num_features]; num_samples];
+
+        // Set up training parameters with multiple learning rates and batch sizes
+        let learning_rates = vec![0.001, 0.01, 0.1];
+        let batch_sizes = vec![32, 64, 128];
+        let epochs = 100;
+        let mut best_accuracy = 0.0;
+        let mut best_weights = weights.clone();
+        let mut no_improvement_epochs = 0;
+        let early_stopping_patience = 10;
+
+        for &learning_rate in &learning_rates {
+            for &batch_size in &batch_sizes {
+                for epoch in 0..epochs {
+                    let mut batch_indices: Vec<usize> = (0..num_samples).collect();
+                    batch_indices.shuffle(&mut rand::thread_rng());
+
+                    for batch_start in (0..num_samples).step_by(batch_size) {
+                        let batch_end = (batch_start + batch_size).min(num_samples);
+                        let batch_indices = &batch_indices[batch_start..batch_end];
+
+                        let batch_inputs: Vec<&Vec<f64>> =
+                            batch_indices.iter().map(|&i| &encoded_data[i]).collect();
+                        let batch_weights: Vec<&Vec<f64>> =
+                            batch_indices.iter().map(|&i| &weights[i]).collect();
+
+                        let batch_activations: Vec<Vec<f64>> = batch_inputs
+                            .iter()
+                            .map(|inputs| self.compute_activations(inputs, &batch_weights))
+                            .collect();
+
+                        let batch_targets: Vec<Vec<f64>> = batch_inputs
+                            .iter()
+                            .map(|inputs| {
+                                inputs
+                                    .iter()
+                                    .map(|&x| if x > 0.0 { 1.0 } else { -1.0 })
+                                    .collect()
+                            })
+                            .collect();
+
+                        let batch_errors: Vec<Vec<f64>> = batch_activations
+                            .iter()
+                            .zip(batch_targets.iter())
+                            .map(|(activations, targets)| {
+                                activations
+                                    .iter()
+                                    .zip(targets.iter())
+                                    .map(|(&a, &t)| a - t)
+                                    .collect()
+                            })
+                            .collect();
+
+                        for (i, &index) in batch_indices.iter().enumerate() {
+                            let weight_updates: Vec<f64> = batch_inputs[i]
+                                .iter()
+                                .zip(batch_errors[i].iter())
+                                .map(|(&x, &e)| learning_rate * e * x)
+                                .collect();
+
+                            weights[index] = weights[index]
+                                .iter()
+                                .zip(weight_updates.iter())
+                                .map(|(&w, &u)| w - u)
+                                .collect();
+                        }
+                    }
+
+                    // Early stopping
+                    let current_accuracy = self.calculate_accuracy(&encoded_data, &weights);
+                    if current_accuracy > best_accuracy {
+                        best_accuracy = current_accuracy;
+                        best_weights = weights.clone();
+                        no_improvement_epochs = 0;
+                    } else {
+                        no_improvement_epochs += 1;
+                    }
+
+                    if no_improvement_epochs >= early_stopping_patience {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Use the best weights found during training
+        weights = best_weights;
+
         let end_time = Instant::now();
         let training_time = end_time.duration_since(start_time);
+
+        // Ensemble method: Combine multiple HDC models
+        let num_models = 5;
+        let mut ensemble_weights = vec![vec![0.0; num_features]; num_samples];
+
+        for _ in 0..num_models {
+            let model_weights = self.train_single_model(&encoded_data, num_samples, num_features);
+            for i in 0..num_samples {
+                for j in 0..num_features {
+                    ensemble_weights[i][j] += model_weights[i][j] / num_models as f64;
+                }
+            }
+        }
 
         self.encoded_data = encoded_data;
         self.epochs = epochs;
         self.dataset = dataset.clone();
-        self.accuracy = self.calculate_accuracy(&self.encoded_data, &weights);
+        self.accuracy = self.calculate_accuracy(&self.encoded_data, &ensemble_weights);
         self.efficiency = self.calculate_efficiency(training_time);
 
-        weights
+        ensemble_weights
     }
 
     pub fn validate(&mut self, dataset: &Dataset, trained_model: &[Vec<f64>]) {
