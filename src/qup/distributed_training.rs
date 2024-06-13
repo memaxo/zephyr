@@ -74,7 +74,8 @@ impl DistributedTrainer {
             self.train_data_parallel()
         } else if self.model_parallelism {
             self.train_model_parallel()
-        } else {
+        } else if self.data_parallelism && self.model_parallelism {
+            self.train_hybrid_parallel()
             self.train_standard()
         }
     }
@@ -147,6 +148,61 @@ impl DistributedTrainer {
 
         // For now, we'll just call the standard training method
         self.train_standard()
+    }
+
+    fn train_hybrid_parallel(&self) -> TrainingResult {
+        let mut handles = vec![];
+
+        // Split the dataset shards among nodes for data parallelism
+        for node in &self.nodes {
+            let dataset_shard = self.partitioned_dataset.get_shard(node).unwrap().to_vec();
+            let handle = std::thread::spawn(move || {
+                let model = HDCModel::new();
+                let trained_model = model.train(&dataset_shard);
+                trained_model
+            });
+            handles.push(handle);
+        }
+
+        let mut models = vec![];
+        for handle in handles {
+            match handle.join() {
+                Ok(model) => models.push(model),
+                Err(_) => handle_node_failure(),
+            }
+        }
+
+        // Aggregate models from data parallelism
+        let aggregated_model = self.aggregate_models(models);
+
+        // Split the aggregated model layers across different nodes for model parallelism
+        let mut model_handles = vec![];
+        for node in &self.nodes {
+            let model_clone = aggregated_model.clone();
+            let handle = std::thread::spawn(move || {
+                // Placeholder for model parallelism logic
+                // Each node processes a subset of the model layers
+                model_clone
+            });
+            model_handles.push(handle);
+        }
+
+        let mut final_models = vec![];
+        for handle in model_handles {
+            match handle.join() {
+                Ok(model) => final_models.push(model),
+                Err(_) => handle_node_failure(),
+            }
+        }
+
+        // Aggregate models from model parallelism
+        let final_aggregated_model = self.aggregate_models(final_models);
+        let metrics = evaluate_model(&final_aggregated_model);
+
+        TrainingResult {
+            model: final_aggregated_model,
+            metrics,
+        }
     }
 
     fn aggregate_models(&self, models: Vec<HDCModel>) -> HDCModel {
