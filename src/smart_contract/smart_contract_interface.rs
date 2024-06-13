@@ -2,6 +2,7 @@ use crate::smart_contract::types::{SmartContract, ContractState};
 use crate::utils::error::Result;
 use crate::smart_contract::logging::init_logging;
 use log::info;
+use serde::{Serialize, Deserialize};
 
 pub trait SmartContractInterface {
     fn deploy_contract(&self, contract: SmartContract) -> Result<String>;
@@ -27,5 +28,45 @@ impl ProxyContract {
 
     pub fn upgrade(&mut self, new_target_contract_id: String) {
         self.target_contract_id = new_target_contract_id;
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TrainingJob {
+    pub model_id: String,
+    pub dataset_id: String,
+    pub training_parameters: String, // JSON string
+    pub reward: u64,
+    pub status: String,
+    pub participants: Vec<String>,
+}
+
+impl TrainingJob {
+    pub fn create_job(&mut self, model_id: String, dataset_id: String, training_parameters: String, reward: u64) {
+        self.model_id = model_id;
+        self.dataset_id = dataset_id;
+        self.training_parameters = training_parameters;
+        self.reward = reward;
+        self.status = "Pending".to_string();
+        self.participants = vec![];
+    }
+
+    pub fn join_job(&mut self, node_address: String) {
+        self.participants.push(node_address);
+    }
+
+    pub fn submit_results(&mut self, node_address: String, results: String) -> Result<()> {
+        // Placeholder for result submission logic
+        Ok(())
+    }
+
+    pub fn verify_results(&self, results: String) -> bool {
+        // Placeholder for result verification logic
+        true
+    }
+
+    pub fn distribute_rewards(&self) -> Result<()> {
+        // Placeholder for reward distribution logic
+        Ok(())
     }
 }
