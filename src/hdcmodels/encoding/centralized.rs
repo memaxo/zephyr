@@ -6,48 +6,103 @@ use rayon::prelude::*;
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::hash::Hash;
+use crate::hdcmodels::quantum_encoding::QuantumEncoder;
+use ndarray::Array1;
 
-pub fn encode_transactional_data(data: &[Transaction], dimension: usize) -> Vec<f64> {
-    let mut encoded_data = Vec::with_capacity(data.len() * dimension);
-    encoded_data.par_extend(
-        data.par_iter()
-            .map(|transaction| random_projection(&transaction.to_string(), dimension))
-            .flatten()
-    );
-    encoded_data
+pub enum EncodingMethod {
+    Classical,
+    Quantum,
 }
 
-pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize) -> Vec<f64> {
-    let tokens = tokenize_smart_contract(contract, n);
-    let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
-        .map(|token| random_projection(token, dimension))
-        .collect();
-
-    // Dimensionality reduction using PCA or similar technique
-    let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
-    reduced_vectors.iter().flatten().cloned().collect()
+pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method: EncodingMethod) -> Vec<f64> {
+    match method {
+        EncodingMethod::Classical => {
+            let mut encoded_data = Vec::with_capacity(data.len() * dimension);
+            encoded_data.par_extend(
+                data.par_iter()
+                    .map(|transaction| random_projection(&transaction.to_string(), dimension))
+                    .flatten()
+            );
+            encoded_data
+        },
+        EncodingMethod::Quantum => {
+            let data_str: Vec<String> = data.iter().map(|transaction| transaction.to_string()).collect();
+            let data_array: Array1<f64> = Array1::from(data_str.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
+            let circuit = QuantumEncoder::amplitude_encoding(&data_array);
+            // Convert the quantum state back to classical data if needed
+            // Placeholder: return an empty vector for now
+            vec![]
+        },
+    }
 }
 
-pub fn encode_rust_code(code: &str, dimension: usize) -> Vec<f64> {
-    let tokens = tokenize_rust_code(code);
-    let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
-        .map(|token| random_projection(token, dimension))
-        .collect();
+pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method: EncodingMethod) -> Vec<f64> {
+    match method {
+        EncodingMethod::Classical => {
+            let tokens = tokenize_smart_contract(contract, n);
+            let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
+                .map(|token| random_projection(token, dimension))
+                .collect();
 
-    // Dimensionality reduction using PCA or similar technique
-    let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
-    reduced_vectors.iter().flatten().cloned().collect()
+            // Dimensionality reduction using PCA or similar technique
+            let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
+            reduced_vectors.iter().flatten().cloned().collect()
+        },
+        EncodingMethod::Quantum => {
+            let tokens = tokenize_smart_contract(contract, n);
+            let data_array: Array1<f64> = Array1::from(tokens.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
+            let circuit = QuantumEncoder::amplitude_encoding(&data_array);
+            // Convert the quantum state back to classical data if needed
+            // Placeholder: return an empty vector for now
+            vec![]
+        },
+    }
 }
 
-pub fn encode_natural_language(text: &str, dimension: usize) -> Vec<f64> {
-    let tokens = tokenize_natural_language(text);
-    let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
-        .map(|token| random_projection(token, dimension))
-        .collect();
+pub fn encode_rust_code(code: &str, dimension: usize, method: EncodingMethod) -> Vec<f64> {
+    match method {
+        EncodingMethod::Classical => {
+            let tokens = tokenize_rust_code(code);
+            let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
+                .map(|token| random_projection(token, dimension))
+                .collect();
 
-    // Dimensionality reduction using PCA or similar technique
-    let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
-    reduced_vectors.iter().flatten().cloned().collect()
+            // Dimensionality reduction using PCA or similar technique
+            let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
+            reduced_vectors.iter().flatten().cloned().collect()
+        },
+        EncodingMethod::Quantum => {
+            let tokens = tokenize_rust_code(code);
+            let data_array: Array1<f64> = Array1::from(tokens.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
+            let circuit = QuantumEncoder::amplitude_encoding(&data_array);
+            // Convert the quantum state back to classical data if needed
+            // Placeholder: return an empty vector for now
+            vec![]
+        },
+    }
+}
+
+pub fn encode_natural_language(text: &str, dimension: usize, method: EncodingMethod) -> Vec<f64> {
+    match method {
+        EncodingMethod::Classical => {
+            let tokens = tokenize_natural_language(text);
+            let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
+                .map(|token| random_projection(token, dimension))
+                .collect();
+
+            // Dimensionality reduction using PCA or similar technique
+            let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
+            reduced_vectors.iter().flatten().cloned().collect()
+        },
+        EncodingMethod::Quantum => {
+            let tokens = tokenize_natural_language(text);
+            let data_array: Array1<f64> = Array1::from(tokens.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
+            let circuit = QuantumEncoder::amplitude_encoding(&data_array);
+            // Convert the quantum state back to classical data if needed
+            // Placeholder: return an empty vector for now
+            vec![]
+        },
+    }
 }
 
 use syn::{parse_file, Item};
