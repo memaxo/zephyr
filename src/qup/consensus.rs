@@ -105,7 +105,6 @@ pub enum ConsensusAlgorithm {
 
         Ok(())
     }
-}
 
     pub fn aggregate_model_round(&self) -> Result<(), ConsensusError> {
         // Designated aggregator node collects model updates from all participants
@@ -156,7 +155,7 @@ pub enum ConsensusAlgorithm {
 
         Ok(())
     }
-
+}
 
 impl QUPConsensus {
     pub fn initialize_training(&self) -> Result<(), ConsensusError> {
