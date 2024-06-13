@@ -227,11 +227,47 @@ impl QUPConsensus {
             self.evaluate_model()?;
         }
 
+        // Fetch new data for continuous learning
+        self.fetch_new_data()?;
+
         // Continue with the standard consensus process
         self.propose_block()?;
         self.collect_votes()?;
         self.commit_block()?;
 
+        Ok(())
+    }
+
+    fn fetch_new_data(&mut self) -> Result<(), ConsensusError> {
+        // Fetch new data from external sources or from nodes
+        // This can be customized based on the specific requirements of the data sources
+        // For now, this is a placeholder function
+        let new_data = self.collect_new_data()?;
+
+        // Update the training dataset with the new data
+        self.update_training_dataset(new_data)?;
+
+        Ok(())
+    }
+
+    fn collect_new_data(&self) -> Result<Vec<(Vec<f64>, String)>, ConsensusError> {
+        // Collect new data from external sources or from nodes
+        // This can be customized based on the specific communication protocol
+        // For now, this is a placeholder function that returns random data
+        let mut new_data = Vec::new();
+        for _ in 0..10 {
+            let features = vec![rand::random::<f64>(); 10];
+            let label = rand::random::<u8>() % 2 == 0;
+            new_data.push((features, label.to_string()));
+        }
+        Ok(new_data)
+    }
+
+    fn update_training_dataset(&mut self, new_data: Vec<(Vec<f64>, String)>) -> Result<(), ConsensusError> {
+        // Update the training dataset with the new data
+        // This can be customized based on the specific requirements of the dataset
+        // For now, this is a placeholder function
+        self.state.training_dataset.extend(new_data);
         Ok(())
     }
 
