@@ -160,7 +160,23 @@ fn dimensionality_reduction(vectors: &Vec<Vec<f64>>, reduced_dimension: usize) -
     vectors.iter().map(|v| v.iter().take(reduced_dimension).cloned().collect()).collect()
 }
 
-pub struct StateEncoder;
+pub fn encode_dataset_shard(shard: &[f64], dimension: usize, method: EncodingMethod) -> Vec<f64> {
+    match method {
+        EncodingMethod::Classical => {
+            shard.par_iter()
+                .map(|&value| random_projection(&value.to_string(), dimension))
+                .flatten()
+                .collect()
+        },
+        EncodingMethod::Quantum => {
+            let data_array: Array1<f64> = Array1::from(shard.to_vec());
+            let circuit = QuantumEncoder::amplitude_encoding(&data_array);
+            // Convert the quantum state back to classical data if needed
+            // Placeholder: return an empty vector for now
+            vec![]
+        },
+    }
+}
 
 impl StateEncoder {
     pub fn encode_state(state: &State) -> Result<String, serde_json::Error> {
