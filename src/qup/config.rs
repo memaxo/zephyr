@@ -31,7 +31,9 @@ pub struct DistributedTrainingConfig {
     pub batch_size: usize,
     pub learning_rate: f64,
     pub aggregation_frequency: usize,
-    // Add other relevant hyperparameters here
+    pub hyperparameter_tuning: bool,
+    pub load_balancing: bool,
+    pub training_algorithm: String,
     pub data_parallelism: bool,
     pub model_parallelism: bool,
     pub hybrid_parallelism: bool,
@@ -51,6 +53,9 @@ impl DistributedTrainingConfig {
         hybrid_parallelism: bool,
         pipeline_parallelism: bool,
         num_pipeline_stages: usize,
+        hyperparameter_tuning: bool,
+        load_balancing: bool,
+        training_algorithm: String,
     ) -> Self {
         DistributedTrainingConfig {
             num_nodes,
@@ -63,6 +68,9 @@ impl DistributedTrainingConfig {
             hybrid_parallelism,
             pipeline_parallelism,
             num_pipeline_stages,
+            hyperparameter_tuning,
+            load_balancing,
+            training_algorithm,
         }
     }
 }
