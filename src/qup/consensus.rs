@@ -158,6 +158,21 @@ pub enum ConsensusAlgorithm {
 }
 
 impl QUPConsensus {
+    pub fn private_leader_election(&self) -> Result<NodeId, ConsensusError> {
+        // Implement private leader election using ZKPs
+        // This is a placeholder function and should be customized based on the specific ZKP scheme
+        let leader_id = NodeId::new();
+        Ok(leader_id)
+    }
+    pub fn stake_tokens(&mut self, validator: String, amount: u64) -> Result<(), ConsensusError> {
+        let balance = self.state.get_balance(&validator)?;
+        if balance < amount {
+            return Err(ConsensusError::InsufficientBalance);
+        }
+        self.state.reduce_balance(&validator, amount)?;
+        *self.staking.entry(validator).or_insert(0) += amount;
+        Ok(())
+    }
     pub fn initialize_training(&self) -> Result<(), ConsensusError> {
         // Serialize the initial model parameters
         let model_params = serde_json::to_string(&self.hdc_model).map_err(|_| ConsensusError::SerializationError)?;
@@ -204,7 +219,21 @@ impl QUPConsensus {
             }
         }
 
+        // Slash validator if block is invalid
+        if !is_valid {
+            self.slash_validator(&block.proposer)?;
+        }
+
         Ok(is_valid)
+    }
+
+    fn slash_validator(&self, validator: &str) -> Result<(), ConsensusError> {
+        if let Some(stake) = self.staking.get_mut(validator) {
+            let slashed_amount = *stake / 2;
+            *stake -= slashed_amount;
+            self.state.increase_balance(validator, slashed_amount)?;
+        }
+        Ok(())
     }
 
     fn process_transaction(&mut self, transaction: Transaction) -> Result<(), ConsensusError> {
@@ -354,6 +383,7 @@ pub struct QUPConsensus {
     pub useful_work_generator: Box<dyn UsefulWorkGenerator>,
     pub vdf: VDF,
     pub communication_protocol: Box<dyn CommunicationProtocol>,
+    pub staking: HashMap<String, u64>, // Staking information
 }
 
 impl QUPConsensus {
@@ -960,6 +990,12 @@ pub fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
         return Err(ConsensusError::InvalidSignature);
     }
 
+    // Slash validator if double-signing is detected
+    if self.state.has_voted(&vote.voter, &vote.block_hash)? {
+        self.slash_validator(&vote.voter)?;
+        return Err(ConsensusError::DoubleSigning);
+    }
+
     // Add the vote to the state
     self.state.add_vote(vote.clone())?;
 
@@ -1233,8 +1269,24 @@ pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), Conse
     fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
         let total_rewards = self.calculate_total_rewards(block);
         let rewards = self.calculate_rewards(block, total_rewards);
-        
-        self.rewards.distribute_rewards(&rewards.keys().cloned().collect::<Vec<_>>(), total_rewards, &mut self.state, &self.connection_manager).await?;
+    
+        // Distribute rewards to validators based on their stake
+        for (validator, reward) in rewards {
+            if let Some(stake) = self.staking.get(&validator) {
+                let validator_reward = reward * *stake / self.state.get_total_stake();
+                self.state.increase_balance(&validator, validator_reward)?;
+            }
+        }
+
+        // Distribute rewards for useful work
+        if let Some(solution) = &block.useful_work_solution {
+            let useful_work_rewards = total_rewards * self.config.consensus_config.useful_work_reward_percentage / 100;
+            let num_solutions = block.useful_work_solutions.len();
+            let reward_per_solution = useful_work_rewards / num_solutions as u64;
+            for solution in &block.useful_work_solutions {
+                self.state.increase_balance(&solution.provider, reward_per_solution)?;
+            }
+        }
 
         Ok(())
     }
