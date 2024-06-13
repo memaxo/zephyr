@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::time::interval;
@@ -6,13 +6,58 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use serde::{Serialize, Deserialize};
 use cloud_storage::Client;
+use std::collections::hash_map::Entry;
 
 #[derive(Serialize, Deserialize)]
 struct Node {
     id: usize,
     last_heartbeat: Instant,
     shard: Vec<u8>,
-}
+    }
+
+    pub async fn fault_tolerant_model_aggregation(&self, models: Vec<Vec<u8>>) -> Vec<u8> {
+        let mut model_votes = HashMap::new();
+
+        for model in models {
+            let entry = model_votes.entry(model.clone()).or_insert(0);
+            *entry += 1;
+        }
+
+        // Byzantine fault tolerance: select the model with the most votes
+        let (correct_model, _) = model_votes.into_iter().max_by_key(|&(_, count)| count).unwrap();
+        correct_model
+    }
+
+    pub async fn run_speculative_execution(&self, task: Vec<u8>) -> Vec<u8> {
+        let mut nodes = self.nodes.lock().unwrap();
+        let mut results = HashMap::new();
+        let mut tasks_assigned = HashSet::new();
+
+        for (id, node) in nodes.iter() {
+            if tasks_assigned.contains(id) {
+                continue;
+            }
+            tasks_assigned.insert(*id);
+            let result = self.execute_task_on_node(*id, task.clone()).await;
+            results.entry(result).or_insert_with(Vec::new).push(*id);
+        }
+
+        // Voting mechanism to determine the correct output
+        let (correct_result, _) = results.into_iter().max_by_key(|(_, v)| v.len()).unwrap();
+        correct_result
+    }
+
+    async fn execute_task_on_node(&self, node_id: usize, task: Vec<u8>) -> Vec<u8> {
+        // Placeholder for task execution logic
+        println!("Executing task on node {}", node_id);
+        task // Placeholder for actual task result
+    }
+
+    pub async fn aggregate_model(&self, models: Vec<Vec<u8>>) -> Vec<u8> {
+        // Placeholder for Byzantine fault-tolerant model aggregation logic
+        println!("Aggregating models with Byzantine fault tolerance");
+        models[0].clone() // Placeholder for actual aggregation result
+    }
 
 #[derive(Serialize, Deserialize)]
 struct Checkpoint {
