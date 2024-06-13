@@ -32,6 +32,10 @@ pub struct DistributedTrainingConfig {
     pub learning_rate: f64,
     pub aggregation_frequency: usize,
     // Add other relevant hyperparameters here
+    pub data_parallelism: bool,
+    pub model_parallelism: bool,
+    pub data_parallelism: bool,
+    pub model_parallelism: bool,
 }
 
 impl DistributedTrainingConfig {
@@ -41,6 +45,14 @@ impl DistributedTrainingConfig {
         learning_rate: f64,
         aggregation_frequency: usize,
         distributed_training_config: DistributedTrainingConfig,
+        data_parallelism: bool,
+        model_parallelism: bool,
+        data_parallelism: bool,
+        model_parallelism: bool,
+        data_parallelism: bool,
+        model_parallelism: bool,
+        data_parallelism: bool,
+        model_parallelism: bool,
     ) -> Self {
         DistributedTrainingConfig {
             num_nodes,
@@ -48,6 +60,14 @@ impl DistributedTrainingConfig {
             learning_rate,
             aggregation_frequency,
             distributed_training_config,
+            data_parallelism,
+            model_parallelism,
+            data_parallelism,
+            model_parallelism,
+            data_parallelism,
+            model_parallelism,
+            data_parallelism,
+            model_parallelism,
         }
     }
 }
