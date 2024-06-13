@@ -5,6 +5,9 @@ use crate::monitoring::evaluate_model;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
+use optuna::prelude::*;
+use optuna::study::Study;
+use optuna::trial::Trial;
 
 pub struct DatasetShard {
     pub data: Vec<f64>,
@@ -59,7 +62,63 @@ pub struct DatasetShard {
 pub struct Task {
     pub node_id: NodeId,
     pub dataset_shard: Vec<f64>,
+pub struct HyperparameterConfig {
+    pub batch_size: usize,
+    pub learning_rate: f64,
+}
+
 pub struct DistributedTrainer {
+    pub nodes: Vec<NodeId>,
+    pub partitioned_dataset: PartitionedDataset,
+    pub data_parallelism: bool,
+    pub model_parallelism: bool,
+    pub pipeline_parallelism: bool,
+    pub scheduler: Scheduler,
+    pub study: Study,
+}
+
+impl DistributedTrainer {
+    pub fn new(nodes: Vec<NodeId>, dataset: Dataset, shard_count: usize, data_parallelism: bool, model_parallelism: bool, pipeline_parallelism: bool) -> Self {
+        let partitioned_dataset = PartitionedDataset::new(&dataset, shard_count, &nodes);
+        let scheduler = Scheduler::new();
+        let study = Study::create("hyperparameter_optimization", "sqlite:///optuna.db").unwrap();
+        DistributedTrainer {
+            nodes,
+            partitioned_dataset,
+            data_parallelism,
+            model_parallelism,
+            pipeline_parallelism,
+            scheduler,
+            study,
+        }
+    }
+
+    pub fn optimize_hyperparameters(&self) -> HyperparameterConfig {
+        let objective = |trial: &mut Trial| {
+            let batch_size = trial.suggest_int("batch_size", 16, 128).unwrap();
+            let learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-1).unwrap();
+
+            let config = HyperparameterConfig {
+                batch_size: batch_size as usize,
+                learning_rate,
+            };
+
+            let result = self.train_with_config(&config);
+            result.metrics["accuracy"]
+        };
+
+        self.study.optimize(objective, 50).unwrap();
+        let best_trial = self.study.best_trial().unwrap();
+        HyperparameterConfig {
+            batch_size: best_trial.params["batch_size"].as_i64().unwrap() as usize,
+            learning_rate: best_trial.params["learning_rate"].as_f64().unwrap(),
+        }
+    }
+
+    pub fn train_with_config(&self, config: &HyperparameterConfig) -> TrainingResult {
+        // Implement training logic using the provided hyperparameter configuration
+        self.train_standard()
+    }
     pub nodes: Vec<NodeId>,
     pub partitioned_dataset: PartitionedDataset,
     pub data_parallelism: bool,
@@ -83,6 +142,9 @@ impl DistributedTrainer {
     }
 
     pub fn train(&self) -> TrainingResult {
+        let best_config = self.optimize_hyperparameters();
+        self.train_with_config(&best_config)
+    }
         if self.data_parallelism {
             self.train_data_parallel()
         } else if self.model_parallelism {
