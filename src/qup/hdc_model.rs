@@ -65,3 +65,77 @@ impl HDCModel {
         vec![vec![0.0; 10]; dataset.items.len()]
     }
 }
+
+impl HDCModel {
+    pub fn prune_weights(&mut self, threshold: f64) {
+        // Placeholder for weight pruning logic
+        // Iterate through the model's weights and set those below the threshold to zero
+        for weight in self.weights.iter_mut() {
+            if *weight < threshold {
+                *weight = 0.0;
+            }
+        }
+    }
+
+    pub fn distill_knowledge(&mut self, teacher_model: &HDCModel, dataset: &Dataset) {
+        // Placeholder for knowledge distillation logic
+        // Use the teacher model to generate soft labels for the dataset
+        // Train the current model using these soft labels
+        let soft_labels = teacher_model.predict(dataset);
+        self.train_with_soft_labels(dataset, &soft_labels);
+    }
+
+    pub fn quantize(&mut self, num_bits: u8) {
+        // Placeholder for model quantization logic
+        // Quantize the model's weights to the specified number of bits
+        let max_value = 2.0_f64.powi(num_bits as i32) - 1.0;
+        for weight in self.weights.iter_mut() {
+            *weight = (*weight * max_value).round() / max_value;
+        }
+    }
+
+    pub fn evaluate_compression_techniques(&mut self, dataset: &Dataset) -> HashMap<String, f64> {
+        let mut results = HashMap::new();
+
+        // Evaluate original model
+        let original_metrics = self.evaluate(dataset);
+        results.insert("original".to_string(), original_metrics["accuracy"]);
+
+        // Apply weight pruning and evaluate
+        self.prune_weights(0.1);
+        let pruned_metrics = self.evaluate(dataset);
+        results.insert("pruned".to_string(), pruned_metrics["accuracy"]);
+
+        // Apply knowledge distillation and evaluate
+        let teacher_model = self.clone();
+        self.distill_knowledge(&teacher_model, dataset);
+        let distilled_metrics = self.evaluate(dataset);
+        results.insert("distilled".to_string(), distilled_metrics["accuracy"]);
+
+        // Apply quantization and evaluate
+        self.quantize(8);
+        let quantized_metrics = self.evaluate(dataset);
+        results.insert("quantized".to_string(), quantized_metrics["accuracy"]);
+
+        results
+    }
+
+    fn train_with_soft_labels(&mut self, dataset: &Dataset, soft_labels: &Vec<Vec<f64>>) {
+        // Placeholder for training with soft labels logic
+        // Train the model using the provided soft labels
+    }
+
+    fn predict(&self, dataset: &Dataset) -> Vec<Vec<f64>> {
+        // Placeholder for prediction logic
+        // Generate predictions for the dataset
+        vec![vec![0.0; 10]; dataset.items.len()]
+    }
+
+    fn evaluate(&self, dataset: &Dataset) -> HashMap<String, f64> {
+        // Placeholder for evaluation logic
+        // Evaluate the model on the dataset and return metrics
+        let mut metrics = HashMap::new();
+        metrics.insert("accuracy".to_string(), 0.9); // Placeholder accuracy
+        metrics
+    }
+}
