@@ -2,50 +2,52 @@ use rand::Rng;
 use crate::chain::state::State;
 use serde_json;
 use std::error::Error;
+use rayon::prelude::*;
+use std::sync::Arc;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 pub fn encode_transactional_data(data: &[Transaction], dimension: usize) -> Vec<f64> {
     let mut encoded_data = Vec::with_capacity(data.len() * dimension);
-    for transaction in data {
-        let transaction_vector = random_projection(&transaction.to_string(), dimension);
-        encoded_data.extend(transaction_vector);
-    }
+    encoded_data.par_extend(
+        data.par_iter()
+            .map(|transaction| random_projection(&transaction.to_string(), dimension))
+            .flatten()
+    );
     encoded_data
 }
 
 pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize) -> Vec<f64> {
     let tokens = tokenize_smart_contract(contract, n);
-    let token_vectors = tokens
-        .iter()
+    let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
         .map(|token| random_projection(token, dimension))
-        .collect::<Vec<Vec<f64>>>();
+        .collect();
 
-    // Placeholder for combining token vectors using HDC operations
-    // Replace this with the actual implementation
-    token_vectors.iter().flatten().cloned().collect()
+    // Dimensionality reduction using PCA or similar technique
+    let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
+    reduced_vectors.iter().flatten().cloned().collect()
 }
 
 pub fn encode_rust_code(code: &str, dimension: usize) -> Vec<f64> {
     let tokens = tokenize_rust_code(code);
-    let token_vectors = tokens
-        .iter()
+    let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
         .map(|token| random_projection(token, dimension))
-        .collect::<Vec<Vec<f64>>>();
+        .collect();
 
-    // Placeholder for combining token vectors using HDC operations
-    // Replace this with the actual implementation
-    token_vectors.iter().flatten().cloned().collect()
+    // Dimensionality reduction using PCA or similar technique
+    let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
+    reduced_vectors.iter().flatten().cloned().collect()
 }
 
 pub fn encode_natural_language(text: &str, dimension: usize) -> Vec<f64> {
     let tokens = tokenize_natural_language(text);
-    let token_vectors = tokens
-        .iter()
+    let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
         .map(|token| random_projection(token, dimension))
-        .collect::<Vec<Vec<f64>>>();
+        .collect();
 
-    // Placeholder for combining token vectors using HDC operations
-    // Replace this with the actual implementation
-    token_vectors.iter().flatten().cloned().collect()
+    // Dimensionality reduction using PCA or similar technique
+    let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
+    reduced_vectors.iter().flatten().cloned().collect()
 }
 
 use syn::{parse_file, Item};
@@ -84,18 +86,23 @@ fn tokenize_natural_language(text: &str) -> Vec<String> {
 }
 
 fn tokenize_smart_contract(contract: &str, n: usize) -> Vec<String> {
-    // Placeholder for smart contract tokenization logic using N-grams
-    // Replace this with the actual implementation
-    vec![
-        "token1".to_string(),
-        "token2".to_string(),
-        "token3".to_string(),
-    ]
+    // Efficient tokenization logic using N-grams
+    let mut tokens = Vec::new();
+    for i in 0..contract.len() - n + 1 {
+        tokens.push(contract[i..i + n].to_string());
+    }
+    tokens
 }
 
 fn random_projection(token: &str, dimension: usize) -> Vec<f64> {
     let mut rng = rand::thread_rng();
     (0..dimension).map(|_| rng.gen_range(-1.0..1.0)).collect()
+}
+
+fn dimensionality_reduction(vectors: &Vec<Vec<f64>>, reduced_dimension: usize) -> Vec<Vec<f64>> {
+    // Placeholder for dimensionality reduction logic (e.g., PCA)
+    // Replace this with the actual implementation
+    vectors.iter().map(|v| v.iter().take(reduced_dimension).cloned().collect()).collect()
 }
 
 pub struct StateEncoder;
