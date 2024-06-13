@@ -2,6 +2,10 @@ use crate::state::account::Account;
 use crate::state::block::Block;
 use crate::state::state_manager::StateManager;
 use crate::state::transaction::Transaction;
+use crate::zkp::state_transition_circuits::StateTransitionCircuits;
+use crate::zkp::constraint_system::ConstraintSystemImpl;
+use crate::zkp::math::FieldElement;
+use num_bigint::BigUint;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -76,6 +80,14 @@ impl StateTransition {
         self.validate_qup_state_changes(block)?;
         // Revert QUP-specific state changes
         self.revert_qup_block_state_changes(block)?;
+
+        // ZKP-based verification
+        let mut cs = ConstraintSystemImpl::new();
+        let old_balance = FieldElement::new(BigUint::from(sender_account.balance), &BigUint::from(1u32) << 256);
+        let new_balance = FieldElement::new(BigUint::from(sender_account.balance - transaction.amount), &BigUint::from(1u32) << 256);
+        let transition = FieldElement::new(BigUint::from(transaction.amount), &BigUint::from(1u32) << 256);
+        StateTransitionCircuits::verify_state_transition(&mut cs, old_balance, new_balance, transition);
+
         Ok(())
     }
 
