@@ -34,6 +34,26 @@ pub enum ConsensusAlgorithm {
 }
 
 impl QUPConsensus {
+    pub fn aggregate_model_round(&self) -> Result<(), ConsensusError> {
+        // Designated aggregator node collects model updates from all participants
+        let model_updates = self.collect_model_updates()?;
+
+        // Calculate the average (or use another aggregation method)
+        let aggregated_model = self.aggregate_model_updates(model_updates);
+
+        // Prepare the updated model for distribution
+        self.broadcast_model_update(aggregated_model)?;
+
+        Ok(())
+    }
+
+    fn collect_model_updates(&self) -> Result<Vec<Vec<f64>>, ConsensusError> {
+        // Placeholder for collecting model updates from all participants
+        // This can be customized based on the specific communication protocol
+        Ok(vec![])
+    }
+
+impl QUPConsensus {
     pub fn aggregate_model_updates(&self, model_updates: Vec<Vec<f64>>) -> Vec<f64> {
         let num_updates = model_updates.len();
         let dimension = model_updates[0].len();
@@ -124,7 +144,19 @@ impl ConsensusInterface for QUPConsensus {
         // Implement the logic for reaching consensus
         // This can include proposing blocks, voting, and committing blocks
         // based on the specific consensus algorithm being used
-        todo!()
+        // Implement the logic for reaching consensus
+        // This can include proposing blocks, voting, and committing blocks
+        // based on the specific consensus algorithm being used
+
+        // Example: Adding a model aggregation round
+        self.aggregate_model_round()?;
+
+        // Continue with the standard consensus process
+        self.propose_block()?;
+        self.collect_votes()?;
+        self.commit_block()?;
+
+        Ok(())
     }
 }
 
