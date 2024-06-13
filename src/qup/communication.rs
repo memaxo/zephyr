@@ -3,7 +3,10 @@ use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, veri
 use crate::qup::state::QUPState;
 use crate::network::{NetworkMessage, QUPMessage, UsefulWorkProblem, UsefulWorkSolution, NetworkSender, NetworkReceiver, discover_peers, connect_to_peer, disconnect_from_peer};
 use crate::error::ConsensusError;
+use crate::qup::quantum_communication::{QKDChannel, PostQuantumChannel};
+use crate::hdcmodels::hdcmodels::HDCModel;
 use std::sync::Arc;
+use bincode;
 
 pub enum NodeType {
     Classical,
@@ -41,6 +44,37 @@ pub struct CommunicationProtocol {
     pub peers: Vec<String>,
     pub sender: NetworkSender,
     pub receiver: NetworkReceiver,
+}
+
+impl CommunicationProtocol {
+    pub fn send_model_update(&self, model: &HDCModel, recipient: &str) -> Result<(), ConsensusError> {
+        let serialized_model = bincode::serialize(model)?;
+        let encrypted_model = self.encrypt_with_qkd(&serialized_model, recipient)?;
+        let message = NetworkMessage::ModelUpdate {
+            model: encrypted_model,
+        };
+        self.send_message(message, recipient)
+    }
+
+    pub fn receive_model_update(&self, message: NetworkMessage) -> Result<HDCModel, ConsensusError> {
+        if let NetworkMessage::ModelUpdate { model } = message {
+            let decrypted_model = self.decrypt_with_qkd(&model)?;
+            let deserialized_model: HDCModel = bincode::deserialize(&decrypted_model)?;
+            Ok(deserialized_model)
+        } else {
+            Err(ConsensusError::InvalidMessage)
+        }
+    }
+
+    fn encrypt_with_qkd(&self, data: &[u8], recipient: &str) -> Result<Vec<u8>, ConsensusError> {
+        let qkd_channel = QKDChannel::new();
+        qkd_channel.encrypt(data, recipient)
+    }
+
+    fn decrypt_with_qkd(&self, data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
+        let qkd_channel = QKDChannel::new();
+        qkd_channel.decrypt(data)
+    }
 }
 
 impl CommunicationProtocol {
