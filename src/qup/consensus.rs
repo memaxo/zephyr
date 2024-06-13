@@ -840,27 +840,8 @@ impl QUPConsensus {
         history_proof
     }
 
-fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
-    // Solve the useful work problem using quantum algorithms or quantum-enhanced methods
-    match problem {
-        UsefulWorkProblem::Knapsack(knapsack_problem) => {
-            // Use quantum algorithms like Quantum Approximate Optimization Algorithm (QAOA)
-            // to solve the knapsack problem
-            let selected_items = self.solve_knapsack_qaoa(knapsack_problem);
-            UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
-        }
-        UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-            // Use quantum algorithms like Variational Quantum Eigensolver (VQE)
-            // to solve the vertex cover problem
-            let vertex_cover = self.solve_vertex_cover_vqe(vertex_cover_problem);
-            UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
-        }
-        UsefulWorkProblem::SupplyChainOptimization(supply_chain_problem) => {
-            // Use quantum-enhanced optimization methods to solve supply chain optimization problems
-            let optimized_supply_chain = self.solve_supply_chain_optimization(supply_chain_problem);
-            UsefulWorkSolution::SupplyChainOptimization(SupplyChainSolution { optimized_supply_chain })
-        }
-    }
+fn solve_useful_work_problem(&self, problem: &dyn UsefulWorkProblemTrait) -> Box<dyn UsefulWorkSolutionTrait> {
+    problem.solve()
 }
 
 fn solve_knapsack_qaoa(&self, problem: &KnapsackProblem) -> Vec<bool> {
