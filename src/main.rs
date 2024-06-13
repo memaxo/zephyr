@@ -1,22 +1,26 @@
 // Main entry point for the ZephyrChain blockchain application.
 // Initializes the blockchain, configures logging, and launches the user interface.
 
-mod api; // Handles network requests
-mod chain; // Core blockchain functionality and data structures
-mod consensus; // Consensus mechanisms
-mod network; // Networking and peer-to-peer communication
-mod optimization_problems; // Optimization problems for PoUW consensus
-mod quantum_entropy; // Quantum entropy source
-mod smart_contract; // Smart contract execution and management
-mod types; // Common data types and structures
-mod ui; // User interface for interacting with the blockchain
-mod utils; // Utility functions and modules
+mod api;
+mod chain;
+mod consensus;
+mod network;
+mod optimization_problems;
+mod quantum_entropy;
+mod smart_contract;
+mod types;
+mod ui;
+mod utils;
 mod zkp_crate;
 mod secure_core;
 mod mining;
 mod error_handling;
 mod crypto;
-mod parallel; // Zero-knowledge proof library
+mod parallel;
+mod data_loading;
+mod model_initialization;
+mod training_orchestration;
+mod result_reporting;
 
 use std::{
     sync::{Arc, Mutex},
