@@ -1,7 +1,7 @@
 use crate::zkp_crate::math::FieldElement;
 use std::collections::HashMap;
 use thiserror::Error;
-use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
+use pqcrypto_kyber::kyber1024::{keypair as kyber_keypair, encapsulate as kyber_encapsulate, decapsulate as kyber_decapsulate, PublicKey as KyberPublicKey, SecretKey as KyberSecretKey, Ciphertext as KyberCiphertext};
 
 pub trait ConstraintSystem {
     fn new() -> Self;
