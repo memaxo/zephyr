@@ -1,3 +1,4 @@
+extern crate bulletproofs;
 mod zk_starks;
 mod math;
 mod crypto;
