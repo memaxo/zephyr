@@ -7,6 +7,50 @@ use std::sync::{Arc, Mutex};
 
 pub struct DatasetShard {
     pub data: Vec<f64>,
+    fn train_pipeline_parallel(&self) -> TrainingResult {
+        let mut handles = vec![];
+        let stages = self.partition_model_into_stages();
+
+        for (i, node) in self.nodes.iter().enumerate() {
+            let stage = stages[i].clone();
+            let handle = std::thread::spawn(move || {
+                let mut model = HDCModel::new();
+                model.add_stage(stage);
+                model
+            });
+            handles.push(handle);
+        }
+
+        let mut models = vec![];
+        for handle in handles {
+            match handle.join() {
+                Ok(model) => models.push(model),
+                Err(_) => handle_node_failure(),
+            }
+        }
+
+        // Synchronize data transfer between stages
+        self.synchronize_stages(&models);
+
+        let final_model = self.aggregate_models(models);
+        let metrics = evaluate_model(&final_model);
+
+        TrainingResult {
+            model: final_model,
+            metrics,
+        }
+    }
+
+    fn partition_model_into_stages(&self) -> Vec<HDCModel> {
+        // Placeholder for model partitioning logic
+        // Split the model into stages and return them as a vector
+        vec![HDCModel::new(); self.nodes.len()]
+    }
+
+    fn synchronize_stages(&self, models: &[HDCModel]) {
+        // Placeholder for synchronization logic
+        // Implement mechanisms to synchronize data transfer between stages
+    }
 }
 
 pub struct PartitionedDataset {
@@ -75,6 +119,9 @@ impl DistributedTrainer {
         } else if self.model_parallelism {
             self.train_model_parallel()
         } else if self.data_parallelism && self.model_parallelism {
+            self.train_hybrid_parallel()
+        } else if self.pipeline_parallelism {
+            self.train_pipeline_parallel()
             self.train_hybrid_parallel()
             self.train_standard()
         }
