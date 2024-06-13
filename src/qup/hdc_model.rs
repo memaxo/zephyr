@@ -3,6 +3,9 @@ use crate::utils::node_id::NodeId;
 use crate::qup::distributed_training::PartitionedDataset;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tch::{nn, Device, Tensor};
+use tch::nn::Module;
+use tch::nn::OptimizerConfig;
 
 impl HDCModel {
     pub fn to_huggingface(&self) -> String {
@@ -31,5 +34,34 @@ impl HDCModel {
             }
         }
         self.train(dataset)
+    }
+
+    pub fn split_model(&self, num_slices: usize) -> Vec<HDCModel> {
+        // Placeholder for model splitting logic
+        vec![HDCModel::new(); num_slices]
+    }
+
+    pub fn merge_models(models: Vec<HDCModel>) -> HDCModel {
+        // Placeholder for model merging logic
+        HDCModel::new()
+    }
+
+    pub fn train_with_huggingface(&mut self, dataset: &Dataset) -> Vec<Vec<f64>> {
+        let vs = nn::VarStore::new(Device::Cpu);
+        let net = nn::seq()
+            .add(nn::linear(vs.root(), 784, 128, Default::default()))
+            .add_fn(|xs| xs.relu())
+            .add(nn::linear(vs.root(), 128, 10, Default::default()));
+        let mut opt = nn::Adam::default().build(&vs, 1e-3).unwrap();
+
+        for epoch in 1..200 {
+            let loss = net
+                .forward(&Tensor::of_slice(&dataset.items))
+                .cross_entropy_for_logits(&Tensor::of_slice(&dataset.items));
+            opt.backward_step(&loss);
+            println!("epoch: {:4} train loss: {:8.5}", epoch, f64::from(&loss));
+        }
+
+        vec![vec![0.0; 10]; dataset.items.len()]
     }
 }
