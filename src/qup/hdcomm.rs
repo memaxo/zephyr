@@ -5,7 +5,7 @@ use crate::qup::config::QUPConfig;
 use crate::qup::state::QUPState;
 use crate::qup::transaction::Transaction;
 use crate::qup::encoding::{encode_block, decode_block};
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, mpsc, Mutex};
 use std::thread;
 use merkle::MerkleTree;
 use rand::Rng;
@@ -21,21 +21,52 @@ impl HDCommunication {
         HDCommunication { config, hdc_model }
     }
 
+    /// Train on a dataset shard.
+    fn train_on_shard(&self, dataset_shard: &Arc<Mutex<Vec<f64>>>) -> bool {
+        let dataset = dataset_shard.lock().unwrap();
+        // Placeholder for actual training logic
+        true
+    }
+
+    /// Shard a dataset into multiple smaller chunks for distributed training.
+    /// Each chunk will be serialized and distributed to different nodes.
+    pub fn distribute_dataset(&self, dataset: &Vec<f64>, shard_count: usize) -> Vec<Vec<f64>> {
+        let chunk_size = (dataset.len() + shard_count - 1) / shard_count;
+        let mut shards = Vec::new();
+
+        for i in 0..shard_count {
+            let start = i * chunk_size;
+            let end = std::cmp::min(start + chunk_size, dataset.len());
+            let shard = dataset[start..end].to_vec();
+            shards.push(shard);
+        }
+
+        // Simulate distribution to different nodes
+        let distributed_shards = shards.into_iter().map(|shard| {
+            // Serialize the shard (placeholder for actual serialization logic)
+            shard
+        }).collect();
+
+        distributed_shards
+    }
+
     /// Shard a block into multiple smaller blocks for parallel processing.
-    /// Each shard will have its own Merkle tree for transaction verification.
+    /// Each shard will have its own Merkle tree for transaction verification and dataset for training.
     pub fn process_block_parallel(&self, block: &QUPBlock, shard_count: usize) -> QUPBlock {
-        let shards = self.shard_block(block, shard_count);
+        let transaction_shards = self.shard_block(block, shard_count);
+        let dataset_shards = self.distribute_dataset(&self.hdc_model.dataset, shard_count);
 
         let (tx, rx) = mpsc::channel();
 
-        for shard in shards {
+        for (transaction_shard, dataset_shard) in transaction_shards.into_iter().zip(dataset_shards.into_iter()) {
             let tx = tx.clone();
             let config = self.config.clone();
             let hdc_model = self.hdc_model.clone();
+            let dataset_shard = Arc::new(Mutex::new(dataset_shard));
 
             thread::spawn(move || {
                 let hdc_comm = HDCommunication::new(config, hdc_model);
-                let processed_shard = hdc_comm.process_shard(shard);
+                let processed_shard = hdc_comm.process_shard(transaction_shard, dataset_shard);
                 tx.send(processed_shard).unwrap();
             });
         }
@@ -51,8 +82,10 @@ impl HDCommunication {
         self.merge_shards(processed_shards)
     }
 
-    fn process_shard(&self, shard: QUPBlock) -> QUPBlock {
-        let optimized_shard = self.optimize_block(&shard);
+    fn process_shard(&self, transaction_shard: QUPBlock, dataset_shard: Arc<Mutex<Vec<f64>>>) -> QUPBlock {
+        let optimized_shard = self.optimize_block(&transaction_shard);
+        // Perform training on the dataset shard
+        let _ = self.train_on_shard(&dataset_shard);
         // Perform other processing steps on the shard
         optimized_shard
     }
