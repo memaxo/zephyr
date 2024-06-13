@@ -759,54 +759,47 @@ impl QUPConsensus {
     }
 
 fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
-    // Solve the useful work problem
-    // This can be customized based on the specific requirements of the useful work problem
+    // Solve the useful work problem using quantum algorithms or quantum-enhanced methods
     match problem {
         UsefulWorkProblem::Knapsack(knapsack_problem) => {
-            // Implement a simple greedy algorithm to solve the knapsack problem
-            let mut total_weight = 0;
-            let selected_items: Vec<bool> = knapsack_problem.weights.par_iter().enumerate().map(|(i, &weight)| {
-                if total_weight + weight <= knapsack_problem.capacity {
-                    total_weight += weight;
-                    true
-                } else {
-                    false
-                }
-            }).collect();
-
+            // Use quantum algorithms like Quantum Approximate Optimization Algorithm (QAOA)
+            // to solve the knapsack problem
+            let selected_items = self.solve_knapsack_qaoa(knapsack_problem);
             UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
         }
         UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-            // Implement a simple greedy algorithm to solve the knapsack problem
-            let mut total_weight = 0;
-            let selected_items: Vec<bool> = knapsack_problem.weights.par_iter().enumerate().map(|(i, &weight)| {
-                if total_weight + weight <= knapsack_problem.capacity {
-                    total_weight += weight;
-                    true
-                } else {
-                    false
-                }
-            }).collect();
-
-            UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items })
-        }
-        UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-            // Implement a simple greedy algorithm to solve the vertex cover problem
-            let mut vertex_cover = Vec::new();
-            let mut covered_edges = vec![false; vertex_cover_problem.graph.len()];
-
-            vertex_cover_problem.graph.par_iter().enumerate().for_each(|(vertex, edges)| {
-                if !covered_edges[vertex] {
-                    vertex_cover.push(vertex);
-                    for &edge in edges {
-                        covered_edges[edge] = true;
-                    }
-                }
-            });
-
+            // Use quantum algorithms like Variational Quantum Eigensolver (VQE)
+            // to solve the vertex cover problem
+            let vertex_cover = self.solve_vertex_cover_vqe(vertex_cover_problem);
             UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover })
         }
+        UsefulWorkProblem::SupplyChainOptimization(supply_chain_problem) => {
+            // Use quantum-enhanced optimization methods to solve supply chain optimization problems
+            let optimized_supply_chain = self.solve_supply_chain_optimization(supply_chain_problem);
+            UsefulWorkSolution::SupplyChainOptimization(SupplyChainSolution { optimized_supply_chain })
+        }
     }
+}
+
+fn solve_knapsack_qaoa(&self, problem: &KnapsackProblem) -> Vec<bool> {
+    // Implement the Quantum Approximate Optimization Algorithm (QAOA) to solve the knapsack problem
+    // This is a placeholder function and should be replaced with the actual QAOA implementation
+    // based on the available quantum hardware or simulator
+    vec![true; problem.weights.len()]
+}
+
+fn solve_vertex_cover_vqe(&self, problem: &VertexCoverProblem) -> Vec<usize> {
+    // Implement the Variational Quantum Eigensolver (VQE) to solve the vertex cover problem
+    // This is a placeholder function and should be replaced with the actual VQE implementation
+    // based on the available quantum hardware or simulator
+    (0..problem.graph.len()).collect()
+}
+
+fn solve_supply_chain_optimization(&self, problem: &SupplyChainProblem) -> Vec<usize> {
+    // Implement quantum-enhanced optimization methods to solve supply chain optimization problems
+    // This is a placeholder function and should be replaced with the actual optimization implementation
+    // based on the available quantum hardware or simulator
+    vec![0; problem.num_nodes]
 }
 
 fn validate_useful_work_proof(&self, proof: &[u8]) -> Result<bool, ConsensusError> {
