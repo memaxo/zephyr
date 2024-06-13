@@ -1,6 +1,10 @@
 use crate::hdcmodels::HDCModel;
 use crate::optimization_problems::OptimizationProblem;
-use ndarray::Array2;
+use ndarray::{Array2, Array1};
+use qiskit::prelude::*;
+use qiskit::quantum_info::state_fidelity;
+use qiskit::machine_learning::algorithms::QSVM;
+use qiskit::machine_learning::neural_networks::QNN;
 use num_complex::Complex;
 
 pub struct QuantumMachineLearningOptimizer {
