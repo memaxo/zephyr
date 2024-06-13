@@ -48,15 +48,27 @@ pub fn encode_natural_language(text: &str, dimension: usize) -> Vec<f64> {
     token_vectors.iter().flatten().cloned().collect()
 }
 
+use syn::{parse_file, Item};
+
 fn tokenize_rust_code(code: &str) -> Vec<String> {
-    // Placeholder for Rust code tokenization logic
-    // Replace this with the actual implementation
-    vec![
-        "fn".to_string(),
-        "main".to_string(),
-        "()".to_string(),
-        "{}".to_string(),
-    ]
+    let syntax_tree = parse_file(code).expect("Unable to parse Rust code");
+    let mut tokens = Vec::new();
+
+    for item in syntax_tree.items {
+        match item {
+            Item::Fn(func) => {
+                tokens.push("fn".to_string());
+                tokens.push(func.sig.ident.to_string());
+                tokens.push("(".to_string());
+                tokens.push(")".to_string());
+                tokens.push("{".to_string());
+                tokens.push("}".to_string());
+            }
+            _ => {}
+        }
+    }
+
+    tokens
 }
 
 fn tokenize_natural_language(text: &str) -> Vec<String> {
