@@ -1,5 +1,6 @@
 use crate::hdcmodels::HDCModel;
 use crate::optimization_problems::OptimizationProblem;
+use dwave_sys::sampler::DWaveSampler;
 use ndarray::Array1;
 use rand::Rng;
 use std::f64::consts::E;
