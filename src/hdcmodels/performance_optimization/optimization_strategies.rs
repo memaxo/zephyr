@@ -2,9 +2,85 @@ use crate::hdcmodels::encoding::{decode_data, encode_data};
 use crate::hdcmodels::similarity::cosine_similarity;
 use crate::hdcmodels::HDCModel;
 use ndarray::{Array, Array1, Array2, Axis};
+use rand::seq::SliceRandom;
+use rand::Rng;
+use bayesian_opt::BayesianOptimizer;
 
 pub struct OptimizedHDCModel {
     model: HDCModel,
+}
+
+pub fn grid_search(model: &mut HDCModel, data: &[Vec<f64>], labels: &[String], param_grid: &[(usize, f64)]) -> (usize, f64) {
+    let mut best_accuracy = 0.0;
+    let mut best_params = (model.dimension, model.learning_rate);
+
+    for &(dimension, learning_rate) in param_grid {
+        model.dimension = dimension;
+        model.learning_rate = learning_rate;
+
+        let encoded_data = encode_data_batch(data, dimension);
+        model.train(&encoded_data, labels);
+
+        let accuracy = evaluate_accuracy(model, data, labels);
+        if accuracy > best_accuracy {
+            best_accuracy = accuracy;
+            best_params = (dimension, learning_rate);
+        }
+    }
+
+    best_params
+}
+
+pub fn random_search(model: &mut HDCModel, data: &[Vec<f64>], labels: &[String], param_space: &[(usize, f64)], n_iter: usize) -> (usize, f64) {
+    let mut rng = rand::thread_rng();
+    let mut best_accuracy = 0.0;
+    let mut best_params = (model.dimension, model.learning_rate);
+
+    for _ in 0..n_iter {
+        let &(dimension, learning_rate) = param_space.choose(&mut rng).unwrap();
+        model.dimension = dimension;
+        model.learning_rate = learning_rate;
+
+        let encoded_data = encode_data_batch(data, dimension);
+        model.train(&encoded_data, labels);
+
+        let accuracy = evaluate_accuracy(model, data, labels);
+        if accuracy > best_accuracy {
+            best_accuracy = accuracy;
+            best_params = (dimension, learning_rate);
+        }
+    }
+
+    best_params
+}
+
+pub fn bayesian_optimization(model: &mut HDCModel, data: &[Vec<f64>], labels: &[String], param_space: &[(usize, f64)], n_iter: usize) -> (usize, f64) {
+    let mut optimizer = BayesianOptimizer::new(param_space.to_vec());
+    let mut best_accuracy = 0.0;
+    let mut best_params = (model.dimension, model.learning_rate);
+
+    for _ in 0..n_iter {
+        let (dimension, learning_rate) = optimizer.suggest();
+        model.dimension = dimension;
+        model.learning_rate = learning_rate;
+
+        let encoded_data = encode_data_batch(data, dimension);
+        model.train(&encoded_data, labels);
+
+        let accuracy = evaluate_accuracy(model, data, labels);
+        optimizer.observe((dimension, learning_rate), accuracy);
+
+        if accuracy > best_accuracy {
+            best_accuracy = accuracy;
+            best_params = (dimension, learning_rate);
+        }
+    }
+
+    best_params
+}
+
+fn objective_function(model: &HDCModel, data: &[Vec<f64>], labels: &[String]) -> f64 {
+    evaluate_accuracy(model, data, labels)
 }
 
 impl OptimizedHDCModel {
