@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, BinaryHeap};
 use std::sync::{Arc, Mutex};
+use std::cmp::Reverse;
 
 #[derive(Debug, Clone)]
 pub struct Resource {
@@ -10,12 +11,14 @@ pub struct Resource {
 
 pub struct ResourceManager {
     resources: Arc<Mutex<HashMap<usize, Resource>>>,
+    scheduler: ResourceScheduler,
 }
 
 impl ResourceManager {
     pub fn new() -> Self {
         ResourceManager {
             resources: Arc::new(Mutex::new(HashMap::new())),
+            scheduler: ResourceScheduler::new(),
         }
     }
 
@@ -31,12 +34,7 @@ impl ResourceManager {
 
     pub fn allocate_resources(&self, required: Resource) -> Option<usize> {
         let resources = self.resources.lock().unwrap();
-        for (node_id, resource) in resources.iter() {
-            if resource.cpu >= required.cpu && resource.gpu >= required.gpu && resource.memory >= required.memory {
-                return Some(*node_id);
-            }
-        }
-        None
+        self.scheduler.allocate(resources.clone(), required)
     }
 
     pub fn update_resource(&self, node_id: usize, resource: Resource) {
@@ -51,5 +49,25 @@ impl ResourceManager {
     pub fn get_resources(&self) -> HashMap<usize, Resource> {
         let resources = self.resources.lock().unwrap();
         resources.clone()
+    }
+}
+
+pub struct ResourceScheduler;
+
+impl ResourceScheduler {
+    pub fn new() -> Self {
+        ResourceScheduler
+    }
+
+    pub fn allocate(&self, resources: HashMap<usize, Resource>, required: Resource) -> Option<usize> {
+        let mut heap = BinaryHeap::new();
+
+        for (node_id, resource) in resources.iter() {
+            if resource.cpu >= required.cpu && resource.gpu >= required.gpu && resource.memory >= required.memory {
+                heap.push(Reverse((resource.cpu + resource.gpu + resource.memory, *node_id)));
+            }
+        }
+
+        heap.pop().map(|Reverse((_, node_id))| node_id)
     }
 }
