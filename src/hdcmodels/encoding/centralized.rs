@@ -71,11 +71,15 @@ fn tokenize_rust_code(code: &str) -> Vec<String> {
     tokens
 }
 
+use nlp::tokenizer::{Tokenizer, Token};
+
 fn tokenize_natural_language(text: &str) -> Vec<String> {
-    // Placeholder for natural language tokenization logic
-    // Replace this with the actual implementation
-    text.split_whitespace()
-        .map(|word| word.to_string())
+    let tokenizer = Tokenizer::new();
+    let tokens: Vec<Token> = tokenizer.tokenize(text);
+
+    tokens
+        .into_iter()
+        .map(|token| token.text.to_string())
         .collect()
 }
 
