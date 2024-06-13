@@ -3,6 +3,9 @@ use crate::utils::node_id::NodeId;
 use crate::qup::distributed_training::PartitionedDataset;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::fs::{self, File};
+use std::path::Path;
+use serde::{Serialize, Deserialize};
 use tch::{nn, Device, Tensor};
 use tch::nn::Module;
 use tch::nn::OptimizerConfig;
@@ -63,6 +66,52 @@ impl HDCModel {
         }
 
         vec![vec![0.0; 10]; dataset.items.len()]
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ModelCheckpoint {
+    pub version: usize,
+    pub model: HDCModel,
+}
+
+impl HDCModel {
+    pub fn save_checkpoint(&self, version: usize, path: &str) -> std::io::Result<()> {
+        let checkpoint = ModelCheckpoint {
+            version,
+            model: self.clone(),
+        };
+        let serialized = serde_json::to_string(&checkpoint)?;
+        fs::write(path, serialized)?;
+        Ok(())
+    }
+
+    pub fn load_checkpoint(path: &str) -> std::io::Result<ModelCheckpoint> {
+        let data = fs::read_to_string(path)?;
+        let checkpoint: ModelCheckpoint = serde_json::from_str(&data)?;
+        Ok(checkpoint)
+    }
+
+    pub fn list_checkpoints(directory: &str) -> std::io::Result<Vec<String>> {
+        let mut checkpoints = vec![];
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(extension) = path.extension() {
+                    if extension == "json" {
+                        if let Some(file_name) = path.file_name() {
+                            checkpoints.push(file_name.to_string_lossy().to_string());
+                        }
+                    }
+                }
+            }
+        }
+        Ok(checkpoints)
+    }
+
+    pub fn switch_checkpoint(&mut self, checkpoint: ModelCheckpoint) {
+        *self = checkpoint.model;
     }
 }
 
