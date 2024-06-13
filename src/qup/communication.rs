@@ -241,7 +241,7 @@ ConsensusError> {
         }
     }
 
-    fn authenticate_message(&self, message: &QUPMessage) -> Result<(), ConsensusError> {
+    async fn authenticate_message(&self, message: &QUPMessage) -> Result<(), ConsensusError> {
         match message {
             QUPMessage::UsefulWorkProblem(problem) => {
                 let serialized_problem = bincode::serialize(problem)?;
@@ -257,7 +257,7 @@ ConsensusError> {
         }
     }
 
-    fn verify_message_integrity(&self, message: &QUPMessage) -> Result<(), ConsensusError> {
+    async fn verify_message_integrity(&self, message: &QUPMessage) -> Result<(), ConsensusError> {
         match message {
             QUPMessage::UsefulWorkProblem(problem) => {
                 let serialized_problem = bincode::serialize(problem)?;
@@ -277,5 +277,24 @@ ConsensusError> {
             }
             _ => Ok(()),
         }
+    }
+
+    async fn compress_data(&self, data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
+        let mut encoder = GzipEncoder::new(data);
+        let mut compressed_data = Vec::new();
+        encoder.read_to_end(&mut compressed_data).await?;
+        Ok(compressed_data)
+    }
+
+    async fn decompress_data(&self, data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
+        let mut decoder = GzipDecoder::new(data);
+        let mut decompressed_data = Vec::new();
+        decoder.read_to_end(&mut decompressed_data).await?;
+        Ok(decompressed_data)
+    }
+
+    async fn secure_aggregate_models(&self, models: Vec<HDCModel>) -> Result<HDCModel, ConsensusError> {
+        let aggregated_model = secure_aggregation::aggregate(models)?;
+        Ok(aggregated_model)
     }
 }
