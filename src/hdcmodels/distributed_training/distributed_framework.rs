@@ -59,23 +59,25 @@ impl DistributedTrainingNode {
     }
 
     async fn training_loop(&mut self) {
-        while let Some(message) = self.trainer_channel.as_mut().unwrap().recv().await {
-            match message {
-                DistributedTrainingMessage::InitializeTraining(_) => {
-                    // Perform any necessary initialization steps
+        loop {
+            if let Some(message) = self.trainer_channel.as_mut().unwrap().recv().await {
+                match message {
+                    DistributedTrainingMessage::InitializeTraining(_) => {
+                        // Perform any necessary initialization steps
+                    }
+                    DistributedTrainingMessage::TrainingData(dataset) => {
+                        self.training_data = Some(dataset);
+                        self.train_local_model().await;
+                    }
+                    DistributedTrainingMessage::AggregatedModel(model) => {
+                        self.receive_aggregated_model(model).await;
+                    }
+                    _ => {}
                 }
-                DistributedTrainingMessage::TrainingData(dataset) => {
-                    self.training_data = Some(dataset);
-                    self.train_local_model().await;
-                }
-                DistributedTrainingMessage::AggregatedModel(model) => {
-                    self.receive_aggregated_model(model).await;
-                }
-                DistributedTrainingMessage::TrainingComplete => {
-                    break;
-                }
-                _ => {}
             }
+            
+            // Wait for a certain interval before checking for new messages
+            tokio::time::sleep(tokio::time::Duration::from_secs(self.config.continuous_learning_interval)).await;
         }
     }
 
@@ -173,14 +175,22 @@ impl DistributedTrainingAggregator {
     }
 
     async fn aggregation_loop(&mut self) {
-        while self.trained_models.len() < self.num_nodes {
-            if let Ok(Message::TrainingUpdate(DistributedTrainingMessage::TrainedModel(model))) =
-                self.node.receive_message().await
-            {
-                self.trained_models.push(model);
+        loop {
+            while self.trained_models.len() < self.num_nodes {
+                if let Ok(Message::TrainingUpdate(DistributedTrainingMessage::TrainedModel(model))) =
+                    self.node.receive_message().await
+                {
+                    self.trained_models.push(model);
+                }
             }
+            self.aggregate_models().await;
+            
+            // Clear the trained models for the next round of aggregation
+            self.trained_models.clear();
+            
+            // Wait for a certain interval before starting the next aggregation round
+            tokio::time::sleep(tokio::time::Duration::from_secs(self.config.aggregation_interval)).await;
         }
-        self.aggregate_models().await;
     }
 
     async fn aggregate_models(&mut self) {
