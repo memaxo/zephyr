@@ -5,7 +5,7 @@ use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
 use crate::network::NetworkMessage;
-use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution, ScientificResearchProblem, ScientificResearchSolution, UsefulWorkProblemTrait, UsefulWorkSolutionTrait};
+use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution, UsefulWorkProblemTrait, UsefulWorkSolutionTrait};
 use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{QUPKeyPair, QUPCrypto};

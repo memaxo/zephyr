@@ -3,6 +3,14 @@ use crate::crypto::hash::Hash;
 use crate::qup::crypto::QUPSignature;
 use serde::{Deserialize, Serialize};
 
+pub trait UsefulWorkProblemTrait {
+    fn solve(&self) -> Box<dyn UsefulWorkSolutionTrait>;
+}
+
+pub trait UsefulWorkSolutionTrait {
+    fn validate(&self, problem: &dyn UsefulWorkProblemTrait) -> bool;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UsefulWorkProblem {
     Knapsack(KnapsackProblem),
