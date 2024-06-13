@@ -249,7 +249,8 @@ impl QUPConsensus {
         // Log the aggregated evaluation score
         info!("Aggregated model evaluation score: {}", aggregated_score);
 
-        // TODO: Make adjustments to the training process based on the evaluation score if necessary
+        // Trigger hyperparameter tuning based on the evaluation score
+        self.trigger_hyperparameter_tuning(aggregated_score)?;
 
         Ok(())
     }
@@ -1252,3 +1253,28 @@ pub trait ConsensusInterface {
     fn process_transaction(&mut self, transaction: Transaction) -> Result<(), ConsensusError>;
     fn reach_consensus(&mut self) -> Result<(), ConsensusError>;
 }
+    fn trigger_hyperparameter_tuning(&mut self, evaluation_score: f64) -> Result<(), ConsensusError> {
+        // Check if the evaluation score meets the threshold for triggering hyperparameter tuning
+        if evaluation_score < self.config.hyperparameter_tuning_threshold {
+            // Generate hyperparameter configurations
+            let configurations = generate_hyperparameter_configurations(self.config.num_configurations);
+
+            // Distribute the configurations to different nodes
+            distribute_hyperparameter_configurations(configurations, &self.network);
+
+            // Collect the results from all nodes
+            let results = collect_hyperparameter_results(&self.network);
+
+            // Find the best hyperparameter configuration
+            let best_config = results.into_iter().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).unwrap().0;
+
+            // Update the HDC model with the best hyperparameters
+            self.hdc_model.set_learning_rate(best_config.learning_rate);
+            self.hdc_model.set_batch_size(best_config.batch_size);
+            self.hdc_model.set_num_layers(best_config.num_layers);
+
+            info!("Hyperparameter tuning completed. Best configuration: {:?}", best_config);
+        }
+
+        Ok(())
+    }
