@@ -70,6 +70,32 @@ pub struct HyperparameterConfig {
 }
 
 impl DistributedTrainer {
+    pub fn create_job(&self, contract_interface: &impl SmartContractInterface, model_id: String, dataset_id: String, training_parameters: String, reward: u64) -> Result<String> {
+        let mut job = TrainingJob {
+            model_id,
+            dataset_id,
+            training_parameters,
+            reward,
+            status: "Pending".to_string(),
+            participants: vec![],
+        };
+        contract_interface.deploy_contract(SmartContract::new(job))
+    }
+
+    pub fn join_job(&self, contract_interface: &impl SmartContractInterface, contract_id: &str, node_address: String) -> Result<()> {
+        let mut job: TrainingJob = serde_json::from_slice(&contract_interface.get_contract_state(contract_id)?)?;
+        job.join_job(node_address);
+        contract_interface.execute_contract(contract_id, "joinJob", &serde_json::to_vec(&job)?)
+    }
+
+    pub fn submit_results(&self, contract_interface: &impl SmartContractInterface, contract_id: &str, node_address: String, results: String) -> Result<()> {
+        let mut job: TrainingJob = serde_json::from_slice(&contract_interface.get_contract_state(contract_id)?)?;
+        job.submit_results(node_address, results)?;
+        contract_interface.execute_contract(contract_id, "submitResults", &serde_json::to_vec(&job)?)
+    }
+}
+
+impl DistributedTrainer {
     pub fn create_training_job(&self, contract_interface: &impl SmartContractInterface, model_id: String, dataset_id: String, training_parameters: String, reward: u64) -> Result<String> {
         let mut job = TrainingJob {
             model_id,
