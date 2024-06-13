@@ -34,6 +34,20 @@ pub enum ConsensusAlgorithm {
 }
 
 impl QUPConsensus {
+    pub fn initialize_training(&self) -> Result<(), ConsensusError> {
+        // Serialize the initial model parameters
+        let model_params = serde_json::to_string(&self.hdc_model).map_err(|_| ConsensusError::SerializationError)?;
+
+        // Create a network message with the model parameters
+        let message = NetworkMessage::ModelParameters(model_params);
+
+        // Broadcast the message to all participating nodes
+        self.network.broadcast(message)?;
+
+        Ok(())
+    }
+
+impl QUPConsensus {
     pub fn verify_zkp(&self, proof: &ZkStarksProof) -> bool {
         // Implement ZKP verification logic
         // This is a placeholder function and should be customized based on the specific ZKP scheme
