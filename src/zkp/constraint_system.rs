@@ -1,6 +1,7 @@
 use crate::zkp_crate::math::FieldElement;
 use std::collections::HashMap;
 use thiserror::Error;
+use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
 
 pub trait ConstraintSystem {
     fn new() -> Self;
@@ -71,6 +72,13 @@ impl ConstraintSystem for ConstraintSystemImpl {
         for gate in &self.custom_gates {
             gate.enforce(self);
         }
+    }
+
+    fn enforce_range_proof(&mut self, value_var: Variable, range_proof: RangeProof) {
+        // 1. Extract commitments and proof data from the range_proof
+        // 2. Add constraints to verify the inner product argument 
+        // 3. Add constraints to verify the Pedersen commitments
+        // 4. Add constraints to check the range proof's validity
     }
 }
 
