@@ -56,6 +56,7 @@ pub enum UsefulWorkProblem {
     pub enum QUPMessage {
         QUPBlock(QUPBlock),
         QUPTransaction(Transaction),
+        ModelBlock(ModelBlock),
     }
 
     // Define the QUPVote struct
@@ -288,4 +289,14 @@ pub struct QuantumBlock {
 pub struct SecurityThreats {
     pub network_attack_rate: f64,
     pub spam_transaction_rate: f64,
+}
+pub struct SupplyChainProblem {
+    pub num_nodes: usize,
+    pub distances: Vec<Vec<f64>>,
+    pub demands: Vec<f64>,
+    pub capacities: Vec<f64>,
+}
+
+pub struct SupplyChainSolution {
+    pub optimized_supply_chain: Vec<usize>,
 }
