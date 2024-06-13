@@ -54,18 +54,32 @@ pub struct TrainingResult {
 pub struct DistributedTrainer {
     pub nodes: Vec<NodeId>,
     pub partitioned_dataset: PartitionedDataset,
+    pub data_parallelism: bool,
+    pub model_parallelism: bool,
 }
 
 impl DistributedTrainer {
-    pub fn new(nodes: Vec<NodeId>, dataset: Dataset, shard_count: usize) -> Self {
+    pub fn new(nodes: Vec<NodeId>, dataset: Dataset, shard_count: usize, data_parallelism: bool, model_parallelism: bool) -> Self {
         let partitioned_dataset = PartitionedDataset::new(&dataset, shard_count, &nodes);
         DistributedTrainer {
             nodes,
             partitioned_dataset,
+            data_parallelism,
+            model_parallelism,
         }
     }
 
     pub fn train(&self) -> TrainingResult {
+        if self.data_parallelism {
+            self.train_data_parallel()
+        } else if self.model_parallelism {
+            self.train_model_parallel()
+        } else {
+            self.train_standard()
+        }
+    }
+
+    fn train_standard(&self) -> TrainingResult {
         let mut handles = vec![];
 
         for node in &self.nodes {
@@ -93,6 +107,46 @@ impl DistributedTrainer {
             model: aggregated_model,
             metrics,
         }
+    }
+
+    fn train_data_parallel(&self) -> TrainingResult {
+        let mut handles = vec![];
+
+        for node in &self.nodes {
+            let dataset_shard = self.partitioned_dataset.get_shard(node).unwrap().to_vec();
+            let handle = std::thread::spawn(move || {
+                let model = HDCModel::new();
+                let trained_model = model.train(&dataset_shard);
+                trained_model
+            });
+            handles.push(handle);
+        }
+
+        let mut models = vec![];
+        for handle in handles {
+            match handle.join() {
+                Ok(model) => models.push(model),
+                Err(_) => handle_node_failure(),
+            }
+        }
+
+        let aggregated_model = self.aggregate_models(models);
+        let metrics = evaluate_model(&aggregated_model);
+
+        TrainingResult {
+            model: aggregated_model,
+            metrics,
+        }
+    }
+
+    fn train_model_parallel(&self) -> TrainingResult {
+        // Placeholder for model parallelism logic
+        // Split the model layers across different nodes
+        // Each node processes a subset of the model layers
+        // Implement a mechanism to synchronize the outputs of different nodes
+
+        // For now, we'll just call the standard training method
+        self.train_standard()
     }
 
     fn aggregate_models(&self, models: Vec<HDCModel>) -> HDCModel {
