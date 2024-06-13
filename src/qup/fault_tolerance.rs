@@ -2,13 +2,19 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::time::interval;
+use tokio::fs;
+use tokio::io::AsyncWriteExt;
+use serde::{Serialize, Deserialize};
+use cloud_storage::Client;
 
+#[derive(Serialize, Deserialize)]
 struct Node {
     id: usize,
     last_heartbeat: Instant,
     shard: Vec<u8>,
 }
 
+#[derive(Serialize, Deserialize)]
 struct Checkpoint {
     model_state: Vec<u8>,
     training_progress: usize,
@@ -19,6 +25,7 @@ pub struct FaultTolerantDistributedTrainingNode {
     checkpoint: Arc<Mutex<Checkpoint>>,
     heartbeat_interval: Duration,
     missed_heartbeats_threshold: usize,
+    cloud_storage_bucket: String,
 }
 
 impl FaultTolerantDistributedTrainingNode {
@@ -65,19 +72,47 @@ impl FaultTolerantDistributedTrainingNode {
     }
 
     async fn save_checkpoint(&self) {
-        let checkpoint = Checkpoint {
-            model_state: vec![], // Placeholder for model state
-            training_progress: 0, // Placeholder for training progress
+        let checkpoint = {
+            let nodes = self.nodes.lock().unwrap();
+            let checkpoint = Checkpoint {
+                model_state: vec![], // Placeholder for model state
+                training_progress: 0, // Placeholder for training progress
+            };
+            serde_json::to_vec(&checkpoint).unwrap()
         };
-        let mut checkpoint_lock = self.checkpoint.lock().unwrap();
-        *checkpoint_lock = checkpoint;
-        println!("Checkpoint saved.");
+
+        // Save checkpoint to cloud storage
+        let client = Client::default();
+        let mut file = client.object().create(
+            &self.cloud_storage_bucket,
+            "checkpoint.json",
+            "application/json",
+            checkpoint.clone(),
+        ).await.unwrap();
+        file.write_all(&checkpoint).await.unwrap();
+        println!("Checkpoint saved to cloud storage.");
     }
 
     pub async fn load_checkpoint(&self) {
-        let checkpoint_lock = self.checkpoint.lock().unwrap();
-        let checkpoint = checkpoint_lock.clone();
-        // Placeholder for loading checkpoint logic
-        println!("Checkpoint loaded: {:?}", checkpoint);
+        // Load checkpoint from cloud storage
+        let client = Client::default();
+        let mut file = client.object().download(
+            &self.cloud_storage_bucket,
+            "checkpoint.json",
+        ).await.unwrap();
+        let mut checkpoint_data = Vec::new();
+        file.read_to_end(&mut checkpoint_data).await.unwrap();
+        let checkpoint: Checkpoint = serde_json::from_slice(&checkpoint_data).unwrap();
+
+        let mut checkpoint_lock = self.checkpoint.lock().unwrap();
+        *checkpoint_lock = checkpoint;
+        println!("Checkpoint loaded from cloud storage: {:?}", checkpoint_lock);
+    }
+
+    pub async fn recover_failed_node(&self, node_id: usize) {
+        // Placeholder for node recovery logic
+        println!("Recovering failed node {}", node_id);
+        self.load_checkpoint().await;
+        self.restart_training(&node_id).await;
     }
 }
