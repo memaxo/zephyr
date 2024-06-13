@@ -34,6 +34,38 @@ pub enum ConsensusAlgorithm {
 }
 
 impl QUPConsensus {
+    pub fn aggregate_model_updates(&self, model_updates: Vec<Vec<f64>>) -> Vec<f64> {
+        let num_updates = model_updates.len();
+        let dimension = model_updates[0].len();
+        let mut aggregated_model = vec![0.0; dimension];
+
+        for update in model_updates {
+            for (i, &value) in update.iter().enumerate() {
+                aggregated_model[i] += value;
+            }
+        }
+
+        for value in &mut aggregated_model {
+            *value /= num_updates as f64;
+        }
+
+        aggregated_model
+    }
+
+    pub fn broadcast_model_update(&self, aggregated_model: Vec<f64>) -> Result<(), ConsensusError> {
+        // Serialize the aggregated model parameters
+        let model_params = serde_json::to_string(&aggregated_model).map_err(|_| ConsensusError::SerializationError)?;
+
+        // Create a network message with the model parameters
+        let message = NetworkMessage::ModelParameters(model_params);
+
+        // Broadcast the message to all participating nodes
+        self.network.broadcast(message)?;
+
+        Ok(())
+    }
+
+impl QUPConsensus {
     pub fn initialize_training(&self) -> Result<(), ConsensusError> {
         // Serialize the initial model parameters
         let model_params = serde_json::to_string(&self.hdc_model).map_err(|_| ConsensusError::SerializationError)?;
