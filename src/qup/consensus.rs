@@ -5,7 +5,7 @@ use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
 use crate::network::NetworkMessage;
-use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution, ScientificResearchProblem, ScientificResearchSolution};
+use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution, ScientificResearchProblem, ScientificResearchSolution, UsefulWorkProblemTrait, UsefulWorkSolutionTrait};
 use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{QUPKeyPair, QUPCrypto};
@@ -537,28 +537,11 @@ impl QUPConsensus {
         }
     }
 
-    pub fn validate_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution, proof: &[u8]) -> bool {
+    pub fn validate_useful_work(&self, problem: &dyn UsefulWorkProblemTrait, solution: &dyn UsefulWorkSolutionTrait, proof: &[u8]) -> bool {
         if !self.vdf.verify_proof(solution, proof).unwrap_or(false) {
             return false;
         }
-
-        match problem {
-            UsefulWorkProblem::Knapsack(knapsack_problem) => {
-                let total_weight: u64 = solution
-                    .as_knapsack()
-                    .selected_items
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, &selected)| selected)
-                    .map(|(i, _)| knapsack_problem.weights[i])
-                    .sum();
-                total_weight <= knapsack_problem.capacity
-            }
-            UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
-                let vertex_cover = solution.as_vertex_cover().vertex_cover.clone();
-                is_valid_vertex_cover(&vertex_cover_problem.graph, &vertex_cover)
-            }
-        }
+        solution.validate(problem)
     }
 
     pub fn synchronize_results(&self) {
@@ -644,19 +627,11 @@ impl QUPConsensus {
         }
     }
 
-    fn integrate_results(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) {
+    fn integrate_results(&self, problem: &dyn UsefulWorkProblemTrait, solution: &dyn UsefulWorkSolutionTrait) {
         // Integrate the useful work results into the blockchain
         // This can be customized based on the specific requirements of the useful work problem and solution
-        match problem {
-            UsefulWorkProblem::Knapsack(_) => {
-                // Example: Update state with knapsack solution
-                self.state.update_with_knapsack_solution(solution.as_knapsack());
-            }
-            UsefulWorkProblem::VertexCover(_) => {
-                // Example: Update state with vertex cover solution
-                self.state.update_with_vertex_cover_solution(solution.as_vertex_cover());
-            }
-        }
+        // Example: Update state with the solution
+        self.state.update_with_solution(problem, solution);
     }
 
     fn is_task_complex(&self, transaction: &Transaction) -> bool {
