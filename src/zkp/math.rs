@@ -11,7 +11,7 @@ pub struct FieldElement(BigUint);
 
 impl FieldElement {
     pub fn new(value: BigUint, modulus: &BigUint) -> Self {
-        FieldElement(value.mod_floor(modulus))
+        FieldElement(value % modulus)
     }
 
     pub fn zero(modulus: &BigUint) -> Self {
