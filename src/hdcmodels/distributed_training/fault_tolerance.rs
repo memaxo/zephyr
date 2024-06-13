@@ -15,6 +15,47 @@ pub struct FaultTolerantDistributedTrainingNode {
 }
 
 impl FaultTolerantDistributedTrainingNode {
+    pub async fn monitor_training_progress(&mut self) {
+        let mut interval = interval(self.heartbeat_interval);
+        loop {
+            interval.tick().await;
+            if let Err(_) = self.send_heartbeat().await {
+                self.missed_heartbeats += 1;
+                if self.missed_heartbeats >= self.missed_heartbeats_threshold {
+                    self.handle_node_failure().await;
+                }
+            } else {
+                self.missed_heartbeats = 0;
+            }
+        }
+    }
+
+    async fn handle_node_failure(&mut self) {
+        // Implement strategies to recover from node failures
+        // Example: Reassign tasks, restart failed nodes, etc.
+        // This is a placeholder implementation
+        println!("Node failure detected. Implement recovery strategies here.");
+    }
+}
+
+impl FaultTolerantDistributedTrainingAggregator {
+    pub async fn monitor_training_progress(&mut self) {
+        let mut interval = interval(self.heartbeat_interval);
+        loop {
+            interval.tick().await;
+            self.check_node_heartbeats().await;
+        }
+    }
+
+    async fn handle_node_failure(&mut self, node_id: usize) {
+        // Implement strategies to recover from node failures
+        // Example: Reassign tasks, restart failed nodes, etc.
+        // This is a placeholder implementation
+        println!("Node failure detected for node {}. Implement recovery strategies here.", node_id);
+    }
+}
+
+impl FaultTolerantDistributedTrainingNode {
     pub async fn new(
         node_config: NodeConfig,
         hdc_model: HDCModel,
