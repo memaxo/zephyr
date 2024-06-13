@@ -25,6 +25,9 @@ use std::{
 use log::{info, error};
 use env_logger::{Builder, Env};
 use crate::{chain::Blockchain, ui::start_ui, qup::interface::{QUPBlockProposal, QUPVoteHandler, QUPStateProvider}, qup::consensus::QUPConsensus};
+use crate::qup::fault_tolerance::FaultTolerantDistributedTrainingNode;
+use crate::qup::monitoring::{collect_metrics, evaluate_model};
+use crate::config::Config;
 use log::{info, LevelFilter};
 use env_logger::{Builder, Env};
 
@@ -71,7 +74,35 @@ async fn main() {
     info!("Launching network server...");
     let network_server = network::start_server(blockchain.clone());
 
-    // Launch the user interface, passing the thread-safe blockchain instance
+    // Parse configuration
+    let config = match Config::load() {
+        Ok(config) => config,
+        Err(e) => {
+            error!("Failed to load configuration: {}", e);
+            process::exit(1);
+        },
+    };
+
+    // Create a DistributedTrainer instance
+    let trainer = FaultTolerantDistributedTrainingNode::new(config);
+
+    // Start training
+    match trainer.train().await {
+        Ok(_) => info!("Training completed successfully."),
+        Err(e) => {
+            error!("Training failed: {}", e);
+            process::exit(1);
+        },
+    }
+
+    // Collect and report metrics
+    let metrics = collect_metrics();
+    info!("Training Metrics: {:?}", metrics);
+
+    // Evaluate the model
+    let validation_dataset = Dataset::load("validation");
+    let evaluation_metrics = evaluate_model(&trainer.model, &validation_dataset);
+    info!("Evaluation Metrics: {:?}", evaluation_metrics);
     info!("Launching user interface...");
     match start_ui(blockchain.clone()).await {
         Ok(_) => info!("ZephyrChain node started and user interface launched successfully."),
