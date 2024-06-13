@@ -1,9 +1,43 @@
-use pqcrypto_dilithium::dilithium2::{sign, verify};
+use pqcrypto_dilithium::dilithium2::{sign, verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey};
 use crate::qup::crypto_common::{Decrypt, Encrypt, Sign, Verify};
 use crate::secure_core::secure_vault::SecureVault;
+use serde::{Serialize, Deserialize};
+use sha2::{Sha256, Digest};
 
 pub struct QUPCrypto {
     secure_vault: SecureVault,
+}
+
+impl QUPCrypto {
+    pub fn validate_model_update(&self, model_update: &[u8], signature: &[u8], key_id: &str) -> bool {
+        if let Some((public_key, _)) = self.secure_vault.get_dilithium_keys(key_id) {
+            verify(model_update, signature, public_key).is_ok()
+        } else {
+            false
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct EncryptedMessage {
+    pub ciphertext: Vec<u8>,
+    pub signature: Vec<u8>,
+}
+
+impl QUPCrypto {
+    pub fn encrypt_and_sign<P: Encrypt, S: Sign>(&self, data: &[u8], public_key: &P, secret_key: &S) -> EncryptedMessage {
+        let ciphertext = public_key.encrypt(data);
+        let signature = secret_key.sign(&ciphertext);
+        EncryptedMessage { ciphertext, signature }
+    }
+
+    pub fn decrypt_and_verify<S: Decrypt, V: Verify>(&self, message: &EncryptedMessage, secret_key: &S, public_key: &V) -> Option<Vec<u8>> {
+        if public_key.verify(&message.ciphertext, &message.signature) {
+            Some(secret_key.decrypt(&message.ciphertext))
+        } else {
+            None
+        }
+    }
 }
 
 impl QUPCrypto {
