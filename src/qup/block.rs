@@ -197,3 +197,11 @@ impl BlockCommon for QUPBlock {
         Ok(())
     }
 }
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ModelBlock {
+    pub id: String,
+    pub model_parameters: Vec<f64>,
+    pub previous_hash: QuantumHash,
+    pub hash: QuantumHash,
+    pub signature: QuantumSignature,
+}
