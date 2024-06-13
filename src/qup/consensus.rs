@@ -841,7 +841,22 @@ impl QUPConsensus {
     }
 
 fn solve_useful_work_problem(&self, problem: &dyn UsefulWorkProblemTrait) -> Box<dyn UsefulWorkSolutionTrait> {
-    problem.solve()
+    match problem {
+        UsefulWorkProblem::Knapsack(knapsack_problem) => {
+            let solution = self.solve_knapsack_qaoa(knapsack_problem);
+            Box::new(UsefulWorkSolution::Knapsack(KnapsackSolution { selected_items: solution }))
+        }
+        UsefulWorkProblem::VertexCover(vertex_cover_problem) => {
+            let solution = self.solve_vertex_cover_vqe(vertex_cover_problem);
+            Box::new(UsefulWorkSolution::VertexCover(VertexCoverSolution { vertex_cover: solution }))
+        }
+        UsefulWorkProblem::SupplyChainOptimization(supply_chain_problem) => {
+            let solution = self.solve_supply_chain_optimization(supply_chain_problem);
+            Box::new(UsefulWorkSolution::SupplyChainOptimization(SupplyChainSolution { optimized_supply_chain: solution }))
+        }
+        // Add more match arms for other useful work problem types
+        _ => problem.solve(),
+    }
 }
 
 fn solve_knapsack_qaoa(&self, problem: &KnapsackProblem) -> Vec<bool> {
@@ -1332,4 +1347,24 @@ pub trait ConsensusInterface {
         }
 
         Ok(())
+    }
+    fn solve_knapsack_qaoa(&self, problem: &KnapsackProblem) -> Vec<bool> {
+        // Implement the Quantum Approximate Optimization Algorithm (QAOA) to solve the knapsack problem
+        // This is a placeholder function and should be replaced with the actual QAOA implementation
+        // based on the available quantum hardware or simulator
+        vec![true; problem.weights.len()]
+    }
+
+    fn solve_vertex_cover_vqe(&self, problem: &VertexCoverProblem) -> Vec<usize> {
+        // Implement the Variational Quantum Eigensolver (VQE) to solve the vertex cover problem
+        // This is a placeholder function and should be replaced with the actual VQE implementation
+        // based on the available quantum hardware or simulator
+        (0..problem.graph.len()).collect()
+    }
+
+    fn solve_supply_chain_optimization(&self, problem: &SupplyChainProblem) -> Vec<usize> {
+        // Implement quantum-enhanced optimization methods to solve supply chain optimization problems
+        // This is a placeholder function and should be replaced with the actual optimization implementation
+        // based on the available quantum hardware or simulator
+        vec![0; problem.num_nodes]
     }
