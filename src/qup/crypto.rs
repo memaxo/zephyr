@@ -97,3 +97,14 @@ pub fn verify_quantum_signature(data: &[u8], signature: &QuantumSignature, key: 
     // Implement quantum-resistant signature verification here
     true // Placeholder
 }
+pub fn delta_encode(data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
+    // Placeholder for delta encoding logic
+    // Implement delta encoding to transmit only changes in model parameters
+    Ok(data.to_vec()) // Replace with actual delta encoding logic
+}
+
+pub fn delta_decode(data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
+    // Placeholder for delta decoding logic
+    // Implement delta decoding to reconstruct the original data
+    Ok(data.to_vec()) // Replace with actual delta decoding logic
+}
