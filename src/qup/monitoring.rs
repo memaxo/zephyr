@@ -1,4 +1,8 @@
-use std::time::Instant;
+use std::time::{Instant, Duration};
+use std::sync::{Arc, Mutex};
+use warp::Filter;
+use serde_json::json;
+use tokio::task;
 
 pub struct TrainingMetrics {
     pub loss: f64,
@@ -6,6 +10,21 @@ pub struct TrainingMetrics {
     pub memory_usage: usize,
     pub cpu_usage: f64,
     pub timestamp: Instant,
+    pub model_parallelism: Option<ModelParallelismMetrics>,
+}
+
+pub struct ModelParallelismMetrics {
+    pub layer_distribution: Vec<usize>,
+    pub synchronization_time: Duration,
+}
+
+impl ModelParallelismMetrics {
+    pub fn new(layer_distribution: Vec<usize>, synchronization_time: Duration) -> Self {
+        ModelParallelismMetrics {
+            layer_distribution,
+            synchronization_time,
+        }
+    }
 }
 
 impl TrainingMetrics {
@@ -20,22 +39,55 @@ impl TrainingMetrics {
     }
 }
 
-pub fn collect_metrics() -> TrainingMetrics {
+pub fn collect_metrics(model_parallelism: Option<ModelParallelismMetrics>) -> TrainingMetrics {
     // Placeholder for actual metric collection logic
     let loss = 0.0; // Replace with actual loss calculation
     let accuracy = 0.0; // Replace with actual accuracy calculation
     let memory_usage = 0; // Replace with actual memory usage calculation
     let cpu_usage = 0.0; // Replace with actual CPU usage calculation
 
-    TrainingMetrics::new(loss, accuracy, memory_usage, cpu_usage)
+    let mut metrics = TrainingMetrics::new(loss, accuracy, memory_usage, cpu_usage);
+    metrics.model_parallelism = model_parallelism;
+    metrics
 }
 
-pub fn evaluate_model(model: &Model, validation_dataset: &Dataset) -> TrainingMetrics {
+pub fn evaluate_model(model: &Model, validation_dataset: &Dataset, model_parallelism: Option<ModelParallelismMetrics>) -> TrainingMetrics {
     // Placeholder for actual model evaluation logic
     let loss = 0.0; // Replace with actual loss calculation
     let accuracy = 0.0; // Replace with actual accuracy calculation
     let memory_usage = 0; // Replace with actual memory usage calculation
     let cpu_usage = 0.0; // Replace with actual CPU usage calculation
 
-    TrainingMetrics::new(loss, accuracy, memory_usage, cpu_usage)
+    let mut metrics = TrainingMetrics::new(loss, accuracy, memory_usage, cpu_usage);
+    metrics.model_parallelism = model_parallelism;
+    metrics
+}
+pub async fn start_dashboard(metrics: Arc<Mutex<TrainingMetrics>>) {
+    let metrics_route = warp::path("metrics")
+        .and(warp::get())
+        .and(with_metrics(metrics.clone()))
+        .map(|metrics: Arc<Mutex<TrainingMetrics>>| {
+            let metrics = metrics.lock().unwrap();
+            warp::reply::json(&json!({
+                "loss": metrics.loss,
+                "accuracy": metrics.accuracy,
+                "memory_usage": metrics.memory_usage,
+                "cpu_usage": metrics.cpu_usage,
+                "timestamp": metrics.timestamp,
+                "model_parallelism": metrics.model_parallelism.as_ref().map(|mp| {
+                    json!({
+                        "layer_distribution": mp.layer_distribution,
+                        "synchronization_time": mp.synchronization_time.as_secs_f64(),
+                    })
+                }),
+            }))
+        });
+
+    let routes = metrics_route.with(warp::cors().allow_any_origin());
+
+    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+}
+
+fn with_metrics(metrics: Arc<Mutex<TrainingMetrics>>) -> impl Filter<Extract = (Arc<Mutex<TrainingMetrics>>,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || metrics.clone())
 }
