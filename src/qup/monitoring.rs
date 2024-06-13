@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use warp::Filter;
 use serde_json::json;
 use tokio::task;
+use zephyr_explorer::BlockchainExplorer;
 
 pub struct TrainingMetrics {
     pub loss: f64,
@@ -11,6 +12,13 @@ pub struct TrainingMetrics {
     pub cpu_usage: f64,
     pub timestamp: Instant,
     pub model_parallelism: Option<ModelParallelismMetrics>,
+}
+
+impl BlockchainExplorer {
+    pub fn push_metrics(&self, metrics: &TrainingMetrics) {
+        // Placeholder for actual implementation to push metrics to the blockchain explorer
+        println!("Pushing metrics to blockchain explorer: {:?}", metrics);
+    }
 }
 
 pub struct ModelParallelismMetrics {
@@ -62,7 +70,7 @@ pub fn evaluate_model(model: &Model, validation_dataset: &Dataset, model_paralle
     metrics.model_parallelism = model_parallelism;
     metrics
 }
-pub async fn start_dashboard(metrics: Arc<Mutex<TrainingMetrics>>) {
+pub async fn start_dashboard(metrics: Arc<Mutex<TrainingMetrics>>, explorer: BlockchainExplorer) {
     let metrics_route = warp::path("metrics")
         .and(warp::get())
         .and(with_metrics(metrics.clone()))
@@ -84,6 +92,19 @@ pub async fn start_dashboard(metrics: Arc<Mutex<TrainingMetrics>>) {
         });
 
     let routes = metrics_route.with(warp::cors().allow_any_origin());
+
+    let explorer_route = warp::path("explorer")
+        .and(warp::get())
+        .and(with_metrics(metrics.clone()))
+        .map(move |metrics: Arc<Mutex<TrainingMetrics>>| {
+            let metrics = metrics.lock().unwrap();
+            explorer.push_metrics(&metrics);
+            warp::reply::json(&json!({
+                "status": "Metrics pushed to blockchain explorer"
+            }))
+        });
+
+    let routes = metrics_route.or(explorer_route).with(warp::cors().allow_any_origin());
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
