@@ -74,11 +74,46 @@ impl ConstraintSystem for ConstraintSystemImpl {
         }
     }
 
-    fn enforce_range_proof(&mut self, value_var: Variable, range_proof: RangeProof) {
+    fn enforce_range_proof(&mut self, value_var: Variable, range_proof: RangeProof, pc_gens: &PedersenGens, bp_gens: &BulletproofGens) {
         // 1. Extract commitments and proof data from the range_proof
-        // 2. Add constraints to verify the inner product argument 
-        // 3. Add constraints to verify the Pedersen commitments
+        let (commit, proof) = range_proof.to_bytes();
+        let value_commit = self.alloc_variable(FieldElement::from_bytes(&commit));
+
+        // 2. Add constraints to verify the inner product argument
+        let (ipa_vars, ipa_constraints) = self.verify_inner_product_argument(&proof, bp_gens);
+        for var in ipa_vars {
+            self.alloc_variable(var);
+        }
+        for constraint in ipa_constraints {
+            self.enforce_plonk_constraint(constraint);
+        }
+
+        // 3. Add constraints to verify the Pedersen commitments  
+        let (com_vars, com_constraints) = self.verify_pedersen_commitments(&proof, pc_gens);
+        for var in com_vars {
+            self.alloc_variable(var);
+        }
+        for constraint in com_constraints {
+            self.enforce_plonk_constraint(constraint);
+        }
+
         // 4. Add constraints to check the range proof's validity
+        self.enforce_plonk_constraint(PlonkConstraint::new(
+            Expression::variable(value_var),
+            Expression::variable(value_commit),
+        ));
+    }
+
+    fn verify_inner_product_argument(&self, proof: &[u8], bp_gens: &BulletproofGens) -> (Vec<FieldElement>, Vec<PlonkConstraint>) {
+        // Implement verification of inner product argument here
+        // Return allocated variables and constraints
+        todo!()
+    }
+
+    fn verify_pedersen_commitments(&self, proof: &[u8], pc_gens: &PedersenGens) -> (Vec<FieldElement>, Vec<PlonkConstraint>) {
+        // Implement verification of Pedersen commitments here 
+        // Return allocated variables and constraints
+        todo!()
     }
 }
 
