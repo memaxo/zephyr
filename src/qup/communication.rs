@@ -1,5 +1,5 @@
 use crate::qup::block::QUPBlock;
-use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data,
+use crate::qup::crypto::{QUPKeyPair, encrypt_data, decrypt_data, sign_data, 
 verify_signature, hash_data};
 use crate::qup::state::QUPState;
 use crate::network::{NetworkMessage, QUPMessage, UsefulWorkProblem,
@@ -14,6 +14,12 @@ use async_compression::tokio::bufread::{GzipEncoder, GzipDecoder};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use mpc::secure_aggregation;
 
+use libp2p::{Multiaddr, PeerId, Swarm};
+use libp2p::gossipsub::{Gossipsub, GossipsubConfigBuilder, GossipsubEvent, MessageAuthenticity, ValidationMode};
+use libp2p::gossipsub::subscription::GossipsubSubscription;
+use libp2p::swarm::SwarmEvent;
+use futures::prelude::*;
+
 pub enum NodeType {
     Classical,
     Quantum,
@@ -22,9 +28,10 @@ pub enum NodeType {
 pub struct CommunicationProtocol {
     pub node_type: NodeType,
     pub key_pair: QUPKeyPair,
-    pub peers: Vec<String>,
+    pub peers: Vec<PeerId>,
     pub sender: NetworkSender,
     pub receiver: NetworkReceiver,
+    pub swarm: Swarm<Gossipsub>,
 }
 
 impl CommunicationProtocol {
@@ -297,4 +304,106 @@ ConsensusError> {
         let aggregated_model = secure_aggregation::aggregate(models)?;
         Ok(aggregated_model)
     }
+}
+impl CommunicationProtocol {
+    // ...
+
+    pub async fn start_gossipsub(&mut self) {
+        let message_authenticity = MessageAuthenticity::Signed(self.key_pair.clone());
+
+        let gossipsub_config = GossipsubConfigBuilder::default()
+            .heartbeat_interval(Duration::from_secs(10))
+            .validation_mode(ValidationMode::Strict)
+            .message_id_fn(|message| {
+                let mut s = DefaultHasher::new();
+                message.data.hash(&mut s);
+                MessageId::from(s.finish().to_le_bytes())
+            })
+            .build()
+            .expect("Valid config");
+
+        let mut gossipsub = Gossipsub::new(message_authenticity, gossipsub_config).expect("Correct configuration");
+
+        let topic = Topic::new("qup-network");
+        let subscription = gossipsub.subscribe(&topic).unwrap();
+
+        self.swarm = libp2p::swarm::SwarmBuilder::new(gossipsub, self.key_pair.public().to_peer_id(), {
+            let tcp = libp2p::tcp::TokioTcpConfig::new().nodelay(true);
+            let dns_tcp = DnsConfig::system(tcp).unwrap();
+            let ws_dns_tcp = libp2p::websocket::WsConfig::new(dns_tcp.clone());
+            dns_tcp.or_transport(ws_dns_tcp)
+        })
+        .executor(Box::new(|fut| {
+            tokio::spawn(fut);
+        }))
+        .build();
+
+        self.swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse().unwrap()).unwrap();
+
+        self.handle_gossipsub_events(subscription).await;
+    }
+
+    async fn handle_gossipsub_events(&mut self, mut subscription: GossipsubSubscription) {
+        loop {
+            while let Some(event) = subscription.next().await {
+                match event {
+                    GossipsubEvent::Message {
+                        propagation_source: peer_id,
+                        message_id: id,
+                        message,
+                    } => {
+                        println!(
+                            "Got message: {} with id: {} from peer: {:?}",
+                            String::from_utf8_lossy(&message.data),
+                            id,
+                            peer_id
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    pub async fn broadcast(&mut self, topic: &str, message: &[u8]) {
+        self.swarm
+            .behaviour_mut()
+            .publish(Topic::new(topic), message.to_vec())
+            .unwrap();
+    }
+
+    pub async fn allreduce(&mut self, topic: &str, local_model: &HDCModel) -> Result<HDCModel, ConsensusError> {
+        let serialized_model = bincode::serialize(local_model)?;
+        self.broadcast(topic, &serialized_model).await;
+
+        // Collect models from peers
+        let mut models = vec![local_model.clone()];
+        for _ in 0..self.peers.len() {
+            let message = self.receive_message().await?;
+            if let QUPMessage::ModelUpdate(model) = message {
+                models.push(model);
+            }
+        }
+
+        // Aggregate models
+        let aggregated_model = self.secure_aggregate_models(models).await?;
+        Ok(aggregated_model)
+    }
+
+    pub async fn gather(&mut self, topic: &str, local_data: &[u8]) -> Result<Vec<Vec<u8>>, ConsensusError> {
+        self.broadcast(topic, local_data).await;
+
+        // Collect data from peers
+        let mut gathered_data = vec![local_data.to_vec()];
+        for _ in 0..self.peers.len() {
+            let message = self.receive_message().await?;
+            if let QUPMessage::Data(data) = message {
+                gathered_data.push(data);
+            }
+        }
+
+        Ok(gathered_data)
+    }
+
+    // ...
 }
