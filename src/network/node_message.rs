@@ -29,6 +29,7 @@ pub enum NodeMessage {
     QUPVote(QUPVote),
     QUPUsefulWork(QUPUsefulWork),
     QUPKeyExchange(QUPKeyExchange),
+    ModelParameters(Vec<u8>),
     QKDKeyRequest,
     QKDKeyResponse(QKDKey),
     QKDKeyConfirmation,
@@ -111,6 +112,7 @@ impl NodeMessage {
             NodeMessage::QuantumStateDistribution(_) => "quantum_state_distribution",
             NodeMessage::QuantumStateMeasurementResults(_) => "quantum_state_measurement_results",
         }
+    }
 
         // Handle TLS-related messages
         match message {
