@@ -5,7 +5,7 @@ use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
 use crate::network::NetworkMessage;
-use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution};
+use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution, ScientificResearchProblem, ScientificResearchSolution};
 use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{QUPKeyPair, QUPCrypto};
@@ -52,6 +52,13 @@ pub enum ConsensusAlgorithm {
         Ok(())
     }
 
+    fn solve_scientific_research_problem(&self, problem: &ScientificResearchProblem) -> Vec<f64> {
+        // Implement the logic to solve scientific research problems
+        // This is a placeholder function and should be replaced with the actual implementation
+        // based on the specific requirements of the scientific research problem
+        vec![0.0; problem.data.len()]
+    }
+
     fn quantum_optimize_model(&self, model: Vec<f64>) -> Result<Vec<f64>, ConsensusError> {
         // Perform quantum-enhanced optimization on the model
         // This can be done using quantum algorithms like Quantum Approximate Optimization Algorithm (QAOA)
@@ -76,6 +83,11 @@ pub enum ConsensusAlgorithm {
             for (i, &value) in update.iter().enumerate() {
                 aggregated_model[i] += value;
             }
+        }
+        UsefulWorkProblem::ScientificResearch(scientific_research_problem) => {
+            // Use quantum-enhanced methods to solve scientific research problems
+            let solution = self.solve_scientific_research_problem(scientific_research_problem);
+            UsefulWorkSolution::ScientificResearch(ScientificResearchSolution { solution })
         }
 
         for value in &mut aggregated_model {
