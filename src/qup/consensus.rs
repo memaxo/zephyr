@@ -33,7 +33,9 @@ pub enum ConsensusAlgorithm {
     Secure,
 }
 
-impl QUPConsensus {
+    }
+}
+
     pub fn aggregate_model_round(&self) -> Result<(), ConsensusError> {
         // Designated aggregator node collects model updates from all participants
         let model_updates = self.collect_model_updates()?;
@@ -53,7 +55,6 @@ impl QUPConsensus {
         Ok(vec![])
     }
 
-impl QUPConsensus {
     pub fn aggregate_model_updates(&self, model_updates: Vec<Vec<f64>>) -> Vec<f64> {
         let num_updates = model_updates.len();
         let dimension = model_updates[0].len();
@@ -84,6 +85,7 @@ impl QUPConsensus {
 
         Ok(())
     }
+
 
 impl QUPConsensus {
     pub fn initialize_training(&self) -> Result<(), ConsensusError> {
@@ -119,7 +121,6 @@ impl QUPConsensus {
         self.process_vote(vote)
     }
 
-impl ConsensusInterface for QUPConsensus {
     fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
         use crate::chain::validation::block_validator::validate_block;
         // Validate the block using existing validation logic
