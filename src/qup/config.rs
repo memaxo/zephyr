@@ -23,6 +23,33 @@ pub struct QUPConfig {
     pub quorum_threshold: f64,
     pub confirmation_threshold: usize,
     pub confirmation_timeout: std::time::Duration,
+    pub distributed_training_config: DistributedTrainingConfig,
+
+/// Configuration settings for distributed training.
+pub struct DistributedTrainingConfig {
+    pub num_nodes: usize,
+    pub batch_size: usize,
+    pub learning_rate: f64,
+    pub aggregation_frequency: usize,
+    // Add other relevant hyperparameters here
+}
+
+impl DistributedTrainingConfig {
+    pub fn new(
+        num_nodes: usize,
+        batch_size: usize,
+        learning_rate: f64,
+        aggregation_frequency: usize,
+        distributed_training_config: DistributedTrainingConfig,
+    ) -> Self {
+        DistributedTrainingConfig {
+            num_nodes,
+            batch_size,
+            learning_rate,
+            aggregation_frequency,
+            distributed_training_config,
+        }
+    }
 }
 
 impl QUPConfig {
