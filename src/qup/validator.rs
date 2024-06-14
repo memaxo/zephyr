@@ -79,23 +79,42 @@ impl QUPValidator {
         }
     }
 
-    pub fn stake(&mut self, validator_id: String, amount: u64) {
+    pub fn stake(&mut self, validator_id: String, token_symbol: &str, amount: u64) {
+        // Update the validator's stake
         let entry = self.stakes.entry(validator_id.clone()).or_insert(0);
         *entry += amount;
         self.update_weight(&validator_id);
+
+        // Lock the staked tokens in QUPState
+        self.state_manager.lock_tokens(token_symbol, amount, &validator_id);
     }
 
-    pub fn unstake(&mut self, validator_id: String, amount: u64) -> Result<(), Error> {
+    pub fn unstake(&mut self, validator_id: String, token_symbol: &str, amount: u64) -> Result<(), Error> {
         if let Some(entry) = self.stakes.get_mut(&validator_id) {
             if *entry >= amount {
                 *entry -= amount;
                 self.update_weight(&validator_id);
+
+                // Unlock the staked tokens in QUPState
+                self.state_manager.unlock_tokens(token_symbol, amount, &validator_id);
+
                 Ok(())
             } else {
                 Err(Error::InsufficientStake)
             }
         } else {
             Err(Error::ValidatorNotFound)
+        }
+    }
+
+    pub fn calculate_reward(&self, validator_id: &String, reward_rate: f64) -> u64 {
+        if let Some(stake) = self.stakes.get(validator_id) {
+            let performance = self.get_performance(validator_id);
+            let weight = self.weights.get(validator_id).unwrap_or(&0.0);
+            let reward = (*stake as f64) * performance * reward_rate * weight;
+            reward as u64
+        } else {
+            0
         }
     }
 
