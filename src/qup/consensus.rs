@@ -439,23 +439,25 @@ impl QUPConsensus {
     }
 
     fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
-        // Generate a useful work problem based on the network requirements
-        // ...
+        let block_hash = self.blockchain.get_latest_block().hash();
+        let difficulty = self.config.vdf_difficulty;
+        UsefulWorkProblem::new(block_hash, difficulty)
     }
 
     fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
-        // Solve the useful work problem using quantum algorithms or other methods
-        // ...
+        let vdf_output = self.vdf.solve(&problem.challenge, problem.difficulty);
+        UsefulWorkSolution::new(vdf_output)
     }
 
     fn generate_useful_work_proof(&self, solution: &UsefulWorkSolution) -> Vec<u8> {
-        // Generate a proof of useful work using VDF or other techniques
-        // ...
+        bincode::serialize(solution).expect("Failed to serialize useful work solution")
     }
 
     fn validate_useful_work_proof(&self, proof: &[u8]) -> Result<bool, ConsensusError> {
-        // Validate the useful work proof using VDF or other methods
-        // ...
+        let solution: UsefulWorkSolution = bincode::deserialize(proof).map_err(|_| ConsensusError::InvalidProof)?;
+        let problem = self.generate_useful_work_problem();
+        let expected_output = self.vdf.solve(&problem.challenge, problem.difficulty);
+        Ok(solution.output == expected_output)
     }
 
     fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
