@@ -12,7 +12,15 @@ pub trait UsefulWorkSolutionTrait {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum UsefulWorkProblem {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UsefulWorkProblem {
+    pub problem: ProblemType,
+    pub domain: String,
+    pub difficulty: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ProblemType {
     // Optimization problems
     Knapsack(KnapsackProblem),
     VertexCover(VertexCoverProblem),
