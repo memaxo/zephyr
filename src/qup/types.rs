@@ -56,6 +56,15 @@ pub enum UsefulWorkProblem {
         }
     }
 
+    // Define the RequestModelOutputs and ResponseModelOutputs message types
+    pub enum QUPMessage {
+        QUPBlock(QUPBlock),
+        QUPTransaction(Transaction),
+        ModelBlock(ModelBlock),
+        RequestModelOutputs(Vec<Vec<f64>>),
+        ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
+    }
+
     // Define the EnhancedUsefulWorkGenerator struct
     pub struct EnhancedUsefulWorkGenerator;
 

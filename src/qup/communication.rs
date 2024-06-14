@@ -55,6 +55,14 @@ impl CommunicationProtocol {
         } else {
             Err(ConsensusError::InvalidMessage)
         }
+
+        // Handle new message types
+        NetworkMessage::RequestModelOutputs(inputs) => {
+            // Implement logic to handle RequestModelOutputs
+        }
+        NetworkMessage::ResponseModelOutputs(outputs) => {
+            // Implement logic to handle ResponseModelOutputs
+        }
     }
 
     async fn compress_data(&self, data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
