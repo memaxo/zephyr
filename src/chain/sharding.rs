@@ -8,7 +8,7 @@ use crate::network::shard_message::{ShardMessage, ShardMessageAck};
 use crate::qup::crypto::{QUPCrypto, KeyRotationEvent};
 use crate::qup::state::QUPState;
 use crate::secure_core::secure_vault::SecureVault;
-use crate::utils::hashing::{hash_transaction, ShardingHash};
+use crate::utils::hashing::{hash_transaction, ShardingHash, consistent_hash};
 use crate::utils::versioning::Versioned;
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
@@ -169,8 +169,12 @@ impl Sharding {
 
 
     fn calculate_shard_for_transaction(&self, transaction: &Transaction) -> u64 {
-        let hash = hash_transaction(transaction);
-        hash % self.total_shards
+        let transaction_hash = hash_transaction(transaction);
+        self.assign_transaction_to_shard(transaction_hash, self.total_shards)
+    }
+
+    fn assign_transaction_to_shard(&self, transaction_hash: u64, num_shards: u64) -> u64 {
+        consistent_hash(transaction_hash, num_shards)
     }
 
     pub async fn start_shard_message_handler(&self) {
