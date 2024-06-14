@@ -118,6 +118,39 @@ impl QUPConsensus {
         Ok(())
     }
 
+    fn trigger_hyperparameter_tuning(&mut self, evaluation_score: f64) -> Result<(), ConsensusError> {
+        use optuna::prelude::*;
+        use optuna::study::Study;
+        use optuna::trial::Trial;
+
+        // Define the objective function for hyperparameter tuning
+        fn objective(trial: &mut Trial) -> f64 {
+            // Define the hyperparameters and their ranges
+            let learning_rate: f64 = trial.suggest_float("learning_rate", 0.0001, 0.1).unwrap();
+            let batch_size: usize = trial.suggest_int("batch_size", 32, 128).unwrap();
+            let num_layers: usize = trial.suggest_int("num_layers", 1, 5).unwrap();
+
+            // Other hyperparameters specific to the HDC model can be added here
+
+            // Placeholder for model training and evaluation
+            // Replace this with actual model training and evaluation logic
+            let evaluation_score = 1.0 / (learning_rate * batch_size as f64 * num_layers as f64);
+
+            evaluation_score
+        }
+
+        // Create a study for hyperparameter optimization
+        let study = Study::create("hyperparameter_optimization", objective).unwrap();
+
+        // Optimize the hyperparameters
+        let best_trial = study.optimize(100).unwrap();
+
+        // Log the best hyperparameters
+        info!("Best hyperparameters: {:?}", best_trial.params());
+
+        Ok(())
+    }
+
     fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
         self.process_propose_common(&block)?;
 
