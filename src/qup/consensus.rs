@@ -249,7 +249,7 @@ impl QUPConsensus {
         if let Some(stake) = self.staking.get_mut(validator) {
             let slashed_amount = *stake / 2;
             *stake -= slashed_amount;
-            self.state.increase_balance(validator, slashed_amount)?;
+            self.state.update_balance(validator, "QUP", -(slashed_amount as i64));
         }
         Ok(())
     }
@@ -290,14 +290,14 @@ impl QUPConsensus {
         for (validator, reward) in rewards {
             if let Some(stake) = self.staking.get(&validator) {
                 let validator_reward = reward * *stake / self.state.get_total_stake();
-                self.state.increase_balance(&validator, validator_reward)?;
+                self.state.update_balance(&validator, "QUP", validator_reward as i64);
             }
         }
 
         // Distribute rewards for useful work
         if let Some(solution) = &block.useful_work_solution {
             let useful_work_rewards = total_rewards * self.config.useful_work_reward_percentage / 100;
-            self.state.increase_balance(&solution.provider, useful_work_rewards)?;
+            self.state.update_balance(&solution.provider, "QUP", useful_work_rewards as i64);
         }
 
         Ok(())
