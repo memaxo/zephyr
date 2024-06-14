@@ -402,18 +402,40 @@ impl QUPConsensus {
     }
 
     fn verify_vote_signature(&self, vote: &QUPVote) -> Result<bool, ConsensusError> {
-        // Verify the vote signature using the voter's public key
-        // ...
+        let vote_data = bincode::serialize(vote)?;
+        if let Some(is_valid) = self.qup_crypto.verify(&vote_data, &vote.signature, &vote.voter) {
+            Ok(is_valid)
+        } else {
+            Err(ConsensusError::InvalidSignature)
+        }
     }
 
     fn cast_vote(&self, block_hash: Hash) -> Result<QUPVote, ConsensusError> {
-        // Cast a vote for a block and broadcast it to other validators
-        // ...
+        let vote = QUPVote {
+            block_hash,
+            voter: self.key_pair.public_key.clone(),
+            signature: vec![],
+        };
+
+        let vote_data = bincode::serialize(&vote)?;
+        let signature = self.qup_crypto.sign(&vote_data, &self.key_pair.private_key)
+            .ok_or(ConsensusError::SigningError)?;
+
+        let signed_vote = QUPVote {
+            block_hash,
+            voter: self.key_pair.public_key.clone(),
+            signature,
+        };
+
+        self.network.broadcast(NetworkMessage::Vote(signed_vote.clone()))?;
+        Ok(signed_vote)
     }
 
     fn commit_block(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
-        // Commit a block to the blockchain and distribute rewards
-        // ...
+        self.state.apply_block(&block)?;
+        self.distribute_rewards(&block)?;
+        self.transaction_storage.clear_pool()?;
+        Ok(())
     }
 
     fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
