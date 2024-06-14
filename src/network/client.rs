@@ -145,11 +145,16 @@ impl Client {
                                 }
                                 Message::RequestModelOutputs(inputs) => {
                                     // Handle RequestModelOutputs
-                                    // Implement logic to process the request and send the model outputs
+                                    let model_outputs = self.retrieve_model_outputs(&inputs).await;
+                                    let response_message = Message::ResponseModelOutputs(model_outputs);
+                                    if let Err(e) = self.pq_tls_connection.as_mut().unwrap().send(&response_message.serialize()?).await {
+                                        error!("Failed to send ResponseModelOutputs: {}", e);
+                                    }
                                 }
                                 Message::ResponseModelOutputs(outputs) => {
                                     // Handle ResponseModelOutputs
-                                    // Implement logic to process the received model outputs
+                                    self.store_model_outputs(outputs).await;
+                                    self.perform_probabilistic_verification().await;
                                 }
                                 _ => {
                                     match Message::from_protocol_message(protocol_message) {

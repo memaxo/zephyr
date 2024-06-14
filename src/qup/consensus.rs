@@ -160,7 +160,11 @@ impl QUPConsensus {
         block.history_proof = history_proof;
 
         // Broadcast the block to other validators
-        let message = NetworkMessage::BlockProposal(block.clone());
+        let message = NetworkMessage::BlockProposal {
+            block: bincode::serialize(&block).unwrap(),
+            signature: sign_data(&bincode::serialize(&block).unwrap(), &self.key_pair).unwrap(),
+            sampled_model_outputs: block.sampled_model_outputs.clone(),
+        };
         self.network.broadcast(message)?;
 
         // Add the block to the local pool of proposed blocks
