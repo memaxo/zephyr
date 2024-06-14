@@ -1,10 +1,16 @@
 use crate::ufw::types::{
     UsefulWorkProblem,
-    // ... import all the problem types
+    KnapsackProblem,
+    VertexCoverProblem,
+    TravelingSalesmanProblem,
+    SupplyChainProblem,
+    GraphColoringProblem,
+    ModelTrainingProblem,
 };
 use rand::Rng;
 use reqwest::Client;
-use serde_json::Value;
+use serde_json::{Value, from_str, to_string};
+use serde::{Serialize, Deserialize};
 
 pub struct UsefulWorkGenerator;
 
@@ -130,6 +136,20 @@ impl UsefulWorkGenerator {
 
     // ... implement generation functions for other problem types
 }
+
+impl UsefulWorkGenerator {
+    pub fn serialize_problem(problem: &UsefulWorkProblem) -> Result<String, serde_json::Error> {
+        to_string(problem)
+    }
+
+    pub fn deserialize_problem(data: &str) -> Result<UsefulWorkProblem, serde_json::Error> {
+        from_str(data)
+    }
+
+    pub fn validate_problem_format(data: &str) -> Result<(), serde_json::Error> {
+        let _: UsefulWorkProblem = from_str(data)?;
+        Ok(())
+    }
 
 impl UsefulWorkGenerator {
     pub async fn fetch_problems_from_platform(api_url: &str) -> Result<Vec<UsefulWorkProblem>, reqwest::Error> {

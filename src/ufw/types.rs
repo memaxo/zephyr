@@ -339,4 +339,52 @@ pub struct QuantumSimulationProblem {
 pub struct QuantumSimulationSolution {
     pub final_state: Vec<f64>,
     pub measurement_probabilities: Vec<f64>,
+}use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct KnapsackProblem {
+    pub capacity: u64,
+    pub weights: Vec<u64>,
+    pub values: Vec<u64>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct VertexCoverProblem {
+    pub graph: Vec<Vec<usize>>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TravelingSalesmanProblem {
+    pub distances: Vec<Vec<u64>>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SupplyChainProblem {
+    pub num_nodes: usize,
+    pub distances: Vec<Vec<f64>>,
+    pub demands: Vec<f64>,
+    pub capacities: Vec<f64>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GraphColoringProblem {
+    pub graph: Vec<Vec<usize>>,
+    pub num_colors: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ModelTrainingProblem {
+    pub dataset: Vec<Vec<f64>>,
+    pub labels: Vec<usize>,
+    pub model_architecture: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum UsefulWorkProblem {
+    Knapsack(KnapsackProblem),
+    VertexCover(VertexCoverProblem),
+    TravelingSalesman(TravelingSalesmanProblem),
+    SupplyChainOptimization(SupplyChainProblem),
+    GraphColoring(GraphColoringProblem),
+    ModelTraining(ModelTrainingProblem),
 }
