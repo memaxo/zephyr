@@ -1,4 +1,6 @@
 use crate::smart_contract::types::{Value, ExecutionContext, CrossChainMessage};
+use std::sync::Mutex;
+use lazy_static::lazy_static;
 use crate::smart_contract::erc20_wrapper::ERC20WrapperContract;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -17,6 +19,10 @@ pub struct BridgeContract {
     erc20_wrapper: ERC20WrapperContract,
 }
 
+lazy_static! {
+    static ref REENTRANCY_GUARD: Mutex<()> = Mutex::new(());
+}
+
 impl BridgeContract {
     pub fn new(config: BridgeConfig) -> Self {
         let erc20_wrapper_config = ERC20WrapperConfig {
@@ -33,6 +39,8 @@ impl BridgeContract {
     }
 
     pub fn lock_assets(&self, context: &mut ExecutionContext, amount: u64) -> Result<(), String> {
+        let _guard = REENTRANCY_GUARD.lock().unwrap(); // Acquire lock
+
         // Deduct assets from the sender's balance
         let sender = context.get_sender()?;
         context.transfer_assets(&sender, "system", self.config.zephyr_asset_denom.clone(), amount)?;
