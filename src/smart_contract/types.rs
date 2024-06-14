@@ -72,6 +72,7 @@ impl SmartContract {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum BitwiseOperator {
     And,
     Or,
@@ -81,7 +82,7 @@ pub enum BitwiseOperator {
     ShiftRight,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum StringOperator {
     Concat,
     Substring,
@@ -114,6 +115,7 @@ lazy_static! {
     ].iter().cloned().collect();
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Operation {
     Set { key: String, value: Expression },
     If { condition: Expression, then_branch: Vec<Operation>, else_branch: Vec<Operation> },
@@ -140,6 +142,7 @@ impl Value {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Value {
     Integer(i64),
     String(String),
@@ -166,6 +169,7 @@ impl Expression {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Expression {
     Literal(Value),
     Variable(String),
@@ -177,6 +181,7 @@ pub enum Expression {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum BinaryOperator {
     Add,
     Subtract,
@@ -199,6 +204,7 @@ pub enum BinaryOperator {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum UnaryOperator {
     Negate,
     Not,
