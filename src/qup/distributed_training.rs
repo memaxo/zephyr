@@ -127,16 +127,28 @@ impl DistributedTrainer {
     }
 
     pub fn train(&self) -> TrainingResult {
-        if self.data_parallelism && self.model_parallelism {
-            self.train_hybrid_parallel()
-        } else if self.data_parallelism {
-            self.train_data_parallel()
-        } else if self.model_parallelism {
-            self.train_model_parallel()
-        } else if self.pipeline_parallelism {
-            self.train_pipeline_parallel()
-        } else {
-            self.train_standard()
+        let mut models = vec![];
+
+        for _ in 0..self.nodes.len() {
+            let round_models = self.train_models(false);
+            let sampling_rate = 0.5; // Example sampling rate
+            let validation_data = vec![]; // Placeholder for actual validation data
+            let confidence_level = 0.95;
+            let max_acceptable_error = 0.05;
+
+            if verify_model_outputs(round_models.clone(), validation_data.clone(), confidence_level, max_acceptable_error) {
+                models.extend(round_models);
+            } else {
+                println!("Verification failed. Skipping aggregation for this round.");
+            }
+        }
+
+        let aggregated_model = self.aggregate_models(models, 0.5); // Example sampling rate for aggregation
+        let metrics = evaluate_model(&aggregated_model);
+
+        TrainingResult {
+            model: aggregated_model,
+            metrics,
         }
     }
 
