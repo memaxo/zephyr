@@ -2,10 +2,34 @@ use crate::chain::transaction::Transaction;
 use crate::crypto::hash::Hash;
 use crate::qup::crypto::QUPSignature;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub trait UsefulWorkProblemTrait {
     fn solve(&self) -> Box<dyn UsefulWorkSolutionTrait>;
+}
+
+pub trait Validator {
+    fn validate(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool;
+}
+
+pub struct ValidationRegistry {
+    validators: HashMap<String, Box<dyn Validator>>,
+}
+
+impl ValidationRegistry {
+    pub fn new() -> Self {
+        ValidationRegistry {
+            validators: HashMap::new(),
+        }
+    }
+
+    pub fn register_validator(&mut self, problem_type: String, validator: Box<dyn Validator>) {
+        self.validators.insert(problem_type, validator);
+    }
+
+    pub fn get_validator(&self, problem_type: &str) -> Option<&Box<dyn Validator>> {
+        self.validators.get(problem_type)
+    }
 }
 
 pub trait UsefulWorkSolutionTrait {
