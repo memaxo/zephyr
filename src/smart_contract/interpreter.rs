@@ -73,7 +73,8 @@ impl Interpreter {
         context: &mut HashMap<String, Value>,
         gas_limit: &mut u64,
     ) -> Result<Option<Value>, String> {
-        let gas_cost = calculate_operation_cost(operation, &self.gas_cost);
+        let network_congestion = self.get_network_congestion();
+        let gas_cost = self.gas_cost.calculate_dynamic_cost(calculate_operation_cost(operation, &self.gas_cost), network_congestion);
         info!("Executing operation: {:?}, Gas cost: {}", operation, gas_cost);
         if *gas_limit < gas_cost {
             return Err("Insufficient gas".to_string());
@@ -158,7 +159,8 @@ impl Interpreter {
                 return Ok(Some(value));
             }
         }
-        Ok(None)
+        let remaining_gas = *gas_limit;
+        Ok(Some(Value::Integer(remaining_gas as i64)))
     }
 
     fn execute_operations_parallel(
@@ -349,7 +351,11 @@ impl Interpreter {
         }
     }
 
-    fn apply_binary_operator(left: &Value, op: &BinaryOperator, right: &Value) -> Result<Value, String> {
+    fn get_network_congestion(&self) -> f64 {
+        // Placeholder for actual network congestion logic
+        // This could be replaced with real-time data from the network
+        1.0
+    }
         match (left, op, right) {
             (Value::Integer(left), BinaryOperator::Add, Value::Integer(right)) => left.checked_add(*right).map(Value::Integer).ok_or_else(|| "Integer overflow".to_string()),
             (Value::Integer(left), BinaryOperator::Subtract, Value::Integer(right)) => left.checked_sub(*right).map(Value::Integer).ok_or_else(|| "Integer overflow".to_string()),

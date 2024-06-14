@@ -11,9 +11,13 @@ pub struct GasCost {
     pub return_cost: u64,
     pub break_cost: u64,
     pub continue_cost: u64,
-};
-    info!("Calculated gas cost for operation {:?}: {}", operation, cost);
-    cost
+    pub dynamic_pricing_factor: f64,
+}
+
+impl GasCost {
+    pub fn calculate_dynamic_cost(&self, base_cost: u64, network_congestion: f64) -> u64 {
+        (base_cost as f64 * self.dynamic_pricing_factor * network_congestion).ceil() as u64
+    }
 
 impl Default for GasCost {
     fn default() -> Self {
@@ -27,7 +31,18 @@ impl Default for GasCost {
             return_cost: 5,
             break_cost: 5,
             continue_cost: 5,
+            set_cost: 10,
+            get_cost: 5,
+            op_cost: 1,
+            func_call_cost: 20,
+            loop_cost: 5,
+            if_cost: 5,
+            return_cost: 5,
+            break_cost: 5,
+            continue_cost: 5,
+            dynamic_pricing_factor: 1.0,
         }
+    }
     }
 }
 
