@@ -59,10 +59,7 @@ impl ERC20WrapperContract {
 
     fn burn_tokens(&mut self, sender: &str, amount: u64) -> Result<(), String> {
         let balance = self.balances.get_mut(sender).ok_or_else(|| format!("Insufficient balance for {}", sender))?;
-        if *balance < amount {
-            return Err(format!("Insufficient balance for {}", sender));
-        }
-        *balance -= amount;
+        *balance = balance.checked_sub(amount).ok_or("Integer underflow")?;
         Ok(())
     }
 
