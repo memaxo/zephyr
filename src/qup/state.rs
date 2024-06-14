@@ -9,10 +9,12 @@ use crate::qup::quantum_node::QuantumNode;
 use crate::qup::validator::QUPValidator;
 use crate::storage::state_storage::StateStorage;
 use std::collections::HashMap;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use rayon::prelude::*;
 use smallvec::SmallVec;
+use crate::qup::types::Reputation;
 
 pub struct QUPState {
     pub state_manager: Arc<StateManager>,
@@ -24,6 +26,7 @@ pub struct QUPState {
     pub network_state: Arc<Mutex<NetworkState>>,
     classical_node: Arc<ClassicalNode>,
     quantum_node: Arc<QuantumNode>,
+    pub reputations: HashMap<String, Reputation>,
 }
 
     pub fn get_network_load(&self) -> f64 {
@@ -400,3 +403,18 @@ pub struct NetworkState {
 
 use std::collections::HashMap;
 
+    pub fn get_reputation(&self, node_id: &str) -> Option<Reputation> {
+        self.reputations.get(node_id).cloned()
+    }
+
+    pub fn update_reputation(&mut self, node_id: String, reputation: Reputation) {
+        self.reputations.insert(node_id, reputation);
+    }
+
+    pub fn get_total_reputation(&self) -> u64 {
+        self.reputations.values().map(|r| r.score).sum()
+    }
+
+    pub fn get_reputations(&self) -> &HashMap<String, Reputation> {
+        &self.reputations
+    }
