@@ -460,9 +460,12 @@ impl QUPConsensus {
         Ok(solution.output == expected_output)
     }
 
-    fn validate_history_proof(&self, history_proof: &[Hash]) -> Result<bool, ConsensusError> {
-        // Validate the history proof by checking the validity of block hashes
-        // ...
+    fn validate_history_proof(&self, block: &QUPBlock, proof: &MerkleProof) -> bool {
+        let mut current_hash = block.hash();
+        for (parent_hash, sibling_hash) in proof.nodes.iter() {
+            current_hash = self.state.merkle_tree.calculate_parent_hash(current_hash, *sibling_hash);
+        }
+        current_hash == self.state.get_genesis_block().hash()
     }
 
     fn verify_zkp(&self, proof: &ZkStarksProof) -> bool {
