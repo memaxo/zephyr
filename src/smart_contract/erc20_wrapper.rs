@@ -53,7 +53,7 @@ impl ERC20WrapperContract {
 
     fn mint_tokens(&mut self, recipient: &str, amount: u64) -> Result<(), String> {
         let balance = self.balances.entry(recipient.to_string()).or_insert(0);
-        *balance += amount;
+        *balance = balance.checked_add(amount).ok_or("Integer overflow")?;
         Ok(())
     }
 
