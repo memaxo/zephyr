@@ -7,6 +7,7 @@ use crate::qup::qup_hdcmodels::QUPHDCModels;
 use crate::qup::state::QUPState;
 use std::sync::Arc;
 use std::collections::HashMap;
+use crate::qup::types::Reputation;
 
 pub struct QUPValidator {
     config: Arc<QUPConfig>,
@@ -14,6 +15,7 @@ pub struct QUPValidator {
     hdc_models: QUPHDCModels,
     stakes: HashMap<String, u64>, // Validator stakes
     weights: HashMap<String, f64>, // Validator weights
+    reputation: Reputation,
 }
 
 impl QUPValidator {
@@ -24,15 +26,24 @@ impl QUPValidator {
             hdc_models,
             stakes: HashMap::new(),
             weights: HashMap::new(),
+            reputation: Reputation::default(),
         }
     }
 
-    pub fn propose_block(&self, transactions: Vec<Transaction>) -> QUPBlock {
+    pub fn propose_block(&mut self, transactions: Vec<Transaction>) -> QUPBlock {
         // Create a new block proposal
         let block = QUPBlock::new(transactions, self.state.clone());
         // Sign the block proposal
         let signature = self.sign_block(&block);
         block.set_signature(signature);
+
+        // Update reputation based on block proposal
+        if self.verify_block_proposal(&block) {
+            self.reputation.increase_score(ReputationAction::SuccessfulBlockProposal);
+        } else {
+            self.reputation.decrease_score(ReputationAction::FailedBlockProposal);
+        }
+
         block
     }
 
@@ -51,14 +62,19 @@ impl QUPValidator {
         }
     }
 
-    pub fn commit_block(&self, block: &QUPBlock) -> Result<(), Error> {
+    pub fn commit_block(&mut self, block: &QUPBlock) -> Result<(), Error> {
         // Verify the block commit
         if self.verify_block_commit(block) {
             // Commit the block to the state
             self.state.commit_block(block);
+
+            // Update reputation for successful block validation
+            self.reputation.increase_score(ReputationAction::SuccessfulBlockValidation);
+
             Ok(())
         } else {
             // Handle invalid block commit
+            self.reputation.decrease_score(ReputationAction::FailedBlockValidation);
             Err(Error::InvalidBlockCommit)
         }
     }
@@ -161,11 +177,15 @@ impl QUPValidator {
         committer_public_key.verify(&block_bytes, &signature)
     }
 
-    pub fn perform_cryptographic_operations(&self, data: &[u8]) -> Result<Vec<u8>, Error> {
+    pub fn perform_cryptographic_operations(&mut self, data: &[u8]) -> Result<Vec<u8>, Error> {
         if self.config.supports_quantum_features() {
             // Quantum-specific implementation
             let quantum_key = QuantumKey::new();
             let encrypted_data = quantum_key.encrypt(data);
+
+            // Update reputation for successful useful work
+            self.reputation.increase_score(ReputationAction::SuccessfulUsefulWork);
+
             Ok(encrypted_data)
         } else {
             // Classical implementation
@@ -173,6 +193,10 @@ impl QUPValidator {
             let cipher = Aes256Gcm::new(Key::from_slice(key));
             let nonce = Nonce::from_slice(b"unique nonce");
             let encrypted_data = cipher.encrypt(nonce, data).expect("encryption failure!");
+
+            // Update reputation for successful useful work
+            self.reputation.increase_score(ReputationAction::SuccessfulUsefulWork);
+
             Ok(encrypted_data)
         }
     }
