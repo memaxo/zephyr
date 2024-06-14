@@ -1,4 +1,4 @@
-use crate::smart_contract::types::{SmartContract, ContractState, Event, CrossChainMessage};
+use crate::smart_contract::types::{SmartContract, ContractState, Event, CrossChainMessage, StateHistory};
 use crate::utils::error::Result;
 use crate::smart_contract::logging::init_logging;
 use log::info;
@@ -57,7 +57,22 @@ pub trait SmartContractInterface {
         Err("Contract execution timed out".into())
     }
 
-    fn get_contract_state(&self, contract_id: &str) -> Result<ContractState>;
+    fn get_contract_state(&self, contract_id: &str, keys: Option<Vec<String>>) -> Result<ContractState> {
+        // Placeholder for actual state retrieval logic
+        let contract_state = ContractState::retrieve(contract_id)?;
+
+        // If specific keys are requested, filter the state accordingly
+        let filtered_state = if let Some(keys) = keys {
+            contract_state.filter_by_keys(keys)
+        } else {
+            contract_state
+        };
+
+        // Maintain state history
+        StateHistory::record_state_change(contract_id, &filtered_state)?;
+
+        Ok(filtered_state)
+    }
     fn upgrade_contract(&self, contract_id: &str, new_code: &str) -> Result<()>;
     fn get_proxy_contract(&self, contract_id: &str) -> Result<String>;
     fn send_cross_chain_message(&self, message: CrossChainMessage) -> Result<()>;
