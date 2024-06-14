@@ -12,7 +12,17 @@ pub struct GasCost {
     pub break_cost: u64,
     pub continue_cost: u64,
     pub dynamic_pricing_factor: f64,
-}
+    pub fn calculate_dynamic_cost(&self, base_cost: u64, network_congestion: f64) -> u64 {
+        (base_cost as f64 * self.dynamic_pricing_factor * network_congestion).ceil() as u64
+    }
+
+    pub fn check_gas_limit(&self, total_gas: u64, gas_limit: u64) -> Result<(), String> {
+        if total_gas > gas_limit {
+            Err(format!("Gas limit exceeded: {} > {}", total_gas, gas_limit))
+        } else {
+            Ok(())
+        }
+    }
 
 impl GasCost {
     pub fn calculate_dynamic_cost(&self, base_cost: u64, network_congestion: f64) -> u64 {
@@ -88,6 +98,16 @@ pub fn calculate_expression_cost(expression: &Expression, gas_cost: &GasCost) ->
     }
 }
 
-pub fn calculate_contract_cost(operations: &[Operation], gas_cost: &GasCost) -> u64 {
-    operations.iter().map(|op| calculate_operation_cost(op, gas_cost)).sum()
+pub fn calculate_contract_cost(operations: &[Operation], gas_cost: &GasCost, gas_limit: u64, network_congestion: f64) -> Result<u64, String> {
+    let mut total_gas = 0;
+
+    for op in operations {
+        let op_cost = calculate_operation_cost(op, gas_cost);
+        let dynamic_cost = gas_cost.calculate_dynamic_cost(op_cost, network_congestion);
+        total_gas += dynamic_cost;
+
+        gas_cost.check_gas_limit(total_gas, gas_limit)?;
+    }
+
+    Ok(total_gas)
 }
