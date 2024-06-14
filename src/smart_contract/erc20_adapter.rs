@@ -92,3 +92,39 @@ impl ERC20Adapter {
         }
     }
 }
+impl ERC20Adapter {
+    // Other methods...
+
+    fn verify_signature(&self, message: &serde_json::Value, signature: &str, public_key: &str) -> bool {
+        use pqcrypto_dilithium::dilithium2::{self, PublicKey, Signature};
+
+        // Deserialize the public key
+        let public_key_bytes = match hex::decode(public_key) {
+            Ok(bytes) => bytes,
+            Err(_) => return false,
+        };
+        let public_key = match PublicKey::from_bytes(&public_key_bytes) {
+            Ok(pk) => pk,
+            Err(_) => return false,
+        };
+
+        // Deserialize the signature
+        let signature_bytes = match hex::decode(signature) {
+            Ok(bytes) => bytes,
+            Err(_) => return false,
+        };
+        let signature = match Signature::from_bytes(&signature_bytes) {
+            Ok(sig) => sig,
+            Err(_) => return false,
+        };
+
+        // Serialize the message
+        let message_bytes = match serde_json::to_vec(message) {
+            Ok(bytes) => bytes,
+            Err(_) => return false,
+        };
+
+        // Verify the signature
+        dilithium2::verify(&message_bytes, &signature, &public_key).is_ok()
+    }
+}
