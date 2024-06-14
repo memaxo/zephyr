@@ -35,13 +35,26 @@ pub trait SmartContractInterface {
         Ok(contract_id)
     }
 
-    fn execute_contract(&self, contract_address: &str, function_selector: &str, arguments: &[u8], caller_address: &str) -> Result<Vec<u8>> {
+    fn execute_contract(
+        &self,
+        contract_address: &str,
+        function_selector: &str,
+        arguments: &[u8],
+        caller_address: &str,
+    ) -> Result<Vec<u8>, String> {
         // Reentrancy protection
         let _guard = REENTRANCY_GUARD.lock().unwrap();
 
         // Timeout mechanism
         let start_time = Instant::now();
         let timeout = Duration::from_secs(30); // 30 seconds timeout
+
+        // Validate the contract bytecode
+        validate_bytecode(&contract.bytecode).map_err(|e| format!("Bytecode validation failed: {}", e))?;
+
+        // Estimate gas for deployment
+        let gas_estimate = estimate_gas(&contract.bytecode, gas_price)
+            .map_err(|e| format!("Gas estimation failed: {}", e))?;
 
         // Placeholder for actual contract execution logic
         while start_time.elapsed() < timeout {
