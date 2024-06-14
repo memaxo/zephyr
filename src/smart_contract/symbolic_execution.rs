@@ -88,11 +88,27 @@ impl SymbolicExecutionEngine {
 
                 Ok(states)
             }
-            Operation::FunctionCall { .. } => {
-                // Handle function calls symbolically
-                unimplemented!("Function call logic not implemented")
+            Operation::FunctionCall { name, args } => {
+                let mut new_states = Vec::new();
+                let mut symbolic_args = Vec::new();
+
+                for arg in args {
+                    let symbolic_arg = self.evaluate_expression(arg, state)?;
+                    symbolic_args.push(symbolic_arg);
+                }
+
+                // Create a symbolic representation of the function call
+                let symbolic_result = SymbolicValue::Symbolic(format!("{}({:?})", name, symbolic_args));
+                state.state.insert(name.clone(), symbolic_result);
+
+                new_states.push(state.clone());
+                Ok(new_states)
             }
-            Operation::Return { .. } => Ok(vec![state.clone()]),
+            Operation::Return { value } => {
+                let return_value = self.evaluate_expression(value, state)?;
+                state.state.insert("return".to_string(), return_value);
+                Ok(vec![state.clone()])
+            }
             Operation::Break | Operation::Continue => Err("Unsupported operation in symbolic execution".to_string()),
         }
     }
