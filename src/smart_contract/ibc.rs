@@ -29,10 +29,21 @@ impl IBCChannel {
 
     pub fn receive_packet(&self, packet_data: IBCPacketData) -> Result<(), String> {
         info!("Received IBC packet: {:?}", packet_data);
-        // Verify packet data
+
+        // Input validation
+        if packet_data.sequence == 0 {
+            return Err("Invalid sequence number".to_string());
+        }
+        if packet_data.timeout_height > MAX_TIMEOUT_HEIGHT {
+            return Err("Timeout height exceeds limit".to_string());
+        }
+        // ... (other validation checks)
+
         if !packet_data.verify_signature() {
             return Err("Invalid packet signature".to_string());
         }
+
+        // ... (rest of the function logic)
         Ok(())
     }
 
