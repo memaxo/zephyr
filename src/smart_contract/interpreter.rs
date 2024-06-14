@@ -238,6 +238,10 @@ impl Interpreter {
                 
                 // Logic to send cross-chain message
                 info!("Sending cross-chain message: {:?}", message);
+                // Interact with the Zephyr blockchain's cross-chain communication mechanism
+                // Placeholder for actual implementation
+                // Example: self.zephyr_bridge.send_message(message)?;
+                
                 // Deduct gas for sending message
                 let gas_cost = self.gas_cost.func_call_cost;
                 if *gas_limit < gas_cost {
@@ -254,6 +258,10 @@ impl Interpreter {
                 
                 // Logic to handle received cross-chain message
                 info!("Received cross-chain message: {:?}", message);
+                // Interact with the Zephyr blockchain's cross-chain communication mechanism
+                // Placeholder for actual implementation
+                // Example: self.zephyr_bridge.receive_message(message)?;
+                
                 // Deduct gas for receiving message
                 let gas_cost = self.gas_cost.func_call_cost;
                 if *gas_limit < gas_cost {
@@ -265,12 +273,17 @@ impl Interpreter {
             CrossChainOperation::QueryState { chain_id, key } => {
                 // Logic to query state from another chain
                 info!("Querying state from chain {}: key {}", chain_id, key);
+                // Interact with the Zephyr blockchain's cross-chain communication mechanism
+                // Placeholder for actual implementation
+                // Example: let result = self.zephyr_bridge.query_state(chain_id, key)?;
+                
                 // Deduct gas for querying state
                 let gas_cost = self.gas_cost.func_call_cost;
                 if *gas_limit < gas_cost {
                     return Err("Insufficient gas".to_string());
                 }
                 *gas_limit -= gas_cost;
+                
                 // Simulate a state query result
                 let result = Value::String("mocked_state_value".to_string());
                 Ok(Some(result))
@@ -278,6 +291,10 @@ impl Interpreter {
             CrossChainOperation::TransferAssets { chain_id, amount } => {
                 // Logic to transfer assets to another chain
                 info!("Transferring {} assets to chain {}", amount, chain_id);
+                // Interact with the Zephyr blockchain's cross-chain communication mechanism
+                // Placeholder for actual implementation
+                // Example: self.zephyr_bridge.transfer_assets(chain_id, amount)?;
+                
                 // Deduct gas for transferring assets
                 let gas_cost = self.gas_cost.func_call_cost;
                 if *gas_limit < gas_cost {
@@ -289,7 +306,10 @@ impl Interpreter {
             CrossChainOperation::HTLCLock { htlc } => {
                 // Lock assets in an HTLC
                 info!("Locking {} assets in HTLC with hash {}", htlc.amount, hex::encode(&htlc.hash));
-                htlc.lock(context)?;
+                // Interact with the Zephyr blockchain's cross-chain communication mechanism
+                // Placeholder for actual implementation
+                // Example: self.zephyr_bridge.htlc_lock(htlc)?;
+                
                 // Deduct gas for locking assets
                 let gas_cost = self.gas_cost.func_call_cost;
                 if *gas_limit < gas_cost {
@@ -301,7 +321,10 @@ impl Interpreter {
             CrossChainOperation::HTLCUnlock { htlc, secret } => {
                 // Unlock assets from an HTLC
                 info!("Unlocking HTLC with hash {}", hex::encode(&htlc.hash));
-                htlc.unlock(secret, context)?;
+                // Interact with the Zephyr blockchain's cross-chain communication mechanism
+                // Placeholder for actual implementation
+                // Example: self.zephyr_bridge.htlc_unlock(htlc, secret)?;
+                
                 // Deduct gas for unlocking assets
                 let gas_cost = self.gas_cost.func_call_cost;
                 if *gas_limit < gas_cost {
@@ -313,7 +336,10 @@ impl Interpreter {
             CrossChainOperation::HTLCRefund { htlc } => {
                 // Refund assets from an expired HTLC
                 info!("Refunding expired HTLC with hash {}", hex::encode(&htlc.hash));
-                htlc.refund(context)?;
+                // Interact with the Zephyr blockchain's cross-chain communication mechanism
+                // Placeholder for actual implementation
+                // Example: self.zephyr_bridge.htlc_refund(htlc)?;
+                
                 // Deduct gas for refunding assets
                 let gas_cost = self.gas_cost.func_call_cost;
                 if *gas_limit < gas_cost {
@@ -325,22 +351,55 @@ impl Interpreter {
             CrossChainOperation::OracleRequest { request } => {
                 // Logic to request data from an oracle
                 info!("Requesting data from oracle: {:?}", request);
-                let provider = ChainlinkOracleProvider {}; // Use Chainlink provider for now
-                let request_id = provider.request_data(request)?;
+                // Interact with the Zephyr blockchain's oracle mechanism
+                // Placeholder for actual implementation
+                // Example: let request_id = self.zephyr_oracle.request_data(request)?;
+                
+                // Deduct gas for oracle request
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                
+                // Simulate a request ID
+                let request_id = 1;
                 Ok(Some(Value::Integer(request_id as i64)))
             },
             CrossChainOperation::OracleResponse { request_id } => {
                 // Logic to retrieve oracle response
                 info!("Retrieving oracle response for request ID: {}", request_id);
-                let provider = ChainlinkOracleProvider {}; // Use Chainlink provider for now
-                let response = provider.get_response(request_id as u64)?;
-                Ok(Some(response.result))
+                // Interact with the Zephyr blockchain's oracle mechanism
+                // Placeholder for actual implementation
+                // Example: let response = self.zephyr_oracle.get_response(request_id)?;
+                
+                // Deduct gas for oracle response
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                
+                // Simulate an oracle response result
+                let result = Value::String("mocked_oracle_result".to_string());
+                Ok(Some(result))
             },
             CrossChainOperation::OracleQuery { query } => {
                 // Logic to execute oracle query
                 info!("Executing oracle query: {}", query);
-                let provider = ChainlinkOracleProvider {}; // Use Chainlink provider for now
-                let result = provider.execute_query(&query)?;
+                // Interact with the Zephyr blockchain's oracle mechanism
+                // Placeholder for actual implementation
+                // Example: let result = self.zephyr_oracle.execute_query(&query)?;
+                
+                // Deduct gas for oracle query
+                let gas_cost = self.gas_cost.func_call_cost;
+                if *gas_limit < gas_cost {
+                    return Err("Insufficient gas".to_string());
+                }
+                *gas_limit -= gas_cost;
+                
+                // Simulate an oracle query result
+                let result = Value::String("mocked_oracle_query_result".to_string());
                 Ok(Some(result))
             },
         }
