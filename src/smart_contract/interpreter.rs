@@ -22,14 +22,25 @@ pub struct ExecutionContext {
 
 impl ExecutionContext {
     pub fn new(gas_limit: u64) -> Self {
-        ExecutionContext {
+        let reentrancy_guard = Mutex::new(());
+        let _guard = reentrancy_guard.lock();
+        let context = ExecutionContext {
             state: HashMap::new(),
             transaction_stack: VecDeque::new(),
             gas_used: 0,
             gas_limit,
             roles: HashMap::new(),
             functions: HashMap::new(),
+            cache: HashMap::new(),
         }
+    }
+
+    pub fn get_from_cache(&self, key: &str) -> Option<&Value> {
+        self.cache.get(key)
+    }
+
+    pub fn add_to_cache(&mut self, key: String, value: Value) {
+        self.cache.insert(key, value);
     }
 
     pub fn add_function(&mut self, function: Function) {
@@ -306,38 +317,48 @@ impl Interpreter {
         context: &HashMap<String, Value>,
         gas_limit: &mut u64,
     ) -> Result<Value, String> {
-        let gas_cost = calculate_expression_cost(expression, &self.gas_cost);
-        if *gas_limit < gas_cost {
-            return Err("Insufficient gas".to_string());
-        }
-        *gas_limit -= gas_cost;
+        if let Some(cached_value) = context.get_from_cache(expression.to_string().as_str()) {
+            return Ok(cached_value.clone());
+        } else {
+            let gas_cost = calculate_expression_cost(expression, &self.gas_cost);
+            if *gas_limit < gas_cost {
+                return Err("Insufficient gas".to_string());
+            }
+            *gas_limit -= gas_cost;
 
-        match expression {
-            Expression::Literal(value) => Ok(value.clone()),
-            Expression::Variable(name) => context.get(name).cloned().ok_or_else(|| format!("Variable '{}' not found", name)),
-            Expression::BinaryOp { left, op, right } => {
-                let left_value = self.evaluate_expression(left, context, gas_limit)?;
-                let right_value = self.evaluate_expression(right, context, gas_limit)?;
-                Self::apply_binary_operator(&left_value, op, &right_value)
-            },
-            Expression::UnaryOp { op, expr } => {
-                let value = self.evaluate_expression(expr, context, gas_limit)?;
-                Self::apply_unary_operator(op, &value)
-            },
-            Expression::FunctionCall { .. } => unimplemented!("Function call not implemented"),
+            let result = match expression {
+                Expression::Literal(value) => Ok(value.clone()),
+                Expression::Variable(name) => context.get(name).cloned().ok_or_else(|| format!("Variable '{}' not found", name)),
+                Expression::BinaryOp { left, op, right } => {
+                    let left_value = self.evaluate_expression(left, context, gas_limit)?;
+                    let right_value = self.evaluate_expression(right, context, gas_limit)?;
+                    Self::apply_binary_operator(&left_value, op, &right_value)
+                },
+                Expression::UnaryOp { op, expr } => {
+                    let value = self.evaluate_expression(expr, context, gas_limit)?;
+                    Self::apply_unary_operator(op, &value)
+                },
+                Expression::FunctionCall { .. } => unimplemented!("Function call not implemented"),
+            };
+
+            if let Ok(ref value) = result {
+                context.add_to_cache(expression.to_string(), value.clone());
+            }
+
+            result
         }
     }
 
     fn apply_binary_operator(left: &Value, op: &BinaryOperator, right: &Value) -> Result<Value, String> {
         match (left, op, right) {
-            (Value::Integer(left), BinaryOperator::Add, Value::Integer(right)) => Ok(Value::Integer(left + right)),
-            (Value::Integer(left), BinaryOperator::Subtract, Value::Integer(right)) => Ok(Value::Integer(left - right)),
-            (Value::Integer(left), BinaryOperator::Multiply, Value::Integer(right)) => Ok(Value::Integer(left * right)),
+            (Value::Integer(left), BinaryOperator::Add, Value::Integer(right)) => left.checked_add(*right).map(Value::Integer).ok_or_else(|| "Integer overflow".to_string()),
+            (Value::Integer(left), BinaryOperator::Subtract, Value::Integer(right)) => left.checked_sub(*right).map(Value::Integer).ok_or_else(|| "Integer overflow".to_string()),
+            (Value::Integer(left), BinaryOperator::Multiply, Value::Integer(right)) => left.checked_mul(*right).map(Value::Integer).ok_or_else(|| "Integer overflow".to_string()),
             (Value::Integer(left), BinaryOperator::Divide, Value::Integer(right)) => {
                 if *right == 0 {
                     Err("Division by zero".to_string())
                 } else {
-                    Ok(Value::Integer(left / right))
+                    left.checked_div(*right).map(Value::Integer).ok_or_else(|| "Integer overflow".to_string())
                 }
             },
             (Value::Integer(left), BinaryOperator::Equals, Value::Integer(right)) => Ok(Value::Boolean(left == right)),
