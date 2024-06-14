@@ -398,3 +398,181 @@ impl Interpreter {
         }
     }
 }
+use crate::smart_contract::types::{ContractState, Operation, Value};
+use log::{info, warn};
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
+
+pub struct Interpreter {
+    pub state: ContractState,
+    pub gas_used: u64,
+    pub debug_mode: bool,
+    pub profiler: Profiler,
+}
+
+impl Interpreter {
+    pub fn new(state: ContractState) -> Self {
+        Interpreter {
+            state,
+            gas_used: 0,
+            debug_mode: false,
+            profiler: Profiler::new(),
+        }
+    }
+
+    pub fn execute(&mut self, operations: Vec<Operation>) -> Result<(), String> {
+        for operation in operations {
+            if self.debug_mode {
+                self.debug(&operation);
+            }
+            self.profiler.start(&operation);
+            self.execute_operation(operation)?;
+            self.profiler.end();
+        }
+        Ok(())
+    }
+
+    fn execute_operation(&mut self, operation: Operation) -> Result<(), String> {
+        match operation {
+            Operation::Set { key, value } => {
+                let value = self.evaluate_expression(value)?;
+                self.state.storage.insert(key, value.to_string());
+            }
+            Operation::If { condition, then_branch, else_branch } => {
+                if self.evaluate_expression(condition)?.as_bool()? {
+                    self.execute(then_branch)?;
+                } else {
+                    self.execute(else_branch)?;
+                }
+            }
+            Operation::Loop { condition, body } => {
+                while self.evaluate_expression(condition.clone())?.as_bool()? {
+                    self.execute(body.clone())?;
+                }
+            }
+            Operation::Break => {
+                // Handle break logic
+            }
+            Operation::Continue => {
+                // Handle continue logic
+            }
+            Operation::Return { value } => {
+                // Handle return logic
+            }
+            Operation::TriggerEvent { event_name, params } => {
+                // Handle event triggering logic
+            }
+            Operation::ExternalCall { contract_address, function_name, args } => {
+                // Handle external call logic
+            }
+            _ => return Err(format!("Unsupported operation: {:?}", operation)),
+        }
+        Ok(())
+    }
+
+    fn evaluate_expression(&self, expression: Expression) -> Result<Value, String> {
+        // Placeholder for expression evaluation logic
+        Ok(Value::Null)
+    }
+
+    fn debug(&self, operation: &Operation) {
+        info!("Executing operation: {:?}", operation);
+        info!("Current state: {:?}", self.state);
+    }
+}
+
+pub struct Profiler {
+    start_time: Option<Instant>,
+    operation_times: HashMap<String, Duration>,
+}
+
+impl Profiler {
+    pub fn new() -> Self {
+        Profiler {
+            start_time: None,
+            operation_times: HashMap::new(),
+        }
+    }
+
+    pub fn start(&mut self, operation: &Operation) {
+        self.start_time = Some(Instant::now());
+        info!("Starting operation: {:?}", operation);
+    }
+
+    pub fn end(&mut self) {
+        if let Some(start_time) = self.start_time {
+            let duration = start_time.elapsed();
+            let operation_name = format!("{:?}", start_time);
+            self.operation_times
+                .entry(operation_name)
+                .and_modify(|e| *e += duration)
+                .or_insert(duration);
+            info!("Operation took: {:?}", duration);
+        }
+    }
+
+    pub fn report(&self) {
+        for (operation, duration) in &self.operation_times {
+            info!("Operation: {} took {:?}", operation, duration);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::smart_contract::types::{Expression, Value};
+
+    #[test]
+    fn test_interpreter() {
+        let state = ContractState {
+            storage: HashMap::new(),
+        };
+        let mut interpreter = Interpreter::new(state);
+        let operations = vec![
+            Operation::Set {
+                key: "x".to_string(),
+                value: Expression::Literal(Value::Integer(10)),
+            },
+            Operation::Set {
+                key: "y".to_string(),
+                value: Expression::Literal(Value::Integer(20)),
+            },
+        ];
+        interpreter.execute(operations).unwrap();
+        assert_eq!(interpreter.state.storage.get("x"), Some(&"10".to_string()));
+        assert_eq!(interpreter.state.storage.get("y"), Some(&"20".to_string()));
+    }
+
+    #[test]
+    fn test_debugging() {
+        let state = ContractState {
+            storage: HashMap::new(),
+        };
+        let mut interpreter = Interpreter::new(state);
+        interpreter.debug_mode = true;
+        let operations = vec![
+            Operation::Set {
+                key: "x".to_string(),
+                value: Expression::Literal(Value::Integer(10)),
+            },
+        ];
+        interpreter.execute(operations).unwrap();
+    }
+
+    #[test]
+    fn test_profiling() {
+        let state = ContractState {
+            storage: HashMap::new(),
+        };
+        let mut interpreter = Interpreter::new(state);
+        let operations = vec![
+            Operation::Set {
+                key: "x".to_string(),
+                value: Expression::Literal(Value::Integer(10)),
+            },
+        ];
+        interpreter.execute(operations).unwrap();
+        interpreter.profiler.report();
+    }
+}
