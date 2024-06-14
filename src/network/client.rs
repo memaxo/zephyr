@@ -41,14 +41,21 @@ impl Client {
         }
 
         // Implement error handling for model outputs
-        if let Err(e) = tokio::time::timeout(Duration::from_secs(30), async {
+        let timeout_duration = Duration::from_secs(30);
+        match tokio::time::timeout(timeout_duration, async {
             // Logic to wait for model outputs
         }).await {
-            error!("Timeout waiting for model outputs: {}", e);
-        }
-
-        if !validate_model_outputs(&outputs) {
-            error!("Received invalid model outputs");
+            Ok(outputs) => {
+                if !validate_model_outputs(&outputs) {
+                    error!("Received invalid model outputs");
+                    // Request verification from other nodes
+                    // Penalize the node if necessary
+                }
+            }
+            Err(e) => {
+                error!("Timeout waiting for model outputs: {}", e);
+                // Retry logic or flag the node as unreliable
+            }
         }
     let mut blacklist = self.blacklist.lock().unwrap();
     *blacklist.entry(self.peer.address.clone()).or_insert(0) += 1;
