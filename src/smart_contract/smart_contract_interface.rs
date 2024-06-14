@@ -1,12 +1,18 @@
-use crate::smart_contract::types::{SmartContract, ContractState, Event};
+use crate::smart_contract::types::{SmartContract, ContractState, Event, CrossChainMessage};
 use crate::utils::error::Result;
 use crate::smart_contract::logging::init_logging;
 use log::info;
 use serde::{Serialize, Deserialize};
+use std::time::{Duration, Instant};
+use std::sync::Mutex;
 
 use crate::utils::validation::validate_bytecode;
 use crate::utils::gas::estimate_gas;
 use crate::utils::events::emit_event;
+
+lazy_static! {
+    static ref REENTRANCY_GUARD: Mutex<()> = Mutex::new(());
+}
 
 pub trait SmartContractInterface {
     fn deploy_contract(&self, contract: SmartContract, deployer_address: &str, gas_price: u64) -> Result<String> {
@@ -28,8 +34,29 @@ pub trait SmartContractInterface {
 
         Ok(contract_id)
     }
-    fn deploy_contract(&self, contract: SmartContract, deployer_address: &str, gas_price: u64) -> Result<String>;
-    fn execute_contract(&self, contract_id: &str, function_name: &str, args: &[u8]) -> Result<Vec<u8>>;
+
+    fn execute_contract(&self, contract_address: &str, function_selector: &str, arguments: &[u8], caller_address: &str) -> Result<Vec<u8>> {
+        // Reentrancy protection
+        let _guard = REENTRANCY_GUARD.lock().unwrap();
+
+        // Timeout mechanism
+        let start_time = Instant::now();
+        let timeout = Duration::from_secs(30); // 30 seconds timeout
+
+        // Placeholder for actual contract execution logic
+        while start_time.elapsed() < timeout {
+            // Simulate contract execution
+            if function_selector == "cross_contract_call" {
+                // Placeholder for cross-contract call logic
+            }
+
+            // Return dummy result
+            return Ok(vec![1, 2, 3, 4]);
+        }
+
+        Err("Contract execution timed out".into())
+    }
+
     fn get_contract_state(&self, contract_id: &str) -> Result<ContractState>;
     fn upgrade_contract(&self, contract_id: &str, new_code: &str) -> Result<()>;
     fn get_proxy_contract(&self, contract_id: &str) -> Result<String>;
