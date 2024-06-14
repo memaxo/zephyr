@@ -316,6 +316,29 @@ pub struct MarketEquilibriumSolution {
     pub prices: Vec<f64>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Reputation {
+    pub node_id: String,
+    pub score: u64,
+    pub history: Vec<ReputationEntry>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ReputationEntry {
+    pub timestamp: u64,
+    pub action: ReputationAction,
+    pub change: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ReputationAction {
+    SuccessfulBlockProposal,
+    FailedBlockProposal,
+    SuccessfulUsefulWork,
+    FailedUsefulWork,
+    // Add more actions as needed
+}
+
 // Add more types and structs specific to the QUP module as needed
 use serde::{Serialize, Deserialize};
 use crate::qup::crypto::{QuantumSignature, QuantumHash};
