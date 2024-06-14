@@ -2,6 +2,7 @@ use crate::chain::transaction::Transaction;
 use crate::crypto::hash::Hash;
 use crate::qup::crypto::QUPSignature;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub trait UsefulWorkProblemTrait {
     fn solve(&self) -> Box<dyn UsefulWorkSolutionTrait>;
@@ -12,6 +13,27 @@ pub trait UsefulWorkSolutionTrait {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Reputation {
+    pub scores: HashMap<String, i32>,
+}
+
+impl Reputation {
+    pub fn new() -> Self {
+        Reputation {
+            scores: HashMap::new(),
+        }
+    }
+
+    pub fn update_reputation(&mut self, user: &str, score: i32) {
+        let entry = self.scores.entry(user.to_string()).or_insert(0);
+        *entry += score;
+    }
+
+    pub fn get_reputation_score(&self, user: &str) -> i32 {
+        *self.scores.get(user).unwrap_or(&0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UsefulWorkProblem {
     pub problem: ProblemType,

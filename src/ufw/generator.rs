@@ -6,13 +6,32 @@ use crate::ufw::types::{
     SupplyChainProblem,
     GraphColoringProblem,
     ModelTrainingProblem,
+    Reputation,
 };
 use rand::Rng;
 use reqwest::Client;
 use serde_json::{Value, from_str, to_string};
 use serde::{Serialize, Deserialize};
 
-pub struct UsefulWorkGenerator;
+pub struct UsefulWorkGenerator {
+    pub reputation: Reputation,
+}
+
+impl UsefulWorkGenerator {
+    pub fn new() -> Self {
+        UsefulWorkGenerator {
+            reputation: Reputation::new(),
+        }
+    }
+
+    pub fn weight_problem_selection(&self, problems: Vec<UsefulWorkProblem>) -> Vec<UsefulWorkProblem> {
+        let mut weighted_problems = problems.clone();
+        weighted_problems.sort_by_key(|problem| {
+            let score = self.reputation.get_reputation_score(&problem.domain);
+            -(score as i32)
+        });
+        weighted_problems
+    }
 
 impl UsefulWorkGenerator {
     pub fn generate(problem_type: &str, difficulty: u32) -> UsefulWorkProblem {
