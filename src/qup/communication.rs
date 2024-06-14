@@ -401,3 +401,12 @@ pub async fn broadcast(&mut self, topic: &str, message: &[u8]) {
 
     // ...
 }
+    pub async fn broadcast_reputation_update(&self, node_id: &str, reputation: &Reputation) -> Result<(), ConsensusError> {
+        let message = QUPMessage::ReputationUpdate {
+            node_id: node_id.to_string(),
+            reputation: reputation.clone(),
+        };
+        let serialized_message = bincode::serialize(&message)?;
+        self.broadcast("reputation_updates", &serialized_message).await;
+        Ok(())
+    }
