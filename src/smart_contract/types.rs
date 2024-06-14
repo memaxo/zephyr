@@ -184,7 +184,7 @@ pub enum Operation {
     Break,
     Continue,
     TriggerEvent { event_name: String, params: HashMap<String, Value> },
-    ExternalCall { contract_address: String, function_name: String, args: Vec<Expression> },
+    ExternalCall { contract: String, method: String, args: Vec<Expression> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
