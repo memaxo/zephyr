@@ -2,7 +2,8 @@ use crate::ufw::generator::UsefulWorkGenerator;
 use crate::ufw::solver::UsefulWorkSolver;
 use crate::ufw::validator::UsefulWorkValidator;
 use crate::ufw::types::{UsefulWorkProblem, UsefulWorkSolution};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 pub struct UsefulWorkManager {
     generator: UsefulWorkGenerator,
