@@ -83,3 +83,85 @@ impl<'a> SecurityManager<'a> {
         // ...
     }
 }
+use crate::consensus::{ConsensusAlgorithm, ConsensusError};
+use crate::state::QUPState;
+
+pub struct SecurityManager<'a> {
+    state: &'a QUPState,
+}
+
+impl<'a> SecurityManager<'a> {
+    pub fn new(state: &'a QUPState) -> Self {
+        SecurityManager { state }
+    }
+
+    pub fn assess_security_threats(&self) -> Result<SecurityThreats, ConsensusError> {
+        let mut security_threats = SecurityThreats::default();
+
+        // Assess network attack rate
+        let network_attack_rate = self.assess_network_attack_rate()?;
+        security_threats.network_attack_rate = network_attack_rate;
+
+        // Assess spam transaction rate  
+        let spam_transaction_rate = self.assess_spam_transaction_rate()?;
+        security_threats.spam_transaction_rate = spam_transaction_rate;
+
+        Ok(security_threats)
+    }
+
+    fn assess_network_attack_rate(&self) -> Result<f64, ConsensusError> {
+        // Assess the network attack rate based on network conditions and historical data
+        // ...
+    }
+
+    fn assess_spam_transaction_rate(&self) -> Result<f64, ConsensusError> {
+        // Assess the spam transaction rate based on transaction patterns and historical data  
+        // ...
+    }
+
+    pub fn determine_consensus_algorithm(&self, state: &QUPState) -> Result<ConsensusAlgorithm, ConsensusError> {
+        let network_load = state.get_network_load()?;
+        let security_threats = self.assess_security_threats()?;
+
+        // Determine the appropriate consensus algorithm based on the network load, security threats, and validator reputations
+        let mut weighted_algorithms = vec![
+            (ConsensusAlgorithm::Efficient, self.calculate_algorithm_weight(ConsensusAlgorithm::Efficient, &network_load, &security_threats)),
+            (ConsensusAlgorithm::Secure, self.calculate_algorithm_weight(ConsensusAlgorithm::Secure, &network_load, &security_threats)),
+            (ConsensusAlgorithm::Standard, self.calculate_algorithm_weight(ConsensusAlgorithm::Standard, &network_load, &security_threats)),
+        ];
+
+        // Sort the algorithms by their weights in descending order
+        weighted_algorithms.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        // Select the algorithm with the highest weight
+        Ok(weighted_algorithms[0].0)
+    }
+
+    fn calculate_algorithm_weight(&self, algorithm: ConsensusAlgorithm, network_load: &f64, security_threats: &SecurityThreats) -> f64 {
+        let mut weight = 0.0;
+
+        // Assign weights based on network load and security threats
+        match algorithm {
+            ConsensusAlgorithm::Efficient => {
+                weight += 1.0 - network_load;
+                weight += 1.0 - security_threats.network_attack_rate;
+            }
+            ConsensusAlgorithm::Secure => {
+                weight += security_threats.network_attack_rate;
+                weight += security_threats.spam_transaction_rate;
+            }
+            ConsensusAlgorithm::Standard => {
+                weight += 1.0;
+            }
+        }
+
+        // Adjust weights based on validator reputations
+        let total_reputation: u64 = self.state.get_total_reputation();
+        for (validator, reputation) in &self.state.get_reputations() {
+            let reputation_fraction = *reputation as f64 / total_reputation as f64;
+            weight *= 1.0 + reputation_fraction;
+        }
+
+        weight
+    }
+}

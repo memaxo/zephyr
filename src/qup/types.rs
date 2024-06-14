@@ -63,6 +63,10 @@ pub enum UsefulWorkProblem {
         ModelBlock(ModelBlock),
         RequestModelOutputs(Vec<Vec<f64>>),
         ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
+        ReputationUpdate {
+            node_id: String,
+            reputation: Reputation,
+        },
     }
 
     // Define the EnhancedUsefulWorkGenerator struct
