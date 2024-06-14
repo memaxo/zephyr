@@ -27,6 +27,8 @@ use crate::zkp::prover::Prover;
 use crate::zkp::zk_starks::ZkStarksProof;
 use crate::zkp::crypto::verify_quantum_merkle_proof;
 
+use crate::qup::security::{SecurityManager, SecurityThreats};
+
 pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
@@ -100,7 +102,8 @@ impl QUPConsensus {
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
         // Assess the current network load and security threats
         let network_load = self.state.get_network_load()?;
-        let security_threats = self.assess_security_threats()?;
+        let security_manager = SecurityManager::new(&self.state, &self.network);
+        let security_threats = security_manager.assess_security_threats()?;
 
         // Determine the appropriate consensus algorithm based on the assessment
         let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
@@ -368,56 +371,6 @@ impl QUPConsensus {
         rewards
     }
 
-    fn assess_security_threats(&self) -> Result<SecurityThreats, ConsensusError> {
-        let mut security_threats = SecurityThreats::default();
-
-        // Assess double-spending attacks
-        let double_spending_attempts = self.detect_double_spending_attempts()?;
-        security_threats.double_spending_rate = double_spending_attempts as f64 / self.state.get_total_transactions() as f64;
-
-        // Assess eclipse attacks
-        let isolated_nodes = self.detect_isolated_nodes()?;
-        security_threats.eclipse_attack_rate = isolated_nodes as f64 / self.network.get_num_nodes() as f64;
-
-        // Assess Sybil attacks
-        let sybil_nodes = self.detect_sybil_nodes()?;
-        security_threats.sybil_attack_rate = sybil_nodes as f64 / self.network.get_num_nodes() as f64;
-
-        // Assess long-range attacks
-        let long_range_attempts = self.detect_long_range_attempts()?;
-        security_threats.long_range_attack_rate = long_range_attempts as f64 / self.state.get_total_blocks() as f64;
-
-        // Assess quantum attacks
-        let quantum_risk = self.assess_quantum_risk()?;
-        security_threats.quantum_attack_risk = quantum_risk;
-
-        Ok(security_threats)
-    }
-
-    fn detect_double_spending_attempts(&self) -> Result<u64, ConsensusError> {
-        // Track the transaction inputs and outputs to detect duplicate spending
-        // ...
-    }
-
-    fn detect_isolated_nodes(&self) -> Result<u64, ConsensusError> {
-        // Monitor the connectivity of nodes and the number of peers they are connected to
-        // ...
-    }
-
-    fn detect_sybil_nodes(&self) -> Result<u64, ConsensusError> {
-        // Analyze the network topology and look for patterns of unusual behavior
-        // ...
-    }
-
-    fn detect_long_range_attempts(&self) -> Result<u64, ConsensusError> {
-        // Implement checkpointing mechanisms and validate the history of the blockchain
-        // ...
-    }
-
-    fn assess_quantum_risk(&self) -> Result<f64, ConsensusError> {
-        // Research and adopt quantum-resistant cryptographic algorithms
-        // ...
-    }
 
     fn determine_consensus_algorithm(&self, network_load: f64, security_threats: SecurityThreats) -> ConsensusAlgorithm {
         // Determine the appropriate consensus algorithm based on the network load, security threats, and validator reputations
