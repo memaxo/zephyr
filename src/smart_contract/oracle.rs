@@ -14,49 +14,68 @@ pub struct OracleResponse {
     pub result: Value,
 }
 
-pub trait OracleProvider {
+pub trait OracleProvider: std::fmt::Debug {
     fn request_data(&self, request: OracleRequest) -> Result<u64, String>;
     fn get_response(&self, request_id: u64) -> Result<OracleResponse, String>;
 }
 
-pub struct ChainlinkOracleProvider {
-    // TODO: Implement Chainlink oracle provider
+pub struct DecentralizedOracle {
+    providers: Vec<Box<dyn OracleProvider>>,
+    reputation: HashMap<String, f64>,
 }
 
-impl OracleProvider for ChainlinkOracleProvider {
+impl DecentralizedOracle {
+    pub fn new(providers: Vec<Box<dyn OracleProvider>>) -> Self {
+        DecentralizedOracle {
+            providers,
+            reputation: HashMap::new(),
+        }
+    }
+
+    fn update_reputation(&mut self, provider_name: &str, success: bool) {
+        let entry = self.reputation.entry(provider_name.to_string()).or_insert(1.0);
+        if success {
+            *entry += 1.0;
+        } else {
+            *entry *= 0.9;
+        }
+    }
+
+    fn aggregate_responses(&self, responses: Vec<OracleResponse>) -> Value {
+        // Simple majority voting mechanism for aggregation
+        let mut counts = HashMap::new();
+        for response in responses {
+            *counts.entry(response.result.clone()).or_insert(0) += 1;
+        }
+        counts.into_iter().max_by_key(|&(_, count)| count).map(|(value, _)| value).unwrap_or(Value::Null)
+    }
+}
+
+impl OracleProvider for DecentralizedOracle {
     fn request_data(&self, request: OracleRequest) -> Result<u64, String> {
-        // TODO: Implement data request logic
-        info!("Requesting data from Chainlink oracle: {:?}", request);
+        for provider in &self.providers {
+            provider.request_data(request.clone())?;
+        }
         Ok(1) // Return a dummy request ID for now
     }
 
     fn get_response(&self, request_id: u64) -> Result<OracleResponse, String> {
-        // TODO: Implement response retrieval logic
-        info!("Retrieving response for request ID: {}", request_id);
+        let mut responses = Vec::new();
+        for provider in &self.providers {
+            match provider.get_response(request_id) {
+                Ok(response) => {
+                    self.update_reputation(&format!("{:?}", provider), true);
+                    responses.push(response);
+                }
+                Err(_) => {
+                    self.update_reputation(&format!("{:?}", provider), false);
+                }
+            }
+        }
+        let aggregated_result = self.aggregate_responses(responses);
         Ok(OracleResponse {
             request_id,
-            result: Value::String("dummy_result".to_string()),
-        })
-    }
-}
-
-pub struct BandchainOracleProvider {
-    // TODO: Implement Bandchain oracle provider
-}
-
-impl OracleProvider for BandchainOracleProvider {
-    fn request_data(&self, request: OracleRequest) -> Result<u64, String> {
-        // TODO: Implement data request logic
-        info!("Requesting data from Bandchain oracle: {:?}", request);
-        Ok(1) // Return a dummy request ID for now
-    }
-
-    fn get_response(&self, request_id: u64) -> Result<OracleResponse, String> {
-        // TODO: Implement response retrieval logic
-        info!("Retrieving response for request ID: {}", request_id);
-        Ok(OracleResponse {
-            request_id,
-            result: Value::String("dummy_result".to_string()),
+            result: aggregated_result,
         })
     }
 }
