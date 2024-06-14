@@ -245,6 +245,15 @@ impl QUPConsensus {
         Ok(())
     }
 
+    fn slash_validator(&mut self, validator: &str) -> Result<(), ConsensusError> {
+        if let Some(stake) = self.staking.get_mut(validator) {
+            let slashed_amount = *stake / 2;
+            *stake -= slashed_amount;
+            self.state.increase_balance(validator, slashed_amount)?;
+        }
+        Ok(())
+    }
+
     fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
         // Retrieve the block from the block storage
         let block = self.block_storage.load_block(&block_hash)?;
@@ -269,6 +278,27 @@ impl QUPConsensus {
         // Broadcast the optimized block to other nodes
         let message = NetworkMessage::BlockCommit(optimized_block);
         self.network.broadcast(message)?;
+
+        Ok(())
+    }
+
+    fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
+        let total_rewards = self.calculate_total_rewards(block);
+        let rewards = self.calculate_rewards(block, total_rewards);
+    
+        // Distribute rewards to validators based on their stake
+        for (validator, reward) in rewards {
+            if let Some(stake) = self.staking.get(&validator) {
+                let validator_reward = reward * *stake / self.state.get_total_stake();
+                self.state.increase_balance(&validator, validator_reward)?;
+            }
+        }
+
+        // Distribute rewards for useful work
+        if let Some(solution) = &block.useful_work_solution {
+            let useful_work_rewards = total_rewards * self.config.useful_work_reward_percentage / 100;
+            self.state.increase_balance(&solution.provider, useful_work_rewards)?;
+        }
 
         Ok(())
     }
