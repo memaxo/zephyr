@@ -473,9 +473,24 @@ impl QUPConsensus {
         // ...
     }
 
-    fn process_transaction(&mut self, transaction: Transaction) -> Result<(), ConsensusError> {
-        // Process a transaction and add it to the transaction pool
-        // ...
+    fn process_transaction(&mut self, transaction_bytes: &[u8]) -> Result<(), ConsensusError> {
+        // Deserialize the transaction
+        let transaction: Transaction = bincode::deserialize(transaction_bytes)
+            .map_err(|_| ConsensusError::InvalidTransaction)?;
+
+        // Validate the transaction
+        validate_transaction(&transaction, &self.qup_crypto, &self.state)
+            .map_err(|e| ConsensusError::TransactionValidationError(e.to_string()))?;
+
+        // Add the transaction to the transaction pool
+        self.transaction_storage.add_transaction(transaction.clone())
+            .map_err(|_| ConsensusError::TransactionPoolError)?;
+
+        // Optionally broadcast the transaction
+        self.network.broadcast(NetworkMessage::Transaction(transaction))
+            .map_err(|_| ConsensusError::NetworkError)?;
+
+        Ok(())
     }
 
     fn reach_consensus(&mut self) -> Result<(), ConsensusError> {
