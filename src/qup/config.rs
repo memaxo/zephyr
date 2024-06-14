@@ -39,6 +39,9 @@ pub struct DistributedTrainingConfig {
     pub hybrid_parallelism: bool,
     pub pipeline_parallelism: bool,
     pub num_pipeline_stages: usize,
+    pub sampling_rate: f64,
+    pub confidence_level: f64,
+    pub max_acceptable_error: f64,
 }
 
 impl DistributedTrainingConfig {
@@ -56,6 +59,9 @@ impl DistributedTrainingConfig {
         hyperparameter_tuning: bool,
         load_balancing: bool,
         training_algorithm: String,
+        sampling_rate: f64,
+        confidence_level: f64,
+        max_acceptable_error: f64,
     ) -> Self {
         DistributedTrainingConfig {
             num_nodes,
@@ -71,6 +77,9 @@ impl DistributedTrainingConfig {
             hyperparameter_tuning,
             load_balancing,
             training_algorithm,
+            sampling_rate,
+            confidence_level,
+            max_acceptable_error,
         }
     }
 }
