@@ -327,15 +327,43 @@ impl QUPConsensus {
     }
 
     fn calculate_total_rewards(&self, block: &QUPBlock) -> u64 {
-        // Calculate the total rewards based on the block and network conditions
+        let block_reward = self.config.block_reward;
+        let transaction_fees: u64 = block.transactions.iter().map(|tx| tx.fee).sum();
+        let useful_work_reward = block_reward * self.config.useful_work_reward_percentage / 100;
+
+        // Adjust the total reward based on network conditions
+        let network_factor = self.calculate_network_factor();
+
+        (block_reward + transaction_fees + useful_work_reward) * network_factor
+    }
+
+    fn calculate_network_factor(&self) -> u64 {
+        // Calculate a factor based on network conditions like congestion, transaction volume, or difficulty
+        // For example, if the network is congested, the factor could be higher to incentivize more mining
+        // Implement the logic based on your specific requirements
         // ...
+        1 // Placeholder value
     }
 
     fn calculate_rewards(&self, block: &QUPBlock, total_rewards: u64) -> HashMap<String, u64> {
         let mut rewards = HashMap::new();
 
-        // Calculate rewards for each participant (validators, useful work providers, etc.)
-        // ...
+        // Calculate validator reward
+        let validator_reward = total_rewards * self.config.validator_reward_percentage / 100;
+        rewards.insert(block.validator.clone(), validator_reward);
+
+        // Calculate delegator rewards
+        let delegator_rewards = total_rewards - validator_reward;
+        for (delegator, stake) in &self.state.get_delegators(&block.validator) {
+            let delegator_reward = delegator_rewards * *stake / self.state.get_total_stake(&block.validator);
+            rewards.insert(delegator.clone(), delegator_reward);
+        }
+
+        // Calculate useful work provider reward
+        if let Some(solution) = &block.useful_work_solution {
+            let useful_work_reward = total_rewards * self.config.useful_work_reward_percentage / 100;
+            rewards.insert(solution.provider.clone(), useful_work_reward);
+        }
 
         rewards
     }
