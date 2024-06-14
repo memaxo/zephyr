@@ -87,6 +87,7 @@ impl QUPValidator {
 
         // Lock the staked tokens in QUPState
         self.state_manager.lock_tokens(token_symbol, amount, &validator_id);
+        self.state_manager.update_balance(&validator_id, token_symbol, -(amount as i64));
     }
 
     pub fn unstake(&mut self, validator_id: String, token_symbol: &str, amount: u64) -> Result<(), Error> {
@@ -97,6 +98,7 @@ impl QUPValidator {
 
                 // Unlock the staked tokens in QUPState
                 self.state_manager.unlock_tokens(token_symbol, amount, &validator_id);
+                self.state_manager.update_balance(&validator_id, token_symbol, amount as i64);
 
                 Ok(())
             } else {

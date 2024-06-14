@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 pub trait UsefulWorkProblemTrait {
     fn solve(&self) -> Box<dyn UsefulWorkSolutionTrait>;
+    pub token_balances: HashMap<String, HashMap<String, u64>>, // user_id -> (token_symbol -> balance)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,7 +26,26 @@ impl QUPState {
         QUPState {
             tokens: HashMap::new(),
             balances: HashMap::new(),
+            token_balances: HashMap::new(),
         }
+    }
+
+    pub fn update_balance(&mut self, user_id: &str, token_symbol: &str, amount: i64) {
+        let user_balances = self.token_balances.entry(user_id.to_string()).or_insert_with(HashMap::new);
+        let balance = user_balances.entry(token_symbol.to_string()).or_insert(0);
+        if amount.is_negative() {
+            *balance = balance.saturating_sub(amount.abs() as u64);
+        } else {
+            *balance += amount as u64;
+        }
+    }
+
+    pub fn get_balance(&self, user_id: &str, token_symbol: &str) -> u64 {
+        self.token_balances.get(user_id)
+            .and_then(|balances| balances.get(token_symbol))
+            .cloned()
+            .unwrap_or(0)
+    }
     }
 
     pub fn mint(&mut self, token_symbol: &str, amount: u64, to: &str) {
