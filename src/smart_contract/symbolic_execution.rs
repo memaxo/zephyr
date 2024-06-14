@@ -109,6 +109,22 @@ impl SymbolicExecutionEngine {
                 state.state.insert("return".to_string(), return_value);
                 Ok(vec![state.clone()])
             }
+            Operation::ExternalCall { contract, method, args } => {
+                let mut new_states = Vec::new();
+                let mut symbolic_args = Vec::new();
+
+                for arg in args {
+                    let symbolic_arg = self.evaluate_expression(arg, state)?;
+                    symbolic_args.push(symbolic_arg);
+                }
+
+                // Create a symbolic representation of the external call
+                let symbolic_result = SymbolicValue::Symbolic(format!("{}::{}({:?})", contract, method, symbolic_args));
+                state.state.insert(format!("{}_{}", contract, method), symbolic_result);
+
+                new_states.push(state.clone());
+                Ok(new_states)
+            }
             Operation::Break | Operation::Continue => Err("Unsupported operation in symbolic execution".to_string()),
         }
     }
