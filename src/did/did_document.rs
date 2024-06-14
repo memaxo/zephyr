@@ -4,25 +4,41 @@ use crate::did::did::{DID, DIDError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DIDDocument {
-    context: String,
-    id: DID,
-    public_key: Vec<VerificationMethod>,
-    authentication: Vec<VerificationMethod>,
-    service: Vec<ServiceEndpoint>,
+    pub context: Vec<String>,  
+    pub id: DID,                 
+    pub controller: Option<Vec<DID>>,   
+    pub alsoKnownAs: Option<Vec<String>>, 
+    pub verificationMethod: Option<Vec<VerificationMethod>>, 
+    pub authentication: Option<Vec<VerificationMethod>>,  
+    pub assertionMethod: Option<Vec<VerificationMethod>>, 
+    pub keyAgreement: Option<Vec<VerificationMethod>>, 
+    pub capabilityInvocation: Option<Vec<VerificationMethod>>, 
+    pub capabilityDelegation: Option<Vec<VerificationMethod>>, 
+    pub service: Option<Vec<ServiceEndpoint>>,  
 }
 
 impl DIDDocument {
     pub fn new(
         id: DID,
-        public_key: Vec<VerificationMethod>,
-        authentication: Vec<VerificationMethod>,
-        service: Vec<ServiceEndpoint>,
+        verificationMethod: Option<Vec<VerificationMethod>>,
+        authentication: Option<Vec<VerificationMethod>>,
+        assertionMethod: Option<Vec<VerificationMethod>>,
+        keyAgreement: Option<Vec<VerificationMethod>>,
+        capabilityInvocation: Option<Vec<VerificationMethod>>,
+        capabilityDelegation: Option<Vec<VerificationMethod>>,
+        service: Option<Vec<ServiceEndpoint>>,
     ) -> Self {
         Self {
-            context: "https://www.w3.org/ns/did/v1".to_string(),
+            context: vec!["https://www.w3.org/ns/did/v1".to_string()],
             id,
-            public_key,
+            controller: None,
+            alsoKnownAs: None,
+            verificationMethod,
             authentication,
+            assertionMethod,
+            keyAgreement,
+            capabilityInvocation,
+            capabilityDelegation,
             service,
         }
     }
