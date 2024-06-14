@@ -156,6 +156,28 @@ impl Client {
                                     self.store_model_outputs(outputs).await;
                                     self.perform_probabilistic_verification().await;
                                 }
+                                Message::QKDKeyRequest => {
+                                    // Handle QKDKeyRequest
+                                    let (private_key, public_key) = self.crypto.generate_qkd_key_pair().unwrap();
+                                    self.qkd_private_keys.insert(self.peer.address.clone(), private_key);
+                                    let response_message = Message::QKDKeyResponse(public_key);
+                                    if let Err(e) = self.pq_tls_connection.as_mut().unwrap().send(&response_message.serialize()?).await {
+                                        error!("Failed to send QKDKeyResponse: {}", e);
+                                    }
+                                }
+                                Message::QKDKeyResponse(public_key) => {
+                                    // Handle QKDKeyResponse
+                                    self.qkd_public_keys.insert(self.peer.address.clone(), public_key);
+                                    let confirmation_message = Message::QKDKeyConfirmation;
+                                    if let Err(e) = self.pq_tls_connection.as_mut().unwrap().send(&confirmation_message.serialize()?).await {
+                                        error!("Failed to send QKDKeyConfirmation: {}", e);
+                                    }
+                                }
+                                Message::QKDKeyConfirmation => {
+                                    // Handle QKDKeyConfirmation
+                                    self.qkd_completed_peers.insert(self.peer.address.clone());
+                                    info!("QKD key exchange completed with peer: {}", self.peer.address);
+                                }
                                 _ => {
                                     match Message::from_protocol_message(protocol_message) {
                                         Ok(zephyr_message) => {

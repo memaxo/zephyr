@@ -210,6 +210,28 @@ async fn handle_connection(
             Message::ResponseModelOutputs(_) => {
                 // No specific action required for the server
             }
+            Message::QKDKeyRequest => {
+                // Handle QKDKeyRequest
+                let (private_key, public_key) = self.crypto.generate_qkd_key_pair().unwrap();
+                self.qkd_private_keys.insert(peer_address.clone(), private_key);
+                let response_message = Message::QKDKeyResponse(public_key);
+                if let Err(e) = pq_tls_connection.send(&response_message.serialize()?).await {
+                    error!("Failed to send QKDKeyResponse: {}", e);
+                }
+            }
+            Message::QKDKeyResponse(public_key) => {
+                // Handle QKDKeyResponse
+                self.qkd_public_keys.insert(peer_address.clone(), public_key);
+                let confirmation_message = Message::QKDKeyConfirmation;
+                if let Err(e) = pq_tls_connection.send(&confirmation_message.serialize()?).await {
+                    error!("Failed to send QKDKeyConfirmation: {}", e);
+                }
+            }
+            Message::QKDKeyConfirmation => {
+                // Handle QKDKeyConfirmation
+                self.qkd_completed_peers.insert(peer_address.clone());
+                info!("QKD key exchange completed with peer: {}", peer_address);
+            }
             _ => {
                 let zephyr_message = Message::from_protocol_message(protocol_message)?;
                 let (response_sender, response_receiver) = oneshot::channel();
