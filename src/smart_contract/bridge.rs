@@ -79,6 +79,9 @@ impl BridgeContract {
         };
         context.emit_cross_chain_message(message)?;
 
+        // Release the lock AFTER the message is sent
+        drop(_guard); // Explicitly release the lock
+
         info!("Locked {} {} assets for transfer to {}", amount, self.config.zephyr_asset_denom, self.config.counterparty_chain_id);
 
         Ok(())
