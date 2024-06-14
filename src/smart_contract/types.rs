@@ -89,6 +89,23 @@ pub enum StringOperator {
     ToLower,
     Replace,
 }
+pub enum BitwiseOperator {
+    And,
+    Or,
+    Xor,
+    Not,
+    ShiftLeft,
+    ShiftRight,
+}
+
+#[derive(Debug, Clone)]
+pub enum StringOperator {
+    Concat,
+    Substring,
+    ToUpper,
+    ToLower,
+    Replace,
+}
 lazy_static! {
     static ref ALLOWED_FUNCTIONS: HashSet<&'static str> = [
         "require",
