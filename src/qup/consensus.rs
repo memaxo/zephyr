@@ -346,8 +346,18 @@ impl QUPConsensus {
     }
 
     fn determine_consensus_algorithm(&self, network_load: f64, security_threats: SecurityThreats) -> ConsensusAlgorithm {
-        // Determine the appropriate consensus algorithm based on the network load and security threats
-        // ...
+        // Determine the appropriate consensus algorithm based on the network load, security threats, and validator reputations
+        let mut weighted_algorithms = vec![
+            (ConsensusAlgorithm::Efficient, self.calculate_algorithm_weight(ConsensusAlgorithm::Efficient, &network_load, &security_threats)),
+            (ConsensusAlgorithm::Secure, self.calculate_algorithm_weight(ConsensusAlgorithm::Secure, &network_load, &security_threats)),
+            (ConsensusAlgorithm::Standard, self.calculate_algorithm_weight(ConsensusAlgorithm::Standard, &network_load, &security_threats)),
+        ];
+
+        // Sort the algorithms by their weights in descending order
+        weighted_algorithms.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+        // Select the algorithm with the highest weight
+        weighted_algorithms[0].0
     }
 
     fn adjust_difficulty(&mut self) {
@@ -490,3 +500,30 @@ pub trait ConsensusInterface {
     fn process_transaction(&mut self, transaction: Transaction) -> Result<(), ConsensusError>;
     fn reach_consensus(&mut self) -> Result<(), ConsensusError>;
 }
+    fn calculate_algorithm_weight(&self, algorithm: ConsensusAlgorithm, network_load: &f64, security_threats: &SecurityThreats) -> f64 {
+        let mut weight = 0.0;
+
+        // Assign weights based on network load and security threats
+        match algorithm {
+            ConsensusAlgorithm::Efficient => {
+                weight += 1.0 - network_load;
+                weight += 1.0 - security_threats.network_attack_rate;
+            }
+            ConsensusAlgorithm::Secure => {
+                weight += security_threats.network_attack_rate;
+                weight += security_threats.spam_transaction_rate;
+            }
+            ConsensusAlgorithm::Standard => {
+                weight += 1.0;
+            }
+        }
+
+        // Adjust weights based on validator reputations
+        let total_reputation: u64 = self.state.get_total_reputation();
+        for (validator, reputation) in &self.state.get_reputations() {
+            let reputation_fraction = *reputation as f64 / total_reputation as f64;
+            weight *= 1.0 + reputation_fraction;
+        }
+
+        weight
+    }
