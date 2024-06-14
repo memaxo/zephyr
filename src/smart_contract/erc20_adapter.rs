@@ -66,7 +66,14 @@ impl ERC20Adapter {
         let payload: serde_json::Value = serde_json::from_str(payload)?;
         let result = payload["result"].clone();
 
-        // Store the result in the contract's state
+        // Verify the signature of the result
+        let signature = payload["signature"].as_str().ok_or("Missing signature in payload")?;
+        let public_key = context.get_public_key()?;
+        if !self.verify_signature(&result, signature, &public_key) {
+            return Err("Invalid result signature".to_string());
+        }
+
+        // Store the verified result in the contract's state
         context.set_state("erc20_result".to_string(), result)?;
 
         info!("Received ERC20 result: {:?}", result);
