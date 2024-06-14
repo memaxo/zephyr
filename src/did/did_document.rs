@@ -15,6 +15,12 @@ pub struct DIDDocument {
     pub capabilityInvocation: Option<Vec<VerificationMethod>>, 
     pub capabilityDelegation: Option<Vec<VerificationMethod>>, 
     pub service: Option<Vec<ServiceEndpoint>>,  
+impl DIDDocument {
+    pub fn verify_document(&self) -> Result<bool, DIDDocumentError> {
+        // Placeholder for actual verification logic
+        // This should include checking the signatures and the integrity of the document
+        Ok(true)
+    }
 }
 
 impl DIDDocument {
