@@ -3,6 +3,8 @@ use crate::ufw::types::{
     // ... import all the problem types
 };
 use rand::Rng;
+use reqwest::Client;
+use serde_json::Value;
 
 pub struct UsefulWorkGenerator;
 
@@ -128,3 +130,25 @@ impl UsefulWorkGenerator {
 
     // ... implement generation functions for other problem types
 }
+
+impl UsefulWorkGenerator {
+    pub async fn fetch_problems_from_platform(api_url: &str) -> Result<Vec<UsefulWorkProblem>, reqwest::Error> {
+        let client = Client::new();
+        let response = client.get(api_url).send().await?;
+        let problems: Vec<UsefulWorkProblem> = response.json().await?;
+        Ok(problems)
+    }
+
+    pub async fn submit_solution_to_platform(api_url: &str, solution: &UsefulWorkProblem) -> Result<Value, reqwest::Error> {
+        let client = Client::new();
+        let response = client.post(api_url).json(solution).send().await?;
+        let result: Value = response.json().await?;
+        Ok(result)
+    }
+
+    pub async fn receive_validation_result(api_url: &str) -> Result<Value, reqwest::Error> {
+        let client = Client::new();
+        let response = client.get(api_url).send().await?;
+        let result: Value = response.json().await?;
+        Ok(result)
+    }
