@@ -584,22 +584,39 @@ impl QUPConsensus {
 
     fn evaluate_model_on_shard(&self) -> f64 {
         // Evaluate the model on the node's local data shard
-        // ...
+        let data_shard = self.get_local_data_shard();
+        let predictions = self.hdc_model.predict(&data_shard.features);
+        let metric = self.calculate_metric(&data_shard.labels, &predictions);
+        metric
     }
 
     fn collect_evaluation_scores(&self) -> Result<Vec<f64>, ConsensusError> {
         // Collect evaluation scores from all nodes
-        // ...
+        let mut scores = Vec::new();
+        for node in self.network.get_nodes() {
+            let score = node.evaluate_model_on_shard();
+            scores.push(score);
+        }
+        Ok(scores)
     }
 
     fn aggregate_evaluation_scores(&self, scores: &[f64]) -> f64 {
         // Aggregate the evaluation scores from all nodes
-        // ...
+        let total_stake: f64 = self.state.get_total_stake() as f64;
+        let weighted_scores: f64 = scores.iter().zip(self.network.get_nodes()).map(|(score, node)| {
+            let stake = self.state.get_stake(&node.id) as f64;
+            score * (stake / total_stake)
+        }).sum();
+        weighted_scores
     }
 
     fn trigger_hyperparameter_tuning(&mut self, evaluation_score: f64) -> Result<(), ConsensusError> {
         // Trigger hyperparameter tuning if the evaluation score is below a certain threshold
-        // ...
+        let threshold = self.config.hyperparameter_tuning_threshold;
+        if evaluation_score < threshold {
+            self.perform_hyperparameter_tuning()?;
+        }
+        Ok(())
     }
 
     fn solve_knapsack_qaoa(&self, problem: &KnapsackProblem) -> Vec<bool> {
