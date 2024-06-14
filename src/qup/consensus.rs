@@ -243,7 +243,16 @@ impl QUPConsensus {
         // Validate the block using existing validation logic
         let is_valid = self.validate_block_common(block)?;
 
-        // Integrate ZKP verification for PoUW results
+        // Verify the aggregated model in the proposed block
+        let validation_data = vec![]; // Placeholder for actual validation data
+        let confidence_level = 0.95;
+        let max_acceptable_error = 0.05;
+
+        if let Some(aggregated_model) = &block.aggregated_model {
+            if !verify_model_outputs(vec![aggregated_model.clone()], validation_data, confidence_level, max_acceptable_error) {
+                return Ok(false);
+            }
+        }
         if let Some(useful_work_solution) = &block.useful_work_solution {
             let proof = ZkStarksProof::new(vec![useful_work_solution.clone()]);
             if !self.verify_zkp(&proof) {
