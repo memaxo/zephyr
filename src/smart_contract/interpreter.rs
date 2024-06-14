@@ -9,6 +9,10 @@ pub struct Function {
     pub name: String,
     pub required_role: Role,
     pub arg_count: usize,
+    pub instruction_count: u64,
+    pub max_instructions: u64,
+    pub start_time: Instant,
+    pub max_execution_time: Duration,
 }
 
 pub struct ExecutionContext {
@@ -32,7 +36,18 @@ impl ExecutionContext {
             roles: HashMap::new(),
             functions: HashMap::new(),
             cache: HashMap::new(),
+            instruction_count: 0,
+            max_instructions: 10_000, // Example limit, adjust as needed
+            start_time: Instant::now(),
+            max_execution_time: Duration::from_secs(5), // Example limit, adjust as needed
         }
+    }
+
+    fn check_execution_time(&self) -> Result<(), String> {
+        if self.start_time.elapsed() > self.max_execution_time {
+            return Err("Execution time limit exceeded".to_string());
+        }
+        Ok(())
     }
 
     pub fn get_from_cache(&self, key: &str) -> Option<&Value> {
@@ -80,6 +95,12 @@ impl Interpreter {
             return Err("Insufficient gas".to_string());
         }
         *gas_limit -= gas_cost;
+
+        self.instruction_count += 1;
+        if self.instruction_count > self.max_instructions {
+            return Err("Instruction count limit exceeded".to_string());
+        }
+        self.check_execution_time()?;
 
         match operation {
             Operation::Set { key, value } => {
@@ -154,7 +175,11 @@ impl Interpreter {
         gas_limit: &mut u64,
         gas_cost: &GasCost,
     ) -> Result<Option<Value>, String> {
+        self.instruction_count = 0;
+        self.start_time = Instant::now();
+
         for operation in operations {
+            self.check_execution_time()?;
             if let Some(value) = Interpreter::execute_operation(operation, context, gas_limit, gas_cost)? {
                 return Ok(Some(value));
             }
