@@ -186,13 +186,23 @@ impl DistributedTrainer {
         self.train_standard()
     }
 
-    fn aggregate_models(&self, models: Vec<HDCModel>) -> HDCModel {
+    fn aggregate_models(&self, models: Vec<HDCModel>, sampling_rate: f64) -> HDCModel {
+        use rand::seq::SliceRandom;
+        use rand::thread_rng;
+
+        // Calculate the number of models to sample
+        let sample_size = (models.len() as f64 * sampling_rate).ceil() as usize;
+
+        // Randomly select a subset of models
+        let mut rng = thread_rng();
+        let sampled_models: Vec<&HDCModel> = models.choose_multiple(&mut rng, sample_size).collect();
+
         // Implement model aggregation logic
-        // Combine the parameters or gradients of the models
+        // Combine the parameters or gradients of the sampled models
         // based on the aggregation strategy
 
         // Placeholder implementation
-        models[0].clone()
+        sampled_models[0].clone()
     }
 }
 
