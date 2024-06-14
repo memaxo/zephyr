@@ -340,7 +340,25 @@ impl Interpreter {
                     let value = self.evaluate_expression(expr, context, gas_limit)?;
                     Self::apply_unary_operator(op, &value)
                 },
-                Expression::FunctionCall { .. } => unimplemented!("Function call not implemented"),
+                Expression::FunctionCall { name, args } => {
+                    // Retrieve the function definition
+                    let function = context.functions.get(name).ok_or_else(|| format!("Function '{}' not found", name))?;
+                    
+                    // Create a new scope for the function call
+                    let mut function_context = context.clone();
+                    
+                    // Push the function arguments onto the stack
+                    for (i, arg) in args.iter().enumerate() {
+                        let arg_value = self.evaluate_expression(arg, &function_context, gas_limit)?;
+                        function_context.insert(format!("arg{}", i), arg_value);
+                    }
+                    
+                    // Execute the function body
+                    let result = self.execute_operations(&function.body, &mut function_context, gas_limit, &self.gas_cost)?;
+                    
+                    // Return the result
+                    result.ok_or_else(|| "Function did not return a value".to_string())
+                },
             };
 
             if let Ok(ref value) = result {
@@ -460,12 +478,39 @@ impl Interpreter {
                 // Handle return logic
             }
             Operation::TriggerEvent { event_name, params } => {
-                // Handle event triggering logic
-            }
+                // Construct an Event object
+                let event = Event {
+                    name: event_name.clone(),
+                    data: params.iter().map(|(k, v)| (k.clone(), v.to_string())).collect(),
+                    topics: vec![event_name.clone()],
+                };
+                
+                // Emit the event
+                emit_event(event);
+                Ok(None)
+            },
             Operation::ExternalCall { contract_address, function_name, args } => {
-                // Handle external call logic
-            }
-            _ => return Err(format!("Unsupported operation: {:?}", operation)),
+                // Validate the external contract address and function signature
+                if contract_address.is_empty() || function_name.is_empty() {
+                    return Err("Invalid contract address or function name".to_string());
+                }
+                
+                // Serialize the arguments
+                let serialized_args = serde_json::to_vec(args).map_err(|e| e.to_string())?;
+                
+                // Send a message to the external contract
+                let response = self.send_message_to_external_contract(contract_address, function_name, &serialized_args)?;
+                
+                // Deserialize the result
+                let result: Value = serde_json::from_slice(&response).map_err(|e| e.to_string())?;
+                Ok(Some(result))
+            },
+            Operation::Break => Err("break".to_string()),
+            Operation::Continue => Err("continue".to_string()),
+            Operation::Return { value } => {
+                let return_value = self.evaluate_expression(value, context, gas_limit)?;
+                Ok(Some(return_value))
+            },
         }
         Ok(())
     }
