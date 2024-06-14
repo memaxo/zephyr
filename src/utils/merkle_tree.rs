@@ -50,17 +50,38 @@ impl MerkleTree {
     }
 
     pub fn verify_leaf(&self, leaf: &Hash, proof: &[Hash]) -> bool {
+        use rayon::prelude::*;
         let mut computed_hash = leaf.clone();
 
-        for sibling_hash in proof {
+        proof.par_iter().for_each(|sibling_hash| {
             computed_hash = if computed_hash <= *sibling_hash {
                 hash_pair(&computed_hash, sibling_hash)
             } else {
                 hash_pair(sibling_hash, &computed_hash)
             };
-        }
+        });
 
         computed_hash == self.root
+    }
+
+    pub fn prune_merkle_tree(&self, root: &Hash, proof_path: &[Hash]) -> Vec<Hash> {
+        let mut pruned_tree = Vec::new();
+        let mut current_hash = root.clone();
+
+        for hash in proof_path {
+            pruned_tree.push(current_hash.clone());
+            current_hash = hash.clone();
+        }
+
+        pruned_tree
+    }
+
+    pub fn verify_proofs(&self, root: &Hash, proofs: &[(&QUPTransaction, &[Hash])]) -> Vec<bool> {
+        use rayon::prelude::*;
+        proofs.par_iter().map(|(transaction, proof)| {
+            let leaf = hash_transaction(transaction);
+            self.verify_leaf(&leaf, proof)
+        }).collect()
     }
 
     pub fn generate_proof(&self, transaction: &QUPTransaction) -> Option<Vec<Hash>> {
