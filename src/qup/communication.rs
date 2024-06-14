@@ -294,6 +294,11 @@ impl CommunicationProtocol {
                 let hashed_solution = hash_data(&serialized_solution)?;
                 verify_signature(&hashed_solution, &solution.signature, &self.key_pair)
             }
+            QUPMessage::ReputationUpdate { node_id, reputation } => {
+                // Update the local reputation store with the received update
+                self.state.update_reputation(node_id, reputation);
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
