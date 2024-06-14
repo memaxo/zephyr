@@ -27,7 +27,6 @@ use crate::zkp::prover::Prover;
 use crate::zkp::zk_starks::ZkStarksProof;
 use crate::zkp::crypto::verify_quantum_merkle_proof;
 
-use crate::qup::security::{SecurityManager, SecurityThreats};
 
 pub enum ConsensusAlgorithm {
     Standard,
@@ -100,13 +99,8 @@ impl QUPConsensus {
     }
 
     fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
-        // Assess the current network load and security threats
-        let network_load = self.state.get_network_load()?;
-        let security_manager = SecurityManager::new(&self.state, &self.network);
-        let security_threats = security_manager.assess_security_threats()?;
-
-        // Determine the appropriate consensus algorithm based on the assessment
-        let consensus_algorithm = self.determine_consensus_algorithm(network_load, security_threats);
+        // Determine the appropriate consensus algorithm based on the network load and security threats
+        let consensus_algorithm = self.security_manager.determine_consensus_algorithm(&self.state)?;
 
         match consensus_algorithm {
             ConsensusAlgorithm::Efficient => self.process_propose_efficient(block),
