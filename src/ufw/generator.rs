@@ -12,6 +12,9 @@ use rand::Rng;
 use reqwest::Client;
 use serde_json::{Value, from_str, to_string};
 use serde::{Serialize, Deserialize};
+use bellman::{Circuit, ConstraintSystem, SynthesisError};
+use pairing::bls12_381::{Bls12, Fr};
+use ff::Field;
 
 pub struct UsefulWorkGenerator {
     pub reputation: Reputation,
@@ -94,6 +97,26 @@ impl UsefulWorkGenerator {
     }
 
     // ... implement generation functions for other problem types
+
+    pub fn generate_zkp_for_problem(problem: &UsefulWorkProblem) -> Result<Vec<u8>, SynthesisError> {
+        match problem {
+            UsefulWorkProblem::Knapsack(problem) => {
+                let solution = Self::generate_knapsack_solution(problem);
+                let circuit = KnapsackCircuit { problem, solution };
+                circuit.generate_proof()
+            }
+            // ... handle other problem types
+            _ => Err(SynthesisError::Unsatisfiable),
+        }
+    }
+
+    pub fn verify_zkp_for_problem(problem: &UsefulWorkProblem, proof: &[u8]) -> Result<bool, SynthesisError> {
+        match problem {
+            UsefulWorkProblem::Knapsack(_) => KnapsackCircuit::verify_proof(proof),
+            // ... handle other problem types
+            _ => Err(SynthesisError::Unsatisfiable),
+        }
+    }
 
     fn generate_supply_chain_problem(difficulty: u32) -> UsefulWorkProblem {
         // Generate a Supply Chain Optimization problem instance based on the difficulty level

@@ -1,7 +1,10 @@
 use crate::ufw::types::{
-    UsefulWorkProblem, UsefulWorkSolution,
+    UsefulWorkProblem, UsefulWorkSolution, ZKPCircuit,
     // ... import all the problem and solution types
 };
+use bellman::{Circuit, ConstraintSystem, SynthesisError};
+use pairing::bls12_381::{Bls12, Fr};
+use ff::Field;
 
 pub struct UsefulWorkValidator;
 
@@ -44,6 +47,30 @@ impl UsefulWorkValidator {
     }
 
     // ... implement validation functions for other problem and solution types
+
+    fn validate_knapsack_zkp(problem: &KnapsackProblem, solution: &KnapsackSolution) -> bool {
+        struct KnapsackCircuit<'a> {
+            problem: &'a KnapsackProblem,
+            solution: &'a KnapsackSolution,
+        }
+
+        impl<'a> Circuit<Fr> for KnapsackCircuit<'a> {
+            fn synthesize<CS: ConstraintSystem<Fr>>(
+                self,
+                cs: &mut CS,
+            ) -> Result<(), SynthesisError> {
+                // Implement the ZKP circuit for the Knapsack problem
+                // Add constraints to the circuit
+                Ok(())
+            }
+        }
+
+        let circuit = KnapsackCircuit { problem, solution };
+        match circuit.generate_proof() {
+            Ok(proof) => KnapsackCircuit::verify_proof(&proof).unwrap_or(false),
+            Err(_) => false,
+        }
+    }
 
     fn validate_supply_chain_optimization(problem: &SupplyChainProblem, solution: &SupplyChainSolution) -> bool {
         // Validate the Supply Chain Optimization solution against the problem

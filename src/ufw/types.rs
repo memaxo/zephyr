@@ -3,9 +3,17 @@ use crate::crypto::hash::Hash;
 use crate::qup::crypto::QUPSignature;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use bellman::{Circuit, ConstraintSystem, SynthesisError};
+use pairing::bls12_381::{Bls12, Fr};
+use ff::Field;
 
 pub trait UsefulWorkProblemTrait {
     fn solve(&self) -> Box<dyn UsefulWorkSolutionTrait>;
+}
+
+pub trait ZKPCircuit: Circuit<Fr> {
+    fn generate_proof(&self) -> Result<Vec<u8>, SynthesisError>;
+    fn verify_proof(proof: &[u8]) -> Result<bool, SynthesisError>;
 }
 
 pub trait Validator {
