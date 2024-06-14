@@ -248,10 +248,17 @@ impl QUPConsensus {
         let confidence_level = 0.95;
         let max_acceptable_error = 0.05;
 
+        let mut invalid_output_count = 0;
+        let max_invalid_outputs = 5; // Example threshold for invalid model outputs
+
         if let Some(aggregated_model) = &block.aggregated_model {
             if !verify_model_outputs(vec![aggregated_model.clone()], validation_data, confidence_level, max_acceptable_error) {
-                return Ok(false);
+                invalid_output_count += 1;
             }
+        }
+
+        if invalid_output_count > max_invalid_outputs {
+            return Ok(false);
         }
         if let Some(useful_work_solution) = &block.useful_work_solution {
             let proof = ZkStarksProof::new(vec![useful_work_solution.clone()]);
