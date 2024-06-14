@@ -373,14 +373,14 @@ impl QUPConsensus {
         for (validator, reward) in rewards {
             if let Some(stake) = self.staking.get(&validator) {
                 let validator_reward = reward * *stake / self.state.get_total_stake();
-                self.state.increase_balance(&validator, validator_reward)?;
+                self.state.token_manager.mint("QUP", validator_reward, &validator);
             }
         }
 
         // Distribute rewards for useful work
         if let Some(solution) = &block.useful_work_solution {
             let useful_work_rewards = total_rewards * self.config.useful_work_reward_percentage / 100;
-            self.state.increase_balance(&solution.provider, useful_work_rewards)?;
+            self.state.token_manager.mint("QUP", useful_work_rewards, &solution.provider);
         }
 
         Ok(())
