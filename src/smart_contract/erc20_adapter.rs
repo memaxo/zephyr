@@ -68,7 +68,7 @@ impl ERC20Adapter {
 
         // Verify the signature of the result
         let signature = payload["signature"].as_str().ok_or("Missing signature in payload")?;
-        let public_key = context.get_public_key()?;
+        let public_key = self.get_erc20_public_key()?;
         if !self.verify_signature(&result, signature, &public_key) {
             return Err("Invalid result signature".to_string());
         }
@@ -126,5 +126,14 @@ impl ERC20Adapter {
 
         // Verify the signature
         dilithium2::verify(&message_bytes, &signature, &public_key).is_ok()
+    }
+}
+impl ERC20Adapter {
+    // Other methods...
+
+    fn get_erc20_public_key(&self) -> Result<String, String> {
+        // Placeholder for actual logic to retrieve the public key
+        // This could be stored in the contract's state or fetched from an external source
+        Ok("public_key_placeholder".to_string())
     }
 }
