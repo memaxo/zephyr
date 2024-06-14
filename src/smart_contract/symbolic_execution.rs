@@ -142,7 +142,21 @@ impl SymbolicExecutionEngine {
                 let value = self.evaluate_expression(expr, state)?;
                 self.apply_unary_operator(op, &value)
             }
-            Expression::FunctionCall { .. } => unimplemented!("Function call not implemented"),
+            Expression::FunctionCall { name, args } => {
+                // Look up the function definition based on the function_name
+                let function_def = self.lookup_function(name)?; 
+
+                // Create new symbolic values for the function arguments
+                let symbolic_args = args.iter()
+                    .map(|arg| self.evaluate_expression(arg, state))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                // Evaluate the function body with the symbolic arguments
+                self.evaluate_function_body(function_def, symbolic_args)?;
+
+                // Return a symbolic value representing the function's result
+                Ok(SymbolicValue::Symbolic(format!("{}({:?})", name, symbolic_args)))
+            }
         }
     }
 
