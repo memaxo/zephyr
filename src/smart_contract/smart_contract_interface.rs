@@ -1,11 +1,34 @@
-use crate::smart_contract::types::{SmartContract, ContractState};
+use crate::smart_contract::types::{SmartContract, ContractState, Event};
 use crate::utils::error::Result;
 use crate::smart_contract::logging::init_logging;
 use log::info;
 use serde::{Serialize, Deserialize};
 
+use crate::utils::validation::validate_bytecode;
+use crate::utils::gas::estimate_gas;
+use crate::utils::events::emit_event;
+
 pub trait SmartContractInterface {
-    fn deploy_contract(&self, contract: SmartContract) -> Result<String>;
+    fn deploy_contract(&self, contract: SmartContract, deployer_address: &str, gas_price: u64) -> Result<String> {
+        // Validate the contract bytecode
+        validate_bytecode(&contract.bytecode)?;
+
+        // Estimate gas for deployment
+        let gas_estimate = estimate_gas(&contract.bytecode, gas_price)?;
+
+        // Deploy the contract (placeholder for actual deployment logic)
+        let contract_id = "contract_id_placeholder".to_string();
+
+        // Emit event upon successful deployment
+        emit_event(Event::ContractDeployed {
+            contract_id: contract_id.clone(),
+            deployer_address: deployer_address.to_string(),
+            gas_used: gas_estimate,
+        });
+
+        Ok(contract_id)
+    }
+    fn deploy_contract(&self, contract: SmartContract, deployer_address: &str, gas_price: u64) -> Result<String>;
     fn execute_contract(&self, contract_id: &str, function_name: &str, args: &[u8]) -> Result<Vec<u8>>;
     fn get_contract_state(&self, contract_id: &str) -> Result<ContractState>;
     fn upgrade_contract(&self, contract_id: &str, new_code: &str) -> Result<()>;
