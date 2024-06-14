@@ -252,11 +252,13 @@ impl NodeMessageHandler {
             NodeMessage::QKDKeyResponse(key) => self.handle_qkd_key_response(key, sender).await,
             NodeMessage::QKDKeyConfirmation => self.handle_qkd_key_confirmation(sender).await,
             NodeMessage::QuantumStateDistribution(state) => {
-                self.handle_quantum_state_distribution(state, sender).await
+                self.store_quantum_state(state).await?;
+                if self.is_worker_node() {
+                    self.use_quantum_state_for_training(state).await?;
+                }
             }
             NodeMessage::QuantumStateMeasurementResults(results) => {
-                self.handle_quantum_state_measurement_results(results, sender)
-                    .await
+                self.aggregate_measurement_results(results).await?;
             }
         }
     }

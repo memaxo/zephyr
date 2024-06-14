@@ -177,23 +177,14 @@ async fn handle_connection(
             }
             Ok(ProtocolMessage::QuantumStateDistribution(state)) => {
                 // Handle quantum state distribution
-                handle_quantum_state_distribution(
-                    &mut pq_tls_connection,
-                    &peer_address,
-                    state,
-                    &crypto,
-                )
-                .await?;
+                store_quantum_state(state).await?;
+                if is_worker_node() {
+                    use_quantum_state_for_training(state).await?;
+                }
             }
             Ok(ProtocolMessage::QuantumStateMeasurementResults(results)) => {
                 // Handle quantum state measurement results
-                handle_quantum_state_measurement_results(
-                    &mut pq_tls_connection,
-                    &peer_address,
-                    results,
-                    &crypto,
-                )
-                .await?;
+                aggregate_measurement_results(results).await?;
             }
             Err(e) => {
                 error!("Invalid protocol message: {}", e);
