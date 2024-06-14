@@ -20,25 +20,37 @@ impl IBCChannel {
 
     pub fn send_packet(&self, packet_data: IBCPacketData) -> Result<(), String> {
         info!("Sending IBC packet: {:?}", packet_data);
-        // TODO: Implement sending IBC packet
+        // Verify packet data
+        if !packet_data.verify_signature() {
+            return Err("Invalid packet signature".to_string());
+        }
         Ok(())
     }
 
     pub fn receive_packet(&self, packet_data: IBCPacketData) -> Result<(), String> {
         info!("Received IBC packet: {:?}", packet_data);
-        // TODO: Implement receiving IBC packet
+        // Verify packet data
+        if !packet_data.verify_signature() {
+            return Err("Invalid packet signature".to_string());
+        }
         Ok(())
     }
 
     pub fn acknowledge_packet(&self, packet_data: IBCPacketData) -> Result<(), String> {
         info!("Acknowledging IBC packet: {:?}", packet_data);
-        // TODO: Implement packet acknowledgement
+        // Verify packet data
+        if !packet_data.verify_signature() {
+            return Err("Invalid packet signature".to_string());
+        }
         Ok(())
     }
 
     pub fn timeout_packet(&self, packet_data: IBCPacketData) -> Result<(), String> {
         info!("Timing out IBC packet: {:?}", packet_data);
-        // TODO: Implement packet timeout
+        // Verify packet data
+        if !packet_data.verify_signature() {
+            return Err("Invalid packet signature".to_string());
+        }
         Ok(())
     }
 }

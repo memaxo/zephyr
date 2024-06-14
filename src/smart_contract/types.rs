@@ -35,6 +35,14 @@ pub struct CrossChainMessage {
     pub packet_data: IBCPacketData,
     pub timestamp: u64,
     pub signatures: Vec<String>,
+    pub public_key: PublicKey,
+    pub signature: Vec<u8>,
+}
+
+impl CrossChainMessage {
+    pub fn verify_signature(&self) -> bool {
+        verify(&self.signature, &serde_json::to_vec(self).unwrap(), &self.public_key).is_ok()
+    }
 }
 
 pub enum CrossChainOperation {
@@ -51,6 +59,16 @@ pub enum CrossChainOperation {
     OracleRequest { request: OracleRequest },
     OracleResponse { request_id: u64 },
     OracleQuery { query: String },
+}
+
+impl CrossChainOperation {
+    pub fn verify(&self) -> bool {
+        match self {
+            CrossChainOperation::SendMessage { message } => message.verify_signature(),
+            CrossChainOperation::ReceiveMessage { message } => message.verify_signature(),
+            _ => true,
+        }
+    }
 }
 
 impl SmartContract {

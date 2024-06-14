@@ -40,7 +40,29 @@ impl BridgeContract {
         // Deposit the assets into the ERC20 wrapper contract
         self.erc20_wrapper.deposit(context, amount)?;
 
-        // Emit a cross-chain message to mint the wrapped tokens on Ethereum
+        // Create and verify cross-chain message
+        let message = CrossChainMessage {
+            source_chain: self.config.zephyr_chain_id.clone(),
+            destination_chain: self.config.ethereum_chain_id.clone(),
+            packet_data: IBCPacketData {
+                sequence: 0,
+                timeout_height: 0,
+                timeout_timestamp: 0,
+                source_port: "".to_string(),
+                source_channel: "".to_string(),
+                dest_port: "".to_string(),
+                dest_channel: "".to_string(),
+                data: vec![],
+            },
+            timestamp: 0,
+            signatures: vec![],
+            public_key: context.get_public_key()?,
+            signature: vec![],
+        };
+
+        if !message.verify_signature() {
+            return Err("Invalid message signature".to_string());
+        }
         let message = CrossChainMessage {
             source_chain: self.config.zephyr_chain_id.clone(),
             destination_chain: self.config.ethereum_chain_id.clone(),
