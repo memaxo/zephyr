@@ -494,8 +494,39 @@ impl QUPConsensus {
     }
 
     fn reach_consensus(&mut self) -> Result<(), ConsensusError> {
-        // Reach consensus on the next block to be added to the blockchain
-        // ...
+        // Step 1: Block Proposal
+        let proposer = self.select_proposer()?;
+        let block = proposer.propose_block(&self.transaction_storage)?;
+
+        // Step 2: Verification
+        if !self.validate_block(&block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Step 3: Voting/Agreement
+        match self.consensus_mechanism {
+            ConsensusAlgorithm::PoUW => {
+                // In PoUW, the fastest valid solution wins
+                let solution = self.solve_useful_work_problem(&self.generate_useful_work_problem());
+                if !self.validate_useful_work_proof(&self.generate_useful_work_proof(&solution))? {
+                    return Err(ConsensusError::InvalidProof);
+                }
+                self.commit_block(block)?;
+            }
+            ConsensusAlgorithm::QDPoS => {
+                // In QDPoS, nodes cast votes based on their stake
+                let vote = self.cast_vote(block.hash())?;
+                self.state.add_vote(vote.clone())?;
+                if self.state.has_quorum(&block.hash())? {
+                    self.commit_block(block)?;
+                }
+            }
+            _ => {
+                return Err(ConsensusError::UnsupportedConsensusAlgorithm);
+            }
+        }
+
+        Ok(())
     }
 
     fn fetch_new_data(&mut self) -> Result<(), ConsensusError> {
