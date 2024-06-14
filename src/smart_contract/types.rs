@@ -278,3 +278,13 @@ pub trait CrossChainToken {
 pub struct TransactionContext {
     pub changes: HashMap<String, Value>,
 }
+pub struct IBCPacketData {
+    pub sequence: u64,
+    pub timeout_height: u64,
+    pub timeout_timestamp: u64,
+    pub source_port: String,
+    pub source_channel: String,
+    pub dest_port: String,
+    pub dest_channel: String,
+    pub data: Vec<u8>,
+}
