@@ -72,6 +72,23 @@ impl SmartContract {
 }
 
 #[derive(Debug, Clone)]
+pub enum BitwiseOperator {
+    And,
+    Or,
+    Xor,
+    Not,
+    ShiftLeft,
+    ShiftRight,
+}
+
+#[derive(Debug, Clone)]
+pub enum StringOperator {
+    Concat,
+    Substring,
+    ToUpper,
+    ToLower,
+    Replace,
+}
 lazy_static! {
     static ref ALLOWED_FUNCTIONS: HashSet<&'static str> = [
         "require",
@@ -90,6 +107,8 @@ pub enum Operation {
     CrossChain(CrossChainOperation),
     Break,
     Continue,
+    TriggerEvent { event_name: String, params: HashMap<String, Value> },
+    ExternalCall { contract_address: String, function_name: String, args: Vec<Expression> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -111,6 +130,8 @@ pub enum Value {
     Array(Vec<Value>),
     Map(HashMap<String, Value>),
     Null,
+    FixedPoint(f64),
+    CustomStruct(HashMap<String, Value>),
 }
 
 #[derive(Debug, Clone)]
@@ -134,6 +155,8 @@ pub enum Expression {
     BinaryOp { left: Box<Expression>, op: BinaryOperator, right: Box<Expression> },
     UnaryOp { op: UnaryOperator, expr: Box<Expression> },
     FunctionCall { name: String, args: Vec<Expression> },
+    BitwiseOp { left: Box<Expression>, op: BitwiseOperator, right: Box<Expression> },
+    StringManipulation { op: StringOperator, args: Vec<Expression> },
 }
 
 #[derive(Debug, Clone)]
@@ -150,12 +173,19 @@ pub enum BinaryOperator {
     LessThanOrEqual,
     And,
     Or,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseNot,
+    ShiftLeft,
+    ShiftRight,
 }
 
 #[derive(Debug, Clone)]
 pub enum UnaryOperator {
     Negate,
     Not,
+    BitwiseNot,
 }
 
 pub trait CrossChainToken {
