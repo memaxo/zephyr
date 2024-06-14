@@ -386,9 +386,19 @@ impl QUPConsensus {
         // ...
     }
 
-    fn generate_history_proof(&self) -> Vec<Hash> {
-        // Generate a history proof by collecting hashes of previous blocks
-        // ...
+    fn generate_history_proof(&self, block: &QUPBlock) -> Result<MerkleProof, ConsensusError> {
+        let mut proof = MerkleProof::new();
+        let mut current_block = block.clone();
+
+        while current_block.height > 0 {
+            let parent_block = self.state.get_block(&current_block.parent_hash)?;
+            let sibling_hash = self.state.get_sibling_block_hash(&current_block)?;
+
+            proof.add_node(parent_block.hash.clone(), sibling_hash);
+            current_block = parent_block;
+        }
+
+        Ok(proof)
     }
 
     fn verify_vote_signature(&self, vote: &QUPVote) -> Result<bool, ConsensusError> {
