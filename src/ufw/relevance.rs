@@ -10,9 +10,13 @@ pub fn calculate_relevance(problem: &UsefulWorkProblem) -> u32 {
 fn calculate_domain_alignment(problem: &UsefulWorkProblem) -> f64 {
     // 1. Keyword/Attribute Matching
     let keywords = vec![
-        ("scientific", vec!["simulation", "model", "analysis", "experiment"]),
-        ("optimization", vec!["efficiency", "cost", "resource", "scheduling"]),
-        ("ai", vec!["machine learning", "neural network", "nlp", "computer vision"]),
+        ("scientific", vec!["simulation", "model", "analysis", "experiment", "quantum", "cryptography"]),
+        ("optimization", vec!["efficiency", "cost", "resource", "scheduling", "supply chain", "logistics"]),
+        ("ai", vec!["machine learning", "neural network", "nlp", "computer vision", "reinforcement learning", "generative models", "explainable AI"]),
+        ("engineering", vec!["design", "simulation", "optimization", "construction", "material"]),
+        ("healthcare", vec!["diagnosis", "treatment", "drug discovery", "medical imaging", "patient care"]),
+        ("sustainability", vec!["renewable energy", "carbon footprint", "climate change", "pollution", "waste management"]),
+        ("finance", vec!["risk assessment", "portfolio optimization", "fraud detection", "algorithmic trading"]),
     ];
 
     let matches = keywords.iter()
@@ -20,8 +24,8 @@ fn calculate_domain_alignment(problem: &UsefulWorkProblem) -> f64 {
         .filter(|(_, matches)| *matches)
         .collect::<Vec<_>>();
 
-    // 2. NLP-Based Categorization (optional):
-    // Could use a library like rust-bert or similar for more sophisticated analysis
+    // 2. NLP-Based Categorization:
+    let nlp_score = calculate_nlp_score(problem);
 
     // 3. Combine Scores:
     let domain_score = matches.iter()
@@ -32,7 +36,7 @@ fn calculate_domain_alignment(problem: &UsefulWorkProblem) -> f64 {
             _ => 0.0 
         }).sum::<f64>();
 
-    domain_score / matches.len() as f64 // Normalize by number of matches
+    (domain_score / matches.len() as f64) + nlp_score // Combine keyword and NLP scores
 }
 
 fn calculate_real_world_impact(problem: &UsefulWorkProblem) -> f64 {
@@ -45,8 +49,15 @@ fn calculate_real_world_impact(problem: &UsefulWorkProblem) -> f64 {
     // 2. Use Standardized Scales:
     // Example: If using a Likert scale (1-5), could have a lookup table based on domain-specific metric values.
 
-    // Placeholder return for now, replace with actual calculation
-    0.0 // Replace with real calculation
+    // Example implementation for scientific domain
+    if problem.domain == "scientific" {
+        let potential_citations = estimate_citations(problem);
+        let publication_impact_factor = estimate_publication_impact_factor(problem);
+        let potential_patents = estimate_potential_patents(problem);
+        return (potential_citations + publication_impact_factor + potential_patents) / 3.0;
+    }
+    // Implement similar logic for other domains
+    0.0
 }
 
 fn calculate_community_demand(problem: &UsefulWorkProblem) -> f64 {
@@ -57,8 +68,10 @@ fn calculate_community_demand(problem: &UsefulWorkProblem) -> f64 {
     // 2. Social Media Engagement:
     // Optionally, use APIs to gauge mentions, discussions related to the problem.
 
-    // Placeholder return
-    0.0
+    // Example implementation for feedback system
+    let feedback_score = get_feedback_score(problem);
+    let social_media_score = get_social_media_score(problem);
+    (feedback_score + social_media_score) / 2.0
 }
 
 fn calculate_data_availability(problem: &UsefulWorkProblem) -> f64 {
@@ -68,6 +81,8 @@ fn calculate_data_availability(problem: &UsefulWorkProblem) -> f64 {
     // 2. Assess Dataset Quality:
     // Consider size, completeness, documentation, format, etc.
 
-    // Placeholder return
-    0.0
+    // Example implementation for data availability
+    let repository_score = check_repositories(problem);
+    let quality_score = assess_dataset_quality(problem);
+    (repository_score + quality_score) / 2.0
 }

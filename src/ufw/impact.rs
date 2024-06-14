@@ -19,7 +19,14 @@ fn calculate_quantifiable_outcomes(problem: &Problem) -> f64 {
         impact_score += match outcome.as_str() {
             "lives_saved" => estimate_lives_saved(problem), 
             "hospital_stays_reduced" => estimate_hospital_stays_reduced(problem),
-            // ... Implement estimation functions for each outcome type ...
+            "lives_saved" => estimate_lives_saved(problem),
+            "hospital_stays_reduced" => estimate_hospital_stays_reduced(problem),
+            "treatment_costs_reduced" => estimate_treatment_costs_reduced(problem),
+            "economic_value_created" => estimate_economic_value_created(problem),
+            "fraud_losses_prevented" => estimate_fraud_losses_prevented(problem),
+            "co2_emissions_reduced" => estimate_co2_emissions_reduced(problem),
+            "energy_saved" => estimate_energy_saved(problem),
+            "water_saved" => estimate_water_saved(problem),
             _ => 0.0, // Default to 0 if not implemented
         };
     }
@@ -34,10 +41,10 @@ fn calculate_scientific_advancement(problem: &Problem) -> f64 {
     let publication_impact_factor = estimate_publication_impact_factor(problem);
     let patents_filed = estimate_patents_filed(problem); // Optional
 
-    // 2. Weighted Score: (Adjust weights as needed)
-    let impact_score = 0.5 * potential_citations + 
+    // 2. Weighted Score:
+    let impact_score = 0.5 * potential_citations +
                        0.4 * publication_impact_factor +
-                       0.1 * patents_filed;  
+                       0.1 * patents_filed;
 
     impact_score
 }
@@ -46,7 +53,9 @@ fn calculate_scientific_advancement(problem: &Problem) -> f64 {
 fn calculate_technological_innovation(problem: &Problem) -> f64 {
     // 1. Assess Innovation Type:
     let innovation_type = match problem.description.as_str() {
-        // ... use keywords or NLP to categorize innovation type ...
+        "new_algorithm" => "algorithm",
+        "new_hardware" => "hardware",
+        "new_software" => "software",
         _ => "other",
     };
 
@@ -56,8 +65,8 @@ fn calculate_technological_innovation(problem: &Problem) -> f64 {
     // 3. Assess Commercialization Potential:
     let commercial_potential = estimate_commercial_potential(problem, innovation_type);
 
-    // 4. Weighted Score: (Adjust weights as needed)
-    let impact_score = 0.6 * adoption_potential + 
+    // 4. Weighted Score:
+    let impact_score = 0.6 * adoption_potential +
                        0.4 * commercial_potential;
 
     impact_score
