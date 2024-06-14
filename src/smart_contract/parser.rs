@@ -2,371 +2,268 @@ use crate::smart_contract::types::{Operation, Expression, BinaryOperator, UnaryO
 use log::info;
 use std::collections::HashMap;
 
-pub struct Parser;
+pub struct Parser {
+    tokens: Vec<Token>,
+    current: usize,
+}
 
 impl Parser {
-    pub fn parse_contract(code: &str) -> Result<Vec<Operation>, String> {
-        let mut operations = Vec::new();
-        let lines: Vec<&str> = code.lines().map(|line| line.trim()).filter(|line| !line.is_empty()).collect();
-
-        let mut i = 0;
-        while i < lines.len() {
-            let line = lines[i];
-            if let Some(operation) = Self::parse_operation(line)? {
-                operations.push(operation);
-            }
-            i += 1;
+    pub fn new(tokens: Vec<Token>) -> Self {
+        Parser {
+            tokens,
+            current: 0,
         }
+    }
 
-        info!("Parsed contract with {} operations", operations.len());
+    pub fn parse_contract(&mut self) -> Result<Vec<Operation>, String> {
+        let mut operations = Vec::new();
+        while !self.is_at_end() {
+            let operation = self.parse_operation()?;
+            operations.push(operation);
+        }
         Ok(operations)
     }
 
-    fn parse_operation(line: &str) -> Result<Option<Operation>, String> {
-        if line.starts_with("set") {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() != 4 || parts[2] != "=" {
-                return Err(format!("Invalid set operation: {}", line));
-            }
-            let key = parts[1].trim().to_string();
-            let value = Self::parse_expression(parts[3])?;
-            Ok(Some(Operation::Set { key, value }))
-        } else if line.starts_with("if") {
-            let condition = Self::parse_expression(&line[3..line.len() - 1])?;
-            Ok(Some(Operation::If { condition, then_branch: Vec::new(), else_branch: Vec::new() }))
-        } else if line.starts_with("else") {
-            Ok(None)
-        } else if line.starts_with("endif") {
-            Ok(None)
-        } else if line.starts_with("while") {
-            let condition = Self::parse_expression(&line[6..line.len() - 1])?;
-            Ok(Some(Operation::Loop { condition, body: Vec::new() }))
-        } else if line.starts_with("endwhile") {
-            Ok(None)
-        } else if line.starts_with("break") {
-            Ok(Some(Operation::Break))
-        } else if line.starts_with("continue") {
-            Ok(Some(Operation::Continue))
-        } else if line.starts_with("return") {
-            let value = Self::parse_expression(&line[7..])?;
-            Ok(Some(Operation::Return { value }))
-        } else if line.starts_with("trigger_event") {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 2 {
-                return Err(format!("Invalid trigger_event operation: {}", line));
-            }
-            let event_name = parts[1].to_string();
-            let mut params = HashMap::new();
-            for param in &parts[2..] {
-                let kv: Vec<&str> = param.split('=').collect();
-                if kv.len() != 2 {
-                    return Err(format!("Invalid parameter in trigger_event operation: {}", param));
-                }
-                params.insert(kv[0].to_string(), Self::parse_value(kv[1])?);
-            }
-            Ok(Some(Operation::TriggerEvent { event_name, params }))
-        } else if line.starts_with("external_call") {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 4 {
-                return Err(format!("Invalid external_call operation: {}", line));
-            }
-            let contract_address = parts[1].to_string();
-            let function_name = parts[2].to_string();
-            let args = parts[3..].iter().map(|arg| Self::parse_expression(arg)).collect::<Result<Vec<_>, _>>()?;
-            Ok(Some(Operation::ExternalCall { contract_address, function_name, args }))
-            Err(format!("Invalid operation: '{}'. Please check the syntax and try again.", line))
+    fn parse_operation(&mut self) -> Result<Operation, String> {
+        match self.current_token() {
+            Token::Set => self.parse_set_operation(),
+            Token::If => self.parse_if_operation(),
+            Token::Loop => self.parse_loop_operation(),
+            Token::Break => self.parse_break_operation(),
+            Token::Continue => self.parse_continue_operation(),
+            Token::Return => self.parse_return_operation(),
+            Token::TriggerEvent => self.parse_trigger_event_operation(),
+            Token::ExternalCall => self.parse_external_call_operation(),
+            _ => Err("Invalid operation".to_string()),
         }
     }
 
-    fn parse_expression(expr: &str) -> Result<Expression, String> {
-        let expr = expr.trim();
-        if let Ok(value) = expr.parse::<i64>() {
-            Ok(Expression::Literal(Value::Integer(value)))
-        } else if let Ok(value) = expr.parse::<bool>() {
-            Ok(Expression::Literal(Value::Boolean(value)))
-        } else if expr.starts_with('"') && expr.ends_with('"') {
-            let value = expr[1..expr.len() - 1].to_string();
-            Ok(Expression::Literal(Value::String(value)))
-        } else if expr.contains('+') {
-            let parts: Vec<&str> = expr.split('+').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+    fn parse_set_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::Set)?;
+        let key = self.parse_identifier()?;
+        self.expect_token(Token::Equals)?;
+        let value = self.parse_expression(0)?;
+        Ok(Operation::Set { key, value })
+    }
+
+    fn parse_if_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::If)?;
+        self.expect_token(Token::LeftParen)?;
+        let condition = self.parse_expression(0)?;
+        self.expect_token(Token::RightParen)?;
+        let then_branch = self.parse_block()?;
+        let else_branch = if self.current_token() == &Token::Else {
+            self.consume_token();
+            self.parse_block()?
+        } else {
+            Vec::new()
+        };
+        Ok(Operation::If { condition, then_branch, else_branch })
+    }
+    
+    fn parse_loop_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::Loop)?;
+        self.expect_token(Token::LeftParen)?;
+        let condition = self.parse_expression(0)?;
+        self.expect_token(Token::RightParen)?;
+        let body = self.parse_block()?;
+        Ok(Operation::Loop { condition, body })
+    }
+    
+    fn parse_break_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::Break)?;
+        Ok(Operation::Break)
+    }
+    
+    fn parse_continue_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::Continue)?;
+        Ok(Operation::Continue)
+    }
+    
+    fn parse_return_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::Return)?;
+        let value = self.parse_expression(0)?;
+        Ok(Operation::Return { value })
+    }
+    
+    fn parse_trigger_event_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::TriggerEvent)?;
+        let event_name = self.parse_identifier()?;
+        let mut params = HashMap::new();
+        while self.current_token() != &Token::Semicolon {
+            let key = self.parse_identifier()?;
+            self.expect_token(Token::Equals)?;
+            let value = self.parse_expression(0)?;
+            params.insert(key, value);
+        }
+        Ok(Operation::TriggerEvent { event_name, params })
+    }
+    
+    fn parse_external_call_operation(&mut self) -> Result<Operation, String> {
+        self.expect_token(Token::ExternalCall)?;
+        let contract_address = self.parse_expression(0)?;
+        self.expect_token(Token::Dot)?;
+        let function_name = self.parse_identifier()?;
+        self.expect_token(Token::LeftParen)?;
+        let mut args = Vec::new();
+        while self.current_token() != &Token::RightParen {
+            let arg = self.parse_expression(0)?;
+            args.push(arg);
+            if self.current_token() == &Token::Comma {
+                self.consume_token();
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::Add, right: Box::new(right) })
-        } else if expr.contains('-') {
-            let parts: Vec<&str> = expr.split('-').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+        }
+        self.expect_token(Token::RightParen)?;
+        Ok(Operation::ExternalCall { contract_address, function_name, args })
+    }
+    
+    fn parse_block(&mut self) -> Result<Vec<Operation>, String> {
+        let mut operations = Vec::new();
+        self.expect_token(Token::LeftBrace)?;
+        while self.current_token() != &Token::RightBrace {
+            let operation = self.parse_operation()?;
+            operations.push(operation);
+        }
+        self.expect_token(Token::RightBrace)?;
+        Ok(operations)
+    }
+
+    fn parse_expression(&mut self, precedence: u8) -> Result<Expression, String> {
+        let mut left = self.parse_primary()?;
+        while let Some(op) = self.parse_operator() {
+            if op.precedence() < precedence {
+                break;
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::Subtract, right: Box::new(right) })
-        } else if expr.contains('*') {
-            let parts: Vec<&str> = expr.split('*').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+            self.consume_token();
+            let right = self.parse_expression(op.precedence() + 1)?;
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_primary(&mut self) -> Result<Expression, String> {
+        match self.current_token() {
+            Token::IntegerLiteral(value) => {
+                self.consume_token();
+                Ok(Expression::Literal(Value::Integer(value)))
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::Multiply, right: Box::new(right) })
-        } else if expr.contains('/') {
-            let parts: Vec<&str> = expr.split('/').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+            Token::BooleanLiteral(value) => {
+                self.consume_token();
+                Ok(Expression::Literal(Value::Boolean(value)))
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::Divide, right: Box::new(right) })
-        } else if expr.contains("==") {
-            let parts: Vec<&str> = expr.split("==").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+            Token::StringLiteral(value) => {
+                self.consume_token();
+                Ok(Expression::Literal(Value::String(value)))
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::Equals, right: Box::new(right) })
-        } else if expr.contains("!=") {
-            let parts: Vec<&str> = expr.split("!=").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+            Token::Identifier(name) => {
+                self.consume_token();
+                Ok(Expression::Variable(name))
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::NotEquals, right: Box::new(right) })
-        } else if expr.contains('>') {
-            let parts: Vec<&str> = expr.split('>').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+            Token::LeftParen => {
+                self.consume_token();
+                let expr = self.parse_expression(0)?;
+                self.expect_token(Token::RightParen)?;
+                Ok(expr)
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::GreaterThan, right: Box::new(right) })
-        } else if expr.contains('<') {
-            let parts: Vec<&str> = expr.split('<').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
+            _ => Err("Invalid primary expression".to_string()),
+        }
+    }
+
+    fn parse_operator(&mut self) -> Option<BinaryOperator> {
+        match self.current_token() {
+            Token::Plus => Some(BinaryOperator::Add),
+            Token::Minus => Some(BinaryOperator::Subtract),
+            Token::Asterisk => Some(BinaryOperator::Multiply),
+            Token::Slash => Some(BinaryOperator::Divide),
+            Token::EqualsEquals => Some(BinaryOperator::Equals),
+            Token::NotEquals => Some(BinaryOperator::NotEquals),
+            Token::GreaterThan => Some(BinaryOperator::GreaterThan),
+            Token::LessThan => Some(BinaryOperator::LessThan),
+            Token::GreaterThanEquals => Some(BinaryOperator::GreaterThanOrEqual),
+            Token::LessThanEquals => Some(BinaryOperator::LessThanOrEqual),
+            Token::And => Some(BinaryOperator::And),
+            Token::Or => Some(BinaryOperator::Or),
+            _ => None,
+        }
+    }
+
+    fn current_token(&self) -> &Token {
+        &self.tokens[self.current]
+    }
+
+    fn is_at_end(&self) -> bool {
+        self.current >= self.tokens.len()
+    }
+
+    fn consume_token(&mut self) {
+        self.current += 1;
+    }
+
+    fn expect_token(&mut self, expected: Token) -> Result<(), String> {
+        if self.current_token() == &expected {
+            self.consume_token();
+            Ok(())
+        } else {
+            Err(format!("Expected token {:?}, found {:?}", expected, self.current_token()))
+        }
+    }
+
+    fn parse_identifier(&mut self) -> Result<String, String> {
+        match self.current_token() {
+            Token::Identifier(name) => {
+                self.consume_token();
+                Ok(name.clone())
             }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::LessThan, right: Box::new(right) })
-        } else if expr.contains(">=") {
-            let parts: Vec<&str> = expr.split(">=").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::GreaterThanOrEqual, right: Box::new(right) })
-        } else if expr.contains("<=") {
-            let parts: Vec<&str> = expr.split("<=").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::LessThanOrEqual, right: Box::new(right) })
-        } else if expr.contains("&&") {
-            let parts: Vec<&str> = expr.split("&&").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::And, right: Box::new(right) })
-        } else if expr.contains("||") {
-            let parts: Vec<&str> = expr.split("||").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid binary expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BinaryOp { left: Box::new(left), op: BinaryOperator::Or, right: Box::new(right) })
-        } else if expr.starts_with('-') {
-            let value = Self::parse_expression(&expr[1..])?;
-            Ok(Expression::UnaryOp { op: UnaryOperator::Negate, expr: Box::new(value) })
-        } else if expr.starts_with('!') {
-            let value = Self::parse_expression(&expr[1..])?;
-            Ok(Expression::UnaryOp { op: UnaryOperator::Not, expr: Box::new(value) })
-        } else if expr.contains('&') {
-            let parts: Vec<&str> = expr.split('&').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid bitwise AND expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BitwiseOp { left: Box::new(left), op: BitwiseOperator::And, right: Box::new(right) })
-        } else if expr.contains('|') {
-            let parts: Vec<&str> = expr.split('|').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid bitwise OR expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BitwiseOp { left: Box::new(left), op: BitwiseOperator::Or, right: Box::new(right) })
-        } else if expr.contains('^') {
-            let parts: Vec<&str> = expr.split('^').map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid bitwise XOR expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BitwiseOp { left: Box::new(left), op: BitwiseOperator::Xor, right: Box::new(right) })
-        } else if expr.contains("<<") {
-            let parts: Vec<&str> = expr.split("<<").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid bitwise shift left expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BitwiseOp { left: Box::new(left), op: BitwiseOperator::ShiftLeft, right: Box::new(right) })
-        } else if expr.contains(">>") {
-            let parts: Vec<&str> = expr.split(">>").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid bitwise shift right expression: {}", expr));
-            }
-            let left = Self::parse_expression(parts[0])?;
-            let right = Self::parse_expression(parts[1])?;
-            Ok(Expression::BitwiseOp { left: Box::new(left), op: BitwiseOperator::ShiftRight, right: Box::new(right) })
-        } else if expr.contains("concat") {
-            let parts: Vec<&str> = expr.split("concat").map(|part| part.trim()).collect();
-            if parts.len() != 2 {
-                return Err(format!("Invalid string concatenation expression: {}", expr));
-            }
-            let args = parts.iter().map(|part| Self::parse_expression(part)).collect::<Result<Vec<_>, _>>()?;
-            Ok(Expression::StringManipulation { op: StringOperator::Concat, args })
-        } else if expr.contains("substring") {
-            let parts: Vec<&str> = expr.split("substring").map(|part| part.trim()).collect();
-            if parts.len() != 3 {
-                return Err(format!("Invalid substring expression: {}", expr));
-            }
-            let args = parts.iter().map(|part| Self::parse_expression(part)).collect::<Result<Vec<_>, _>>()?;
-            Ok(Expression::StringManipulation { op: StringOperator::Substring, args })
-        } else if expr.contains("toupper") {
-            let parts: Vec<&str> = expr.split("toupper").map(|part| part.trim()).collect();
-            if parts.len() != 1 {
-                return Err(format!("Invalid toupper expression: {}", expr));
-            }
-            let args = parts.iter().map(|part| Self::parse_expression(part)).collect::<Result<Vec<_>, _>>()?;
-            Ok(Expression::StringManipulation { op: StringOperator::ToUpper, args })
-        } else if expr.contains("tolower") {
-            let parts: Vec<&str> = expr.split("tolower").map(|part| part.trim()).collect();
-            if parts.len() != 1 {
-                return Err(format!("Invalid tolower expression: {}", expr));
-            }
-            let args = parts.iter().map(|part| Self::parse_expression(part)).collect::<Result<Vec<_>, _>>()?;
-            Ok(Expression::StringManipulation { op: StringOperator::ToLower, args })
-        } else if expr.contains("replace") {
-            let parts: Vec<&str> = expr.split("replace").map(|part| part.trim()).collect();
-            if parts.len() != 3 {
-                return Err(format!("Invalid replace expression: {}", expr));
-            }
-            let args = parts.iter().map(|part| Self::parse_expression(part)).collect::<Result<Vec<_>, _>>()?;
-            Ok(Expression::StringManipulation { op: StringOperator::Replace, args })
-            Ok(Expression::Variable(expr.to_string()))
+            _ => Err("Expected identifier".to_string()),
         }
     }
 }
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use crate::smart_contract::types::{Expression, Operation, Value};
-use crate::utils::error::Result;
-use log::{info, warn, error};
 
-#[derive(Debug, Clone)]
-pub struct Parser {
-    pub code: String,
-    pub ast: Vec<Operation>,
-    pub errors: Vec<String>,
+#[derive(Debug, PartialEq)]
+enum Token {
+    Set,
+    If,
+    Loop,
+    Break,
+    Continue,
+    Return,
+    TriggerEvent,
+    ExternalCall,
+    Identifier(String),
+    IntegerLiteral(i64),
+    BooleanLiteral(bool),
+    StringLiteral(String),
+    Plus,
+    Minus,
+    Asterisk,
+    Slash,
+    EqualsEquals,
+    NotEquals,
+    GreaterThan,
+    LessThan,
+    GreaterThanEquals,
+    LessThanEquals,
+    And,
+    Or,
+    Equals,
+    LeftParen,
+    RightParen,
 }
 
-impl Parser {
-    pub fn new(code: String) -> Self {
-        Parser {
-            code,
-            ast: Vec::new(),
-            errors: Vec::new(),
+impl Token {
+    fn precedence(&self) -> u8 {
+        match self {
+            Token::Or => 1,
+            Token::And => 2,
+            Token::EqualsEquals | Token::NotEquals => 3,
+            Token::GreaterThan | Token::LessThan | Token::GreaterThanEquals | Token::LessThanEquals => 4,
+            Token::Plus | Token::Minus => 5,
+            Token::Asterisk | Token::Slash => 6,
+            _ => 0,
         }
-    }
-
-    pub fn parse(&mut self) -> Result<()> {
-        // Placeholder for actual parsing logic
-        // Convert code to AST
-        self.ast = vec![];
-
-        // Simulate error detection
-        if self.code.contains("error") {
-            self.errors.push("Syntax error detected".to_string());
-        }
-
-        Ok(())
-    }
-
-    pub fn highlight_syntax(&self) -> String {
-        // Placeholder for syntax highlighting logic
-        // Integrate with a code editor for actual implementation
-        self.code.replace("fn", "<b>fn</b>")
-    }
-
-    pub fn recover_errors(&mut self) {
-        // Placeholder for error recovery logic
-        // Implement mechanisms to help developers identify and fix errors
-        if !self.errors.is_empty() {
-            warn!("Attempting to recover from errors...");
-            self.errors.clear();
-        }
-    }
-
-    pub fn lint(&self) -> Vec<String> {
-        // Placeholder for linting logic
-        // Identify potential issues in the contract code
-        let mut warnings = Vec::new();
-        if self.code.contains("unsafe") {
-            warnings.push("Unsafe operation detected".to_string());
-        }
-        if self.code.contains("unused") {
-            warnings.push("Unused variable detected".to_string());
-        }
-        warnings
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parser() {
-        let code = "fn main() { let x = 10; }".to_string();
-        let mut parser = Parser::new(code);
-        parser.parse().unwrap();
-        assert!(parser.errors.is_empty());
-    }
-
-    #[test]
-    fn test_syntax_highlighting() {
-        let code = "fn main() { let x = 10; }".to_string();
-        let parser = Parser::new(code);
-        let highlighted_code = parser.highlight_syntax();
-        assert!(highlighted_code.contains("<b>fn</b>"));
-    }
-
-    #[test]
-    fn test_error_recovery() {
-        let code = "fn main() { error }".to_string();
-        let mut parser = Parser::new(code);
-        parser.parse().unwrap();
-        assert!(!parser.errors.is_empty());
-        parser.recover_errors();
-        assert!(parser.errors.is_empty());
-    }
-
-    #[test]
-    fn test_linting() {
-        let code = "fn main() { let unused_var = 10; unsafe { /* unsafe code */ } }".to_string();
-        let parser = Parser::new(code);
-        let warnings = parser.lint();
-        assert_eq!(warnings.len(), 2);
     }
 }
