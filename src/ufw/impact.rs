@@ -72,4 +72,121 @@ fn calculate_technological_innovation(problem: &Problem) -> f64 {
     impact_score
 }
 
-// ... (helper functions for estimating various outcomes) ...
+fn estimate_lives_saved(problem: &Problem) -> f64 {
+    // Example implementation for estimating lives saved
+    if problem.description.contains("disease") || problem.description.contains("treatment") {
+        // Use disease prevalence data and potential treatment efficacy
+        return 100.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_hospital_stays_reduced(problem: &Problem) -> f64 {
+    // Example implementation for estimating hospital stays reduced
+    if problem.description.contains("hospital") || problem.description.contains("treatment") {
+        // Use hospital resource data and potential treatment impact
+        return 50.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_treatment_costs_reduced(problem: &Problem) -> f64 {
+    // Example implementation for estimating treatment costs reduced
+    if problem.description.contains("treatment") || problem.description.contains("cost") {
+        // Analyze current treatment costs and potential cost reduction
+        return 20000.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_economic_value_created(problem: &Problem) -> f64 {
+    // Example implementation for estimating economic value created
+    if problem.description.contains("GDP") || problem.description.contains("economic growth") {
+        // Use economic models and data
+        return 500000.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_fraud_losses_prevented(problem: &Problem) -> f64 {
+    // Example implementation for estimating fraud losses prevented
+    if problem.description.contains("fraud") || problem.description.contains("losses") {
+        // Analyze data on fraud prevalence and prevention effectiveness
+        return 100000.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_co2_emissions_reduced(problem: &Problem) -> f64 {
+    // Example implementation for estimating CO2 emissions reduced
+    if problem.description.contains("carbon footprint") || problem.description.contains("emissions") {
+        // Use carbon footprint calculators or models
+        return 1000.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_energy_saved(problem: &Problem) -> f64 {
+    // Example implementation for estimating energy saved
+    if problem.description.contains("energy efficiency") || problem.description.contains("energy") {
+        // Analyze energy consumption data
+        return 500.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_water_saved(problem: &Problem) -> f64 {
+    // Example implementation for estimating water saved
+    if problem.description.contains("water scarcity") || problem.description.contains("water conservation") {
+        // Estimate potential water savings
+        return 10000.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_citations(problem: &Problem) -> f64 {
+    // Example implementation for estimating potential citations
+    if problem.description.contains("research") || problem.description.contains("study") {
+        // Use citation prediction models
+        return 50.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_publication_impact_factor(problem: &Problem) -> f64 {
+    // Example implementation for estimating publication impact factor
+    if problem.description.contains("journal") || problem.description.contains("conference") {
+        // Look up impact factor of relevant journals
+        return 5.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_patents_filed(problem: &Problem) -> f64 {
+    // Example implementation for estimating patents filed
+    if problem.description.contains("innovation") || problem.description.contains("patent") {
+        // Consult patent databases
+        return 1.0; // Placeholder value
+    }
+    0.0
+}
+
+fn estimate_adoption_potential(problem: &Problem, innovation_type: &str) -> f64 {
+    // Example implementation for estimating adoption potential
+    match innovation_type {
+        "algorithm" => 0.8, // Placeholder value
+        "hardware" => 0.6,  // Placeholder value
+        "software" => 0.7,  // Placeholder value
+        _ => 0.5,           // Placeholder value
+    }
+}
+
+fn estimate_commercial_potential(problem: &Problem, innovation_type: &str) -> f64 {
+    // Example implementation for estimating commercialization potential
+    match innovation_type {
+        "algorithm" => 0.7, // Placeholder value
+        "hardware" => 0.8,  // Placeholder value
+        "software" => 0.9,  // Placeholder value
+        _ => 0.6,           // Placeholder value
+    }
+}
