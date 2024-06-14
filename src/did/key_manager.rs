@@ -1,5 +1,4 @@
-use rand::rngs::OsRng;
-use rand::RngCore;
+use crate::did::qup::quantum_random::QuantumRandom;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use crate::did::did::DID;
