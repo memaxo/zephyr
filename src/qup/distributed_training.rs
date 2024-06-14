@@ -15,6 +15,47 @@ pub struct DatasetShard {
     pub data: Vec<f64>,
 }
 
+pub fn verify_model_outputs(
+    sampled_models: Vec<HDCModel>,
+    validation_data: Vec<(Vec<f64>, String)>,
+    confidence_level: f64,
+    max_acceptable_error: f64,
+) -> bool {
+    let mut rng = rand::thread_rng();
+    let sample_size = (sampled_models.len() as f64 * confidence_level).ceil() as usize;
+    let sampled_models: Vec<&HDCModel> = sampled_models.choose_multiple(&mut rng, sample_size).collect();
+
+    let mut total_samples = 0;
+    let mut error_count = 0;
+
+    for (input, expected_output) in validation_data {
+        let mut outputs = Vec::new();
+        for model in &sampled_models {
+            let output = model.predict(&input);
+            outputs.push(output);
+        }
+
+        let most_common_output = outputs.iter()
+            .fold(HashMap::new(), |mut acc, output| {
+                *acc.entry(output).or_insert(0) += 1;
+                acc
+            })
+            .into_iter()
+            .max_by_key(|&(_, count)| count)
+            .map(|(output, _)| output)
+            .unwrap();
+
+        if most_common_output != &expected_output {
+            error_count += 1;
+        }
+
+        total_samples += 1;
+    }
+
+    let error_rate = error_count as f64 / total_samples as f64;
+    error_rate < max_acceptable_error
+}
+
 pub struct Task {
     pub node_id: NodeId,
     pub dataset_shard: Vec<f64>,
