@@ -153,9 +153,22 @@ impl Interpreter {
 
                 let evaluated_args = evaluated_args?;
 
-                // Execute function logic (to be implemented)
-                // Update context with function return value if any
-                unimplemented!("Function call logic not implemented")
+                // Create a new execution context for the function call
+                let mut function_context = context.clone();
+                for (i, arg) in evaluated_args.iter().enumerate() {
+                    function_context.insert(format!("arg{}", i), arg.clone());
+                }
+
+                // Execute the function body
+                if let Some(function) = context.functions.get(name) {
+                    let result = self.execute_operations(&function.body, &mut function_context, gas_limit, &self.gas_cost)?;
+                    if let Some(return_value) = result {
+                        context.insert(name.clone(), return_value.clone());
+                        return Ok(Some(return_value));
+                    }
+                }
+
+                Ok(None)
             },
             Operation::CrossChain(cross_chain_op) => {
                 self.execute_cross_chain_operation(cross_chain_op, context, gas_limit)
@@ -514,18 +527,18 @@ impl Interpreter {
                 emit_event(event);
                 Ok(None)
             },
-            Operation::ExternalCall { contract_address, function_name, args } => {
-                // Validate the external contract address and function signature
-                if contract_address.is_empty() || function_name.is_empty() {
-                    return Err("Invalid contract address or function name".to_string());
+            Operation::ExternalCall { contract, method, args } => {
+                // Validate the external contract address and method signature
+                if contract.is_empty() || method.is_empty() {
+                    return Err("Invalid contract address or method name".to_string());
                 }
-                
+
                 // Serialize the arguments
                 let serialized_args = serde_json::to_vec(args).map_err(|e| e.to_string())?;
-                
+
                 // Send a message to the external contract
-                let response = self.send_message_to_external_contract(contract_address, function_name, &serialized_args)?;
-                
+                let response = self.send_message_to_external_contract(contract, method, &serialized_args)?;
+
                 // Deserialize the result
                 let result: Value = serde_json::from_slice(&response).map_err(|e| e.to_string())?;
                 Ok(Some(result))
