@@ -49,6 +49,17 @@ impl Server {
             peers: Arc::new(Mutex::new(HashMap::new())),
             crypto,
         }
+
+        // Implement error handling for model outputs
+        if let Err(e) = tokio::time::timeout(Duration::from_secs(30), async {
+            // Logic to wait for model outputs
+        }).await {
+            error!("Timeout waiting for model outputs: {}", e);
+        }
+
+        if !validate_model_outputs(&outputs) {
+            error!("Received invalid model outputs");
+        }
     }
 
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
@@ -180,6 +191,14 @@ async fn handle_connection(
             Err(e) => {
                 error!("Invalid protocol message: {}", e);
                 break;
+            }
+            Message::RequestModelOutputs(inputs) => {
+                // Handle RequestModelOutputs
+                // Implement logic to process the request and send the model outputs
+            }
+            Message::ResponseModelOutputs(outputs) => {
+                // Handle ResponseModelOutputs
+                // Implement logic to process the received model outputs
             }
             _ => {
                 let zephyr_message = Message::from_protocol_message(protocol_message)?;

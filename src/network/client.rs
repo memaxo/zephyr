@@ -39,6 +39,17 @@ impl Client {
             pq_tls_connection: None,
             crypto,
         }
+
+        // Implement error handling for model outputs
+        if let Err(e) = tokio::time::timeout(Duration::from_secs(30), async {
+            // Logic to wait for model outputs
+        }).await {
+            error!("Timeout waiting for model outputs: {}", e);
+        }
+
+        if !validate_model_outputs(&outputs) {
+            error!("Received invalid model outputs");
+        }
     let mut blacklist = self.blacklist.lock().unwrap();
     *blacklist.entry(self.peer.address.clone()).or_insert(0) += 1;
     if *blacklist.get(&self.peer.address).unwrap() > BLACKLIST_THRESHOLD {
@@ -124,6 +135,14 @@ impl Client {
                                 Err(e) => {
                                     error!("Invalid protocol message: {}", e);
                                     break;
+                                }
+                                Message::RequestModelOutputs(inputs) => {
+                                    // Handle RequestModelOutputs
+                                    // Implement logic to process the request and send the model outputs
+                                }
+                                Message::ResponseModelOutputs(outputs) => {
+                                    // Handle ResponseModelOutputs
+                                    // Implement logic to process the received model outputs
                                 }
                                 _ => {
                                     match Message::from_protocol_message(protocol_message) {
