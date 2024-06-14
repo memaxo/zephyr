@@ -1,14 +1,15 @@
-use crate::ufw::generator::UsefulWorkGenerator;
-use crate::ufw::solver::UsefulWorkSolver;
-use crate::ufw::validator::UsefulWorkValidator;
-use crate::ufw::types::{UsefulWorkProblem, UsefulWorkSolution};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use crate::ufw::types::{Problem, Solution};
+use crate::network::Network; // Placeholder for network communication module
+use crate::consensus::Consensus; // Placeholder for consensus module
+use crate::metrics::Metrics; // Placeholder for metrics collection
 
 pub struct UsefulWorkManager {
     generator: UsefulWorkGenerator,
     solver: UsefulWorkSolver,
     validator: UsefulWorkValidator,
+    network: Network,
+    consensus: Consensus,
+    metrics: Metrics,
 }
 
 impl UsefulWorkManager {
@@ -17,18 +18,21 @@ impl UsefulWorkManager {
             generator: UsefulWorkGenerator {},
             solver: UsefulWorkSolver {},
             validator: UsefulWorkValidator {},
+            network: Network::new(),
+            consensus: Consensus::new(),
+            metrics: Metrics::new(),
         }
     }
 
-    pub fn generate_problem(&self, problem_type: &str, difficulty: u32) -> UsefulWorkProblem {
+    pub fn generate_problem(&self, problem_type: &str, difficulty: u32) -> Problem {
         self.generator.generate(problem_type, difficulty)
     }
 
-    pub fn solve_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
+    pub fn solve_problem(&self, problem: &Problem) -> Solution {
         self.solver.solve(problem)
     }
 
-    pub fn validate_solution(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
+    pub fn validate_solution(&self, problem: &Problem, solution: &Solution) -> bool {
         self.validator.validate(problem, solution)
     }
 
@@ -43,33 +47,67 @@ impl UsefulWorkManager {
         self.validate_solution(&problem, &solution)
     }
 
-    pub fn distribute_problems(&self, problems: Vec<UsefulWorkProblem>) {
-        // Implement the logic to distribute problems across nodes in the shard
-        // This can involve load balancing, assigning problems based on node capabilities, etc.
-        todo!()
+    pub fn distribute_problems(&self, problems: Vec<Problem>, nodes: Vec<Node>) -> Vec<(Node, Problem)> {
+        // 1. Criteria for Distribution:
+        // - Node's computational capabilities (CPU, GPU, quantum)
+        // - Node's reputation (based on past performance)
+        // - Problem's resource requirements (from resource estimation functions)
+        // - Network topology and bandwidth considerations
+
+        // 2. Load Balancing Strategies:
+        // - Round-robin assignment
+        // - Weighted random assignment based on node capabilities
+        // - Consistent hashing to ensure problems stay on the same node
+
+        // Placeholder implementation (replace with actual logic):
+        problems.into_iter().zip(nodes).collect() // Naive round-robin
     }
 
-    pub fn collect_solutions(&self, solutions: Vec<UsefulWorkSolution>) {
-        // Implement the logic to collect and process the solutions from nodes in the shard
-        // This can involve aggregating results, updating the network state, etc.
-        todo!()
+    pub fn collect_solutions(&self, assignments: Vec<(Node, Problem)>) -> Vec<(Problem, Solution)> {
+        // 1. Network Communication:
+        // Use the `Network` module to request solutions from nodes.
+        // Implement timeout and retry mechanisms for reliability.
+
+        // 2. Solution Aggregation:
+        // Collect solutions from nodes and verify their validity.
+        // Aggregate results for problems with multiple solutions (e.g., averaging, voting).
+
+        // Placeholder implementation:
+        vec![] // Replace with actual solution collection logic
     }
 
-    pub fn monitor_progress(&self) {
-        // Implement the logic to monitor the progress of useful work across nodes in the shard
-        // This can involve tracking problem assignment, completion status, performance metrics, etc.
-        todo!()
+    pub fn monitor_progress(&self, assignments: Vec<(Node, Problem)>) -> Vec<(Problem, ProgressStatus)> {
+        // 1. Metrics Tracking:
+        // Track progress using the `Metrics` module.
+        // Collect metrics like number of problems solved, solution quality, time taken, resource usage.
+
+        // 2. Completion Statuses:
+        // Update the status of each problem (e.g., in progress, completed, failed).
+
+        // Placeholder implementation:
+        vec![] // Replace with actual progress tracking logic
     }
 
-    pub fn adapt_problem_selection(&self) {
-        // Implement the logic to adapt the problem selection based on network conditions and performance
-        // This can involve adjusting problem types, difficulty levels, distribution strategies, etc.
-        todo!()
+    pub fn adapt_problem_selection(&self, progress: Vec<(Problem, ProgressStatus)>) -> Vec<Problem> {
+        // 1. Factors for Adaptation:
+        // - Completion status and quality of previous solutions
+        // - Current network capabilities and resource availability
+        // - Community feedback and priority adjustments
+
+        // 2. Adaptation Strategies:
+        // - Adjust problem difficulty levels
+        // - Change problem types based on demand or relevance
+        // - Modify distribution strategy to improve load balancing
+
+        // Placeholder implementation:
+        vec![] // Replace with actual problem selection logic
     }
 
-    pub fn integrate_with_consensus(&self) {
-        // Implement the logic to integrate useful work with the consensus mechanism
-        // This can involve providing hooks for consensus to trigger useful work, sharing results, etc.
-        todo!()
+    pub fn integrate_with_consensus(&self, solutions: Vec<(Problem, Solution)>) {
+        // 1. Share Results:
+        // Use the `Consensus` module to share verified solutions with validators.
+
+        // 2. Consensus Integration:
+        // Implement hooks or methods in the consensus module to use PoUW results for block validation, reward distribution, or other aspects of the consensus protocol.
     }
 }
