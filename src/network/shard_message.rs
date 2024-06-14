@@ -48,7 +48,9 @@ pub enum ShardMessage {
         block_hash: String,
         shard_id: u64,
     },
-    pq_tls_connection: Option<PostQuantumTLSConnection>,
+    RequestModelOutputs(Vec<Vec<f64>>),
+    ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
+    pq_tls_connection: Option<PostQuantumTLSConnection>
 }
 
 impl ShardMessage {

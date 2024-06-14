@@ -19,6 +19,8 @@ pub enum Message {
     Blocks(Vec<Block>),
     GetState(u64),
     State(Vec<u8>),
+    RequestModelOutputs(Vec<Vec<f64>>),
+    ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>)
 }
 
 impl Message {

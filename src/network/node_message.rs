@@ -35,7 +35,9 @@ pub enum NodeMessage {
     QKDKeyConfirmation,
     QuantumStateDistribution(QuantumState),
     QuantumStateMeasurementResults(Vec<bool>),
-    pq_tls_connection: Option<PostQuantumTLSConnection>,
+    RequestModelOutputs(Vec<Vec<f64>>),
+    ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
+    pq_tls_connection: Option<PostQuantumTLSConnection>
 }
 
 #[derive(Debug, Error)]
