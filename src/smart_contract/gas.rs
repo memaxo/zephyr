@@ -14,6 +14,11 @@ pub struct GasCost {
     pub dynamic_pricing_factor: f64,
     pub fn calculate_dynamic_cost(&self, base_cost: u64, network_congestion: f64) -> u64 {
         (base_cost as f64 * self.dynamic_pricing_factor * network_congestion).ceil() as u64
+        Operation::ExternalCall { args, .. } => {
+            let args_cost: u64 = args.iter().map(|arg| calculate_expression_cost(arg, gas_cost)).sum();
+            gas_cost.func_call_cost + args_cost
+        },
+        Operation::CrossChain(_) => gas_cost.func_call_cost * 2, // Assuming cross-chain operations are more expensive
     }
 
     pub fn check_gas_limit(&self, total_gas: u64, gas_limit: u64) -> Result<(), String> {
