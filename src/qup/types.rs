@@ -177,6 +177,18 @@ pub struct QUPVote {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QUPBlock {
+    pub header: QUPBlockHeader,
+    pub transactions: Vec<QUPTransaction>,
+    pub votes: Vec<QUPVote>,
+    pub aggregated_model: Option<HDCModel>,
+    pub useful_work_solution: Option<UsefulWorkSolution>,
+    pub useful_work_proof: Option<Vec<u8>>,
+    pub history_proof: Vec<Hash>,
+    pub sampled_model_outputs: Vec<(Vec<f64>, Vec<f64>)>, // (input, output) pairs
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TravelingSalesmanProblem {
     pub distances: Vec<Vec<u64>>,
 }
