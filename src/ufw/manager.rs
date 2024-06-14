@@ -2,6 +2,7 @@ use crate::ufw::types::{Problem, Solution};
 use crate::network::Network; // Placeholder for network communication module
 use crate::consensus::Consensus; // Placeholder for consensus module
 use crate::metrics::Metrics; // Placeholder for metrics collection
+use crate::ufw::resources::{calculate_computational_resources, calculate_network_resources, calculate_storage_resources, calculate_quantum_specific_resources};
 
 pub struct UsefulWorkManager {
     generator: UsefulWorkGenerator,
