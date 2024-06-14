@@ -582,12 +582,39 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn evaluate_model_on_shard(&self) -> f64 {
+    fn evaluate_model_on_shard(&self) -> HashMap<String, f64> {
         // Evaluate the model on the node's local data shard
         let data_shard = self.get_local_data_shard();
         let predictions = self.hdc_model.predict(&data_shard.features);
-        let metric = self.calculate_metric(&data_shard.labels, &predictions);
-        metric
+
+        // Initialize metrics
+        let mut metrics = HashMap::new();
+
+        // Classification metrics
+        let accuracy = self.calculate_accuracy(&data_shard.labels, &predictions);
+        let precision = self.calculate_precision(&data_shard.labels, &predictions);
+        let recall = self.calculate_recall(&data_shard.labels, &predictions);
+        let f1_score = self.calculate_f1_score(&data_shard.labels, &predictions);
+        let roc_auc = self.calculate_roc_auc(&data_shard.labels, &predictions);
+
+        // Add classification metrics to the HashMap
+        metrics.insert("accuracy".to_string(), accuracy);
+        metrics.insert("precision".to_string(), precision);
+        metrics.insert("recall".to_string(), recall);
+        metrics.insert("f1_score".to_string(), f1_score);
+        metrics.insert("roc_auc".to_string(), roc_auc);
+
+        // Regression metrics
+        let mse = self.calculate_mse(&data_shard.labels, &predictions);
+        let mae = self.calculate_mae(&data_shard.labels, &predictions);
+        let r_squared = self.calculate_r_squared(&data_shard.labels, &predictions);
+
+        // Add regression metrics to the HashMap
+        metrics.insert("mse".to_string(), mse);
+        metrics.insert("mae".to_string(), mae);
+        metrics.insert("r_squared".to_string(), r_squared);
+
+        metrics
     }
 
     fn collect_evaluation_scores(&self) -> Result<Vec<f64>, ConsensusError> {
