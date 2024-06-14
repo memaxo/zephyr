@@ -6,6 +6,42 @@ use serde::{Deserialize, Serialize};
 pub struct OracleRequest {
     pub url: String,
     pub attributes: Vec<String>,
+    pub fn add_provider(&mut self, provider: Box<dyn OracleProvider>) {
+        self.providers.push(provider);
+    }
+
+    pub fn remove_provider(&mut self, provider_name: &str) -> Result<(), String> {
+        let index = self.providers.iter().position(|p| format!("{:?}", p) == provider_name);
+        if let Some(index) = index {
+            self.providers.remove(index);
+            Ok(())
+        } else {
+            Err(format!("Provider '{}' not found", provider_name))
+        }
+    }
+
+    pub fn vote_add_provider(&mut self, provider: Box<dyn OracleProvider>, votes: HashMap<String, bool>) -> Result<(), String> {
+        let positive_votes = votes.values().filter(|&&v| v).count();
+        let negative_votes = votes.values().filter(|&&v| !v).count();
+
+        if positive_votes > negative_votes {
+            self.add_provider(provider);
+            Ok(())
+        } else {
+            Err("Provider addition rejected by votes".to_string())
+        }
+    }
+
+    pub fn vote_remove_provider(&mut self, provider_name: &str, votes: HashMap<String, bool>) -> Result<(), String> {
+        let positive_votes = votes.values().filter(|&&v| v).count();
+        let negative_votes = votes.values().filter(|&&v| !v).count();
+
+        if positive_votes > negative_votes {
+            self.remove_provider(provider_name)
+        } else {
+            Err("Provider removal rejected by votes".to_string())
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
