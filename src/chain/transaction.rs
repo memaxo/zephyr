@@ -42,7 +42,25 @@ impl Transaction {
         verify_proof(&self.common.proof.proof_hash, &proof_data)
             .context("Failed to verify zero-knowledge proof")
     }
-}
+    pub shard_key: String,
+        Transaction {
+            common: TransactionFields {
+                sender,
+                receiver,
+                amount,
+                nonce,
+                encrypted_details: Vec::new(),
+                ciphertext: None,
+                signature: Vec::new(),
+                post_quantum_signature: None,
+                proof: Proof {
+                    proof_hash: String::new(),
+                },
+                history_proof: None,
+                useful_work_solution: None,
+            },
+            shard_key: format!("{}:{}", sender, receiver),
+        }
 
 
 #[derive(Debug, Serialize, Deserialize)]
