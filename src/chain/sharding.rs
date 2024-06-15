@@ -222,28 +222,50 @@ impl Sharding {
     }
 
     pub async fn handle_cross_shard_transaction(&self, transaction: Transaction) -> Result<(), ShardingError> {
-        // Implement cross-shard transaction handling logic here
-        // This could involve coordinating between multiple shards, updating shard assignments, etc.
         info!("Handling cross-shard transaction...");
+
+        // Identify the destination shard(s) based on the transaction's recipients
         let virtual_shard_id = self.calculate_virtual_shard_for_transaction(&transaction)?;
         let shard_id = self.get_physical_shard_id(virtual_shard_id).await?;
         let shards = self.shards.read().await;
+
         if let Some(shard) = shards.get(&shard_id) {
             let encrypted_transaction = self
                 .qup_crypto
                 .encrypt_transaction(&transaction)
                 .map_err(|e| ShardingError::TransactionEncryptionError(e.to_string()))?;
-            shard
-                .add_transaction(encrypted_transaction)
-                .await
-                .map_err(|e| {
-                    error!("Failed to add transaction to shard {}: {}", shard_id, e);
-                    ShardingError::AddTransactionError(shard_id, e.to_string())
-                })?;
+
+            // Implement two-phase commit protocol
+            self.initiate_two_phase_commit(shard_id, encrypted_transaction).await?;
             Ok(())
         } else {
             Err(ShardingError::ShardNotFound(shard_id))
         }
+    }
+
+    async fn initiate_two_phase_commit(&self, shard_id: u64, encrypted_transaction: Vec<u8>) -> Result<(), ShardingError> {
+        // Send Prepare message to all involved shards
+        let prepare_message = ShardMessage::PrepareTransaction { transaction: encrypted_transaction.clone() };
+        self.send_message(shard_id, prepare_message).await?;
+
+        // Wait for acknowledgments
+        let ack_received = self.wait_for_acknowledgments(shard_id).await?;
+        if !ack_received {
+            return Err(ShardingError::MessageSendingFailed("Failed to receive acknowledgments for Prepare message".to_string()));
+        }
+
+        // Send Commit message to finalize the transaction on all shards
+        let commit_message = ShardMessage::CommitTransaction { transaction: encrypted_transaction };
+        self.send_message(shard_id, commit_message).await?;
+
+        Ok(())
+    }
+
+    async fn wait_for_acknowledgments(&self, shard_id: u64) -> Result<bool, ShardingError> {
+        // Implement logic to wait for acknowledgments from all involved shards
+        // For now, we'll just simulate the acknowledgment process
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        Ok(true)
     }
 
 
