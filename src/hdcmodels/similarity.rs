@@ -78,10 +78,46 @@ pub enum SimilarityMetric {
     HammingDistance, 
     JaccardSimilarity,
     EuclideanDistance,
-    // TODO: Add more similarity metrics like:
-    // - Pearson Correlation Coefficient
-    // - Spearman Rank Correlation
-    // - Kullback-Leibler Divergence
-    // - Mahalanobis Distance
-    // Implement the corresponding functions for each new metric
+    PearsonCorrelation,
+    SpearmanRankCorrelation,
+    KullbackLeiblerDivergence,
+    MahalanobisDistance,
+}
+pub fn pearson_correlation(vec1: &[f64], vec2: &[f64]) -> f64 {
+    let n = vec1.len();
+    let sum1: f64 = vec1.iter().sum();
+    let sum2: f64 = vec2.iter().sum();
+    let sum1_sq: f64 = vec1.iter().map(|&x| x * x).sum();
+    let sum2_sq: f64 = vec2.iter().map(|&x| x * x).sum();
+    let p_sum: f64 = vec1.iter().zip(vec2).map(|(&x, &y)| x * y).sum();
+    let num = p_sum - (sum1 * sum2 / n as f64);
+    let den = ((sum1_sq - sum1.powi(2) / n as f64) * (sum2_sq - sum2.powi(2) / n as f64)).sqrt();
+    if den == 0.0 { 0.0 } else { num / den }
+}
+
+pub fn spearman_rank_correlation(vec1: &[f64], vec2: &[f64]) -> f64 {
+    let ranks1 = rank(vec1);
+    let ranks2 = rank(vec2);
+    pearson_correlation(&ranks1, &ranks2)
+}
+
+fn rank(vec: &[f64]) -> Vec<f64> {
+    let mut sorted = vec.to_vec();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    vec.iter().map(|x| sorted.binary_search(x).unwrap() as f64 + 1.0).collect()
+}
+
+pub fn kullback_leibler_divergence(vec1: &[f64], vec2: &[f64]) -> f64 {
+    vec1.iter().zip(vec2).map(|(&x, &y)| x * (x / y).ln()).sum()
+}
+
+pub fn mahalanobis_distance(vec1: &[f64], vec2: &[f64], cov_inv: &[f64]) -> f64 {
+    let diff: Vec<f64> = vec1.iter().zip(vec2).map(|(&x, &y)| x - y).collect();
+    let mut sum = 0.0;
+    for i in 0..diff.len() {
+        for j in 0..diff.len() {
+            sum += diff[i] * cov_inv[i * diff.len() + j] * diff[j];
+        }
+    }
+    sum.sqrt()
 }
