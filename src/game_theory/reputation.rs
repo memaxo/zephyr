@@ -7,18 +7,24 @@ use std::collections::HashMap;
 pub struct Reputation {
     scores: HashMap<NodeId, ReputationScore>,
     history: HashMap<NodeId, Vec<ReputationAction>>,
-    pub fn integrate_with_oracle(&mut self, oracle: &ReputationOracle) {
-        for (node_id, score) in oracle.get_reputation_scores() {
-            self.scores.insert(node_id.clone(), score);
+    pub fn integrate_with_oracle(&mut self, oracle_data: &ReputationOracle) {
+        for (node_id, oracle_info) in oracle_data.get_reputation_scores() {
+            let score = self.scores.entry(node_id.clone()).or_insert(0);
+            if oracle_info.is_positive() {
+                *score += oracle_info.trust_score; // Increase score based on trust score
+            } else {
+                *score -= oracle_info.penalty_score; // Decrease score based on penalty score
+            }
         }
     }
 
-    pub fn integrate_with_identity_system(&mut self, identity_system: &DecentralizedIdentity) {
-        for (node_id, identity) in identity_system.get_verified_identities() {
-            // Update reputation based on verified identities
-            if identity.is_trusted() {
-                let score = self.scores.entry(node_id.clone()).or_insert(0);
-                *score += 10; // Example boost for verified identities
+    pub fn integrate_with_identity_system(&mut self, identity_data: &DecentralizedIdentity) {
+        for (node_id, identity_info) in identity_data.get_verified_identities() {
+            let score = self.scores.entry(node_id.clone()).or_insert(0);
+            if identity_info.is_verified() && identity_info.is_trusted() {
+                *score += identity_info.trust_score; // Increase score for verified and trusted identities
+            } else if identity_info.has_malicious_history() {
+                *score -= identity_info.penalty_score; // Decrease score for malicious history
             }
         }
     }
