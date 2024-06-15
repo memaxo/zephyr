@@ -15,6 +15,61 @@ pub enum ContributionType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GraphTheoryProblem {
+    pub graph: Vec<Vec<u64>>,
+    pub start_node: Option<usize>,
+    pub end_node: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CryptanalysisProblem {
+    pub ciphertext: Vec<u8>,
+    pub known_plaintext: Option<Vec<u8>>,
+    pub key_length: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScientificSimulationProblem {
+    pub system_description: String,
+    pub initial_conditions: Vec<f64>,
+    pub simulation_parameters: HashMap<String, f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UsefulWorkProblem {
+    // Optimization problems
+    Knapsack(KnapsackProblem),
+    VertexCover(VertexCoverProblem),
+    TravelingSalesman(TravelingSalesmanProblem),
+    JobScheduling(JobSchedulingProblem),
+    BinPacking(BinPackingProblem),
+    ResourceAllocation(ResourceAllocationProblem),
+    VehicleRouting(VehicleRoutingProblem),
+    PortfolioOptimization(PortfolioOptimizationProblem),
+    MarketEquilibrium(MarketEquilibriumProblem),
+    SupplyChainOptimization(SupplyChainProblem),
+
+    // Graph problems 
+    MaximumFlow(MaximumFlowProblem),
+    ShortestPath(ShortestPathProblem),
+    MinimumSpanningTree(MinimumSpanningTreeProblem),
+    GraphColoring(GraphColoringProblem),
+    NetworkFlow(NetworkFlowProblem),
+
+    // Scientific computing problems
+    MatrixFactorization(MatrixFactorizationProblem),
+    EigenvalueProblem(EigenvalueProblem),
+    DifferentialEquations(DifferentialEquationsProblem),
+    IntegralEquations(IntegralEquationsProblem),
+    QuantumSimulation(QuantumSimulationProblem),
+
+    // New problem types
+    GraphTheory(GraphTheoryProblem),
+    Cryptanalysis(CryptanalysisProblem),
+    ScientificSimulation(ScientificSimulationProblem),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UtilityPoints(pub u64);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
