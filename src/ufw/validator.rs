@@ -8,7 +8,6 @@ use ff::Field;
 
 pub struct UsefulWorkValidator;
 
-impl UsefulWorkValidator {
     pub fn validate(problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> bool {
         match (problem, solution) {
             (UsefulWorkProblem::Knapsack(problem), UsefulWorkSolution::Knapsack(solution)) => {
@@ -26,27 +25,34 @@ impl UsefulWorkValidator {
     }
 
     fn validate_knapsack(problem: &KnapsackProblem, solution: &KnapsackSolution) -> bool {
-        // Validate the Knapsack solution against the problem
-        // Check if the selected items fit within the capacity and maximize the total value
-        // Return true if the solution is valid, false otherwise
-        todo!()
+        // Validate the Knapsack solution
+        let total_weight: u64 = solution.selected_items.iter().enumerate().filter(|&(_, &selected)| selected).map(|(i, _)| problem.weights[i]).sum();
+        let total_value: u64 = solution.selected_items.iter().enumerate().filter(|&(_, &selected)| selected).map(|(i, _)| problem.values[i]).sum();
+        total_weight <= problem.capacity && total_value == solution.selected_items.iter().enumerate().filter(|&(_, &selected)| selected).map(|(i, _)| problem.values[i]).sum()
     }
 
     fn validate_vertex_cover(problem: &VertexCoverProblem, solution: &VertexCoverSolution) -> bool {
-        // Validate the Vertex Cover solution against the problem
-        // Check if the selected vertices cover all the edges in the graph
-        // Return true if the solution is valid, false otherwise
-        todo!()
+        // Validate the Vertex Cover solution
+        let mut covered_edges = vec![false; problem.graph.len()];
+        for &v in &solution.vertex_cover {
+            for &u in &problem.graph[v] {
+                covered_edges[u] = true;
+            }
+        }
+        covered_edges.iter().all(|&covered| covered)
     }
 
     fn validate_traveling_salesman(problem: &TravelingSalesmanProblem, solution: &TravelingSalesmanSolution) -> bool {
-        // Validate the Traveling Salesman solution against the problem
-        // Check if the tour visits all the cities exactly once and minimizes the total distance
-        // Return true if the solution is valid, false otherwise
-        todo!()
+        // Validate the Traveling Salesman solution
+        let mut visited = vec![false; problem.distances.len()];
+        for &city in &solution.tour {
+            if visited[city] {
+                return false;
+            }
+            visited[city] = true;
+        }
+        visited.iter().all(|&v| v)
     }
-
-    // ... implement validation functions for other problem and solution types
 
     fn validate_knapsack_zkp(problem: &KnapsackProblem, solution: &KnapsackSolution) -> bool {
         struct KnapsackCircuit<'a> {

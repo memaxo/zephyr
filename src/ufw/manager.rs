@@ -1,4 +1,4 @@
-use crate::ufw::types::{Problem, Solution};
+use crate::ufw::types::{Problem, Solution, UsefulWorkProblem, UsefulWorkSolution};
 use crate::network::Network; // Placeholder for network communication module
 use crate::consensus::Consensus; // Placeholder for consensus module
 use crate::metrics::Metrics; // Placeholder for metrics collection
@@ -38,14 +38,10 @@ impl UsefulWorkManager {
     }
 
     pub fn manage_useful_work(&self, problem_type: &str, difficulty: u32) -> bool {
-        // Generate a new useful work problem
-        let problem = self.generate_problem(problem_type, difficulty);
-
-        // Solve the generated problem
-        let solution = self.solve_problem(&problem);
-
-        // Validate the solution against the problem
-        self.validate_solution(&problem, &solution)
+        // Generate, solve, and validate the problem using first principles
+        let problem = self.generator.generate(problem_type, difficulty);
+        let solution = self.solver.solve(&problem);
+        self.validator.validate(&problem, &solution)
     }
 
     pub fn distribute_problems(&self, problems: Vec<Problem>, nodes: Vec<Node>) -> Vec<(Node, Problem)> {

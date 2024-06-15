@@ -5,7 +5,6 @@ use crate::ufw::types::{
 
 pub struct UsefulWorkSolver;
 
-impl UsefulWorkSolver {
     pub fn solve(problem: &UsefulWorkProblem) -> UsefulWorkSolution {
         match problem {
             UsefulWorkProblem::Knapsack(problem) => {
@@ -25,27 +24,61 @@ impl UsefulWorkSolver {
     }
 
     fn solve_knapsack(problem: &KnapsackProblem) -> KnapsackSolution {
-        // Implement the solver logic for the Knapsack problem
-        // Use efficient algorithms like dynamic programming or branch-and-bound
-        // Return the optimal solution
-        todo!()
+        // Solve the Knapsack problem using dynamic programming
+        let n = problem.weights.len();
+        let mut dp = vec![vec![0; (problem.capacity + 1) as usize]; n + 1];
+        for i in 1..=n {
+            for w in 0..=problem.capacity as usize {
+                if problem.weights[i - 1] as usize <= w {
+                    dp[i][w] = dp[i - 1][w].max(dp[i - 1][w - problem.weights[i - 1] as usize] + problem.values[i - 1]);
+                } else {
+                    dp[i][w] = dp[i - 1][w];
+                }
+            }
+        }
+        let mut selected_items = vec![false; n];
+        let mut w = problem.capacity as usize;
+        for i in (1..=n).rev() {
+            if dp[i][w] != dp[i - 1][w] {
+                selected_items[i - 1] = true;
+                w -= problem.weights[i - 1] as usize;
+            }
+        }
+        KnapsackSolution { selected_items }
     }
 
     fn solve_vertex_cover(problem: &VertexCoverProblem) -> VertexCoverSolution {
-        // Implement the solver logic for the Vertex Cover problem
-        // Use efficient algorithms like approximation algorithms or exact solvers
-        // Return the optimal or approximate solution
-        todo!()
+        // Solve the Vertex Cover problem using a simple greedy algorithm
+        let mut cover = vec![false; problem.graph.len()];
+        for (u, neighbors) in problem.graph.iter().enumerate() {
+            if !cover[u] {
+                for &v in neighbors {
+                    if !cover[v] {
+                        cover[u] = true;
+                        cover[v] = true;
+                        break;
+                    }
+                }
+            }
+        }
+        let vertex_cover = cover.iter().enumerate().filter_map(|(i, &covered)| if covered { Some(i) } else { None }).collect();
+        VertexCoverSolution { vertex_cover }
     }
 
     fn solve_traveling_salesman(problem: &TravelingSalesmanProblem) -> TravelingSalesmanSolution {
-        // Implement the solver logic for the Traveling Salesman problem
-        // Use efficient algorithms like Christofides algorithm or heuristics
-        // Return the optimal or approximate solution
-        todo!()
+        // Solve the Traveling Salesman problem using a nearest neighbor heuristic
+        let n = problem.distances.len();
+        let mut visited = vec![false; n];
+        let mut tour = vec![0];
+        visited[0] = true;
+        for _ in 1..n {
+            let last = *tour.last().unwrap();
+            let next = (0..n).filter(|&i| !visited[i]).min_by_key(|&i| problem.distances[last][i]).unwrap();
+            visited[next] = true;
+            tour.push(next);
+        }
+        TravelingSalesmanSolution { tour }
     }
-
-    // ... implement solver functions for other problem types
 
     fn solve_supply_chain_optimization(problem: &SupplyChainProblem) -> SupplyChainSolution {
         // Implement the solver logic for the Supply Chain Optimization problem

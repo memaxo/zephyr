@@ -20,7 +20,6 @@ pub struct UsefulWorkGenerator {
     pub reputation: Reputation,
 }
 
-impl UsefulWorkGenerator {
     pub fn new() -> Self {
         UsefulWorkGenerator {
             reputation: Reputation::new(),
@@ -37,19 +36,18 @@ impl UsefulWorkGenerator {
     }
 
 impl UsefulWorkGenerator {
-    pub fn generate(problem_type: &str, difficulty: u32) -> UsefulWorkProblem {
+    pub fn generate(&self, problem_type: &str, difficulty: u32) -> UsefulWorkProblem {
         match problem_type {
-            "knapsack" => Self::generate_knapsack_problem(difficulty),
-            "vertex_cover" => Self::generate_vertex_cover_problem(difficulty),
-            "traveling_salesman" => Self::generate_traveling_salesman_problem(difficulty),
-            // ... handle other problem types and call their respective generation functions
+            "knapsack" => self.generate_knapsack_problem(difficulty),
+            "vertex_cover" => self.generate_vertex_cover_problem(difficulty),
+            "traveling_salesman" => self.generate_traveling_salesman_problem(difficulty),
+            // ... handle other problem types
             _ => panic!("Unsupported problem type: {}", problem_type),
         }
     }
 
-    fn generate_knapsack_problem(difficulty: u32) -> UsefulWorkProblem {
+    fn generate_knapsack_problem(&self, difficulty: u32) -> UsefulWorkProblem {
         // Generate a Knapsack problem instance based on the difficulty level
-        // Determine the number of items, capacity, and generate random weights and values
         let num_items = difficulty * 10;
         let capacity = difficulty * 100;
         let mut rng = rand::thread_rng();
@@ -62,9 +60,8 @@ impl UsefulWorkGenerator {
         })
     }
 
-    fn generate_vertex_cover_problem(difficulty: u32) -> UsefulWorkProblem {
+    fn generate_vertex_cover_problem(&self, difficulty: u32) -> UsefulWorkProblem {
         // Generate a Vertex Cover problem instance based on the difficulty level
-        // Determine the number of vertices and edges, and generate a random graph
         let num_vertices = difficulty * 10;
         let num_edges = difficulty * 20;
         let mut rng = rand::thread_rng();
@@ -80,9 +77,8 @@ impl UsefulWorkGenerator {
         UsefulWorkProblem::VertexCover(VertexCoverProblem { graph })
     }
 
-    fn generate_traveling_salesman_problem(difficulty: u32) -> UsefulWorkProblem {
+    fn generate_traveling_salesman_problem(&self, difficulty: u32) -> UsefulWorkProblem {
         // Generate a Traveling Salesman problem instance based on the difficulty level
-        // Determine the number of cities and generate a random distance matrix
         let num_cities = difficulty * 5;
         let mut rng = rand::thread_rng();
         let mut distances: Vec<Vec<u64>> = vec![vec![0; num_cities]; num_cities];
@@ -95,8 +91,6 @@ impl UsefulWorkGenerator {
         }
         UsefulWorkProblem::TravelingSalesman(TravelingSalesmanProblem { distances })
     }
-
-    // ... implement generation functions for other problem types
 
     pub fn generate_zkp_for_problem(problem: &UsefulWorkProblem) -> Result<Vec<u8>, SynthesisError> {
         match problem {
