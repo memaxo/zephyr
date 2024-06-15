@@ -22,6 +22,31 @@ pub struct HDCModel {
     epochs: usize,
 }
 
+pub enum SimilarityMetric {
+    CosineSimilarity,
+    HammingDistance,
+    JaccardSimilarity,
+    EuclideanDistance,
+    WassersteinDistance,
+    JensenShannonDivergence,
+    DynamicTimeWarping,
+}
+
+fn wasserstein_distance(a: &[f64], b: &[f64]) -> f64 {
+    // Placeholder for Wasserstein Distance calculation
+    0.0
+}
+
+fn jensen_shannon_divergence(a: &[f64], b: &[f64]) -> f64 {
+    // Placeholder for Jensen-Shannon Divergence calculation
+    0.0
+}
+
+fn dynamic_time_warping(a: &[f64], b: &[f64]) -> f64 {
+    // Placeholder for Dynamic Time Warping calculation
+    0.0
+}
+
 impl HDCModel {
     pub fn quantize(&mut self, bits: u8) {
         // Placeholder for quantization logic
@@ -480,7 +505,10 @@ impl HDCModel {
                 SimilarityMetric::EuclideanDistance => {
                     1.0 / (1.0 + euclidean_distance(&encoded_query, code_vector))
                 }
-            };
+            WassersteinDistance => wasserstein_distance(&encoded_query, code_vector),
+            JensenShannonDivergence => jensen_shannon_divergence(&encoded_query, code_vector),
+            DynamicTimeWarping => dynamic_time_warping(&encoded_query, code_vector),
+        };
 
             if similarity > max_similarity {
                 max_similarity = similarity;
