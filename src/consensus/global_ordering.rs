@@ -11,6 +11,19 @@ pub struct LamportTimestamp {
     }
 }
 
+pub fn calculate_reward(base_reward: u64, utility_points: u64, stake: u64, total_up: u64, config: &QUPConfig) -> u64 {
+    let utility_point_multiplier = config.useful_work_reward_multiplier;
+    let stake_factor = stake as f64 / total_up as f64;
+    let dynamic_adjustment = if total_up > config.target_utility_points {
+        1.0 - ((total_up - config.target_utility_points) as f64 / total_up as f64)
+    } else {
+        1.0 + ((config.target_utility_points - total_up) as f64 / total_up as f64)
+    };
+
+    let reward = base_reward + (utility_points * utility_point_multiplier) as u64;
+    (reward as f64 * stake_factor * dynamic_adjustment) as u64
+}
+
 impl LamportTimestamp {
     pub fn new(counter: u64, node_id: String) -> Self {
         LamportTimestamp { counter, node_id }
