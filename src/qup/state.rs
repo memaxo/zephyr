@@ -27,6 +27,7 @@ pub struct QUPState {
     classical_node: Arc<ClassicalNode>,
     quantum_node: Arc<QuantumNode>,
     pub reputations: HashMap<String, Reputation>,
+    pub validator_utility_points: HashMap<String, u64>,
 }
 
     pub fn get_network_load(&self) -> f64 {
@@ -417,4 +418,15 @@ use std::collections::HashMap;
 
     pub fn get_reputations(&self) -> &HashMap<String, Reputation> {
         &self.reputations
+    }
+    pub fn update_validator_utility_points(&mut self, validator_id: &str, points: u64) {
+        *self.validator_utility_points.entry(validator_id.to_string()).or_insert(0) += points;
+    }
+
+    pub fn get_validator_utility_points(&self, validator_id: &str) -> u64 {
+        *self.validator_utility_points.get(validator_id).unwrap_or(&0)
+    }
+
+    pub fn reset_validator_utility_points(&mut self) {
+        self.validator_utility_points.clear();
     }
