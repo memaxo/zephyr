@@ -36,9 +36,41 @@ impl QUPCrypto {
 
     pub fn verify_model_training(&self, solution: &ModelTrainingSolution) -> Result<bool, CryptoError> {
         // Verify the model training solution
-        // Check the accuracy, model parameters, etc.
-        // Implement the verification logic
-        Ok(true) // Placeholder
+        let validation_accuracy = solution.validation_accuracy;
+        let training_loss = solution.training_loss;
+        let hyperparameters = &solution.hyperparameters;
+        let model_architecture = &solution.model_architecture;
+
+        // Define the criteria for verification
+        let accuracy_threshold = 0.9; // Example threshold
+        let loss_threshold = 0.1; // Example threshold
+
+        // Verify accuracy
+        if validation_accuracy < accuracy_threshold {
+            return Ok(false);
+        }
+
+        // Verify loss
+        if training_loss > loss_threshold {
+            return Ok(false);
+        }
+
+        // Verify hyperparameters (example: learning rate should be within a specific range)
+        if let Some(learning_rate) = hyperparameters.get("learning_rate") {
+            if *learning_rate < 0.0001 || *learning_rate > 0.1 {
+                return Ok(false);
+            }
+        }
+
+        // Verify model architecture (example: number of layers should be within a specific range)
+        if let Some(num_layers) = model_architecture.get("num_layers") {
+            if *num_layers < 1 || *num_layers > 10 {
+                return Ok(false);
+            }
+        }
+
+        // If all criteria are met, the model training solution is valid
+        Ok(true)
     }
 }
 
