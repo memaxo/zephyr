@@ -50,7 +50,12 @@ impl HDCModel {
         let batch_size = 64;
         let learning_rate = 0.001;
 
+        // TODO: Optimize the training loop
+        // - Experiment with different optimization algorithms like Adam, RMSprop, etc.
+        // - Implement learning rate scheduling techniques to adapt the learning rate during training
+        // - Explore techniques like batch normalization and dropout to improve training stability and generalization
         for epoch in 0..epochs {
+            // TODO: Consider more advanced batch sampling techniques like stratified sampling or importance sampling
             let mut batch_indices: Vec<usize> = (0..num_samples).collect();
             batch_indices.shuffle(&mut rand::thread_rng());
 
@@ -235,6 +240,10 @@ impl HDCModel {
             }
         }
 
+        // TODO: Apply regularization techniques to prevent overfitting
+        // - Implement L1 or L2 regularization on the model weights
+        // - Explore techniques like early stopping and weight decay
+        // - Consider using cross-validation to select the best regularization hyperparameters
         self.encoded_data = encoded_data;
         self.epochs = epochs;
         self.dataset = dataset.clone();
@@ -457,5 +466,9 @@ impl Transaction {
         // Implement attention mechanism for transformer models
         // or feature importance analysis for other model types
 
+        // TODO: Enhance the explainability of the model's predictions
+        // - Implement techniques like LIME (Local Interpretable Model-Agnostic Explanations) or SHAP (SHapley Additive exPlanations)
+        // - Generate human-readable explanations by analyzing the importance of different features or patterns in the input data
+        // - Consider visualizing the attention weights or feature importances to provide insights into the model's decision-making process
         explanation
     }

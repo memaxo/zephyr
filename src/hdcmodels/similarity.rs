@@ -75,7 +75,13 @@ pub fn euclidean_distance(vec1: &[f64], vec2: &[f64]) -> f64 {
 
 pub enum SimilarityMetric {
     CosineSimilarity,
-    HammingDistance,
+    HammingDistance, 
     JaccardSimilarity,
     EuclideanDistance,
+    // TODO: Add more similarity metrics like:
+    // - Pearson Correlation Coefficient
+    // - Spearman Rank Correlation
+    // - Kullback-Leibler Divergence
+    // - Mahalanobis Distance
+    // Implement the corresponding functions for each new metric
 }
