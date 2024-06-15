@@ -57,6 +57,8 @@ pub fn store_benchmark_results(node_id: &NodeId, results: BenchmarkResult) {
     // Placeholder for actual storage logic
     // Placeholder for actual storage logic
     // Here you would store the results in a database or a file
+    // Placeholder for actual storage logic
+    // Here you would store the results in a database or a file
     println!("Storing benchmark results for node {}: {:?}", node_id, results);
 }
 use thiserror::Error;

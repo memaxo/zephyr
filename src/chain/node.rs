@@ -96,7 +96,9 @@ impl Node {
         node.benchmark_results = Some(run_benchmarks(&node.id));
         store_benchmark_results(&node.id, node.benchmark_results.clone().unwrap());
         node.store_benchmark_results().await?;
-        node.assess_hardware().await?;
+        node.hardware_capabilities = Node::retrieve_hardware_capabilities();
+        node.benchmark_results = Some(run_benchmarks(&node.id));
+        store_benchmark_results(&node.id, node.benchmark_results.clone().unwrap());
         Ok(node)
     }
 
