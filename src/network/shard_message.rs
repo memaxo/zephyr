@@ -58,7 +58,7 @@ impl ShardMessage {
             .map_err(|e| NetworkError::SerializationFailed(e.to_string()))?;
         let compressed_data = encode_all(&serialized_data[..], 3)
             .map_err(|e| NetworkError::CompressionFailed(e.to_string()))?;
-        let encrypted_data = crypto.encrypt(&compressed_data)?;
+        let encrypted_data = crypto.encrypt_message(&compressed_data, "shard_key").ok_or(NetworkError::EncryptionFailed)?;
         Ok(encrypted_data)
     }
 
@@ -220,7 +220,7 @@ impl ShardMessage {
     }
 
     pub fn deserialize(data: &[u8], crypto: &QUPCrypto) -> Result<Self, NetworkError> {
-        let decrypted_data = crypto.decrypt(data)?;
+        let decrypted_data = crypto.decrypt_message(data, "shard_key").ok_or(NetworkError::DecryptionFailed)?;
         let decompressed_data = decode_all(&decrypted_data)
             .map_err(|e| NetworkError::DecompressionFailed(e.to_string()))?;
         bincode::deserialize(&decompressed_data)

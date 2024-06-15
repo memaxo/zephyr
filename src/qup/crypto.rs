@@ -1,4 +1,5 @@
 use pqcrypto_dilithium::dilithium2::{sign, verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, sign_detached, verify_detached};
+use pqcrypto_kyber::kyber512::{encapsulate, decapsulate, PublicKey as KyberPublicKey, SecretKey as KyberSecretKey, Ciphertext as KyberCiphertext, SharedSecret as KyberSharedSecret};
 use crate::qup::crypto_common::{Decrypt, Encrypt, Sign, Verify};
 use crate::secure_core::secure_vault::SecureVault;
 use serde::{Serialize, Deserialize};
@@ -6,6 +7,38 @@ use sha2::{Sha256, Digest};
 
 pub struct QUPCrypto {
     secure_vault: SecureVault,
+}
+
+impl QUPCrypto {
+    pub fn encrypt_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
+        if let Some((public_key, _)) = self.secure_vault.get_kyber_keys(key_id) {
+            let (ciphertext, shared_secret) = encapsulate(public_key);
+            let encrypted_message = self.aes_encrypt(message, &shared_secret);
+            Some([ciphertext.as_bytes(), &encrypted_message].concat())
+        } else {
+            None
+        }
+    }
+
+    pub fn decrypt_message(&self, encrypted_message: &[u8], key_id: &str) -> Option<Vec<u8>> {
+        if let Some((_, secret_key)) = self.secure_vault.get_kyber_keys(key_id) {
+            let (ciphertext, encrypted_message) = encrypted_message.split_at(KyberCiphertext::BYTES);
+            let shared_secret = decapsulate(&KyberCiphertext::from_bytes(ciphertext), secret_key).ok()?;
+            self.aes_decrypt(encrypted_message, &shared_secret)
+        } else {
+            None
+        }
+    }
+
+    fn aes_encrypt(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
+        // Implement AES encryption using the shared secret
+        data.to_vec() // Placeholder
+    }
+
+    fn aes_decrypt(&self, data: &[u8], key: &[u8]) -> Option<Vec<u8>> {
+        // Implement AES decryption using the shared secret
+        Some(data.to_vec()) // Placeholder
+    }
 }
 
 impl QUPCrypto {
