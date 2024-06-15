@@ -28,6 +28,9 @@ pub struct HDCModel {
     qsvm_kernel: KernelType,
     qsvm_feature_map: FeatureMap,
     vqe_ansatz: Ansatz,
+    shor_code_qubits: usize,
+    surface_code_distance: usize,
+    surface_code_lattice_size: usize,
 }
 
 impl HDCModel {
@@ -131,7 +134,14 @@ impl HDCModel {
         let qsvm_feature_map = FeatureMap::ZZFeatureMap; // Default to ZZFeatureMap
         let vqe_ansatz = Ansatz::HardwareEfficient; // Default to Hardware-Efficient Ansatz
 
+        let shor_code_qubits = 9; // Default to 9 qubits for Shor Code
+        let surface_code_distance = 3; // Default to code distance of 3 for Surface Code
+        let surface_code_lattice_size = 5; // Default to 5x5 lattice for Surface Code
+
         HDCModel {
+            shor_code_qubits,
+            surface_code_distance,
+            surface_code_lattice_size,
             qsvm_kernel,
             qsvm_feature_map,
             vqe_ansatz,
@@ -576,8 +586,8 @@ impl HDCModel {
         let encoded_query = encode_natural_language(natural_language_query, self.dimension);
         let qsvm = QSVM::new(self.qsvm_kernel.clone(), self.qsvm_feature_map.clone());
         let vqe = VQE::new(self.vqe_ansatz.clone());
-        let shor_code = ShorCode::new();
-        let surface_code = SurfaceCode::new();
+        let shor_code = ShorCode::new(self.shor_code_qubits);
+        let surface_code = SurfaceCode::new(self.surface_code_distance, self.surface_code_lattice_size);
 
         let mut max_similarity = f64::NEG_INFINITY;
         let encoded_query_corrected = shor_code.encode(&encoded_query);
