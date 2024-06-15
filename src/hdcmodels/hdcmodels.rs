@@ -8,7 +8,8 @@ use pqcrypto_dilithium::dilithium;
 use pqcrypto_kyber::kyber;
 use qiskit_rs::algorithms::{QSVM, VQE, KernelType, FeatureMap, Ansatz};
 use qiskit_rs::error_correction::{ShorCode, SurfaceCode};
-use crate::optimizers::{Adam, SGD, FTRL};
+use crate::optimizers::{Adam, SGD, FTRL, OnlineGradientDescent};
+use crate::concept_drift::{ADWIN, PageHinkley};
 use crate::consensus::raft::Raft;
 use std::fs::File;
 use std::io::{self, Write, Read};
@@ -30,6 +31,8 @@ pub struct HDCModel {
     shor_code_qubits: usize,
     surface_code_distance: usize,
     surface_code_lattice_size: usize,
+    adwin: ADWIN,
+    page_hinkley: PageHinkley,
 }
 
 impl HDCModel {
@@ -64,7 +67,7 @@ impl HDCModel {
         let regularization = 0.1;
 
         // Choose an online learning algorithm
-        let mut optimizer = FTRL::new(learning_rate, 0.1, 0.1); // FTRL with L1 and L2 regularization
+        let mut optimizer = OnlineGradientDescent::new(learning_rate); // Online Gradient Descent
 
         for (data, &label) in new_data.iter().zip(labels.iter()) {
             let prediction = self.predict(data);
@@ -329,7 +332,15 @@ impl HDCModel {
         let mut no_improvement_epochs = 0;
         let early_stopping_patience = 10;
 
+        let mut adwin = ADWIN::new();
+        let mut page_hinkley = PageHinkley::new();
+
         for &learning_rate in &learning_rates {
+            // Check for concept drift
+            if adwin.detect_drift(&encoded_data) || page_hinkley.detect_drift(&encoded_data) {
+                println!("Concept drift detected. Adjusting model...");
+                // Handle concept drift (e.g., retrain model, adjust parameters)
+            }
             for &batch_size in &batch_sizes {
                 for epoch in 0..epochs {
                     let mut batch_indices: Vec<usize> = (0..num_samples).collect();
