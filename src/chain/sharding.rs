@@ -37,7 +37,20 @@ pub struct Sharding {
             let shard_loads = self.collect_shard_load_statistics().await;
             self.balance_shard_loads(shard_loads).await;
             self.rebalance_shards().await;
+            self.schedule_synchronization().await;
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        }
+    }
+
+    async fn schedule_synchronization(&self) {
+        let sync_interval = tokio::time::Duration::from_secs(300); // 5 minutes
+        let mut interval = tokio::time::interval(sync_interval);
+
+        loop {
+            interval.tick().await;
+            if let Err(e) = self.synchronize_shards().await {
+                error!("Failed to synchronize shards: {}", e);
+            }
         }
     }
 
