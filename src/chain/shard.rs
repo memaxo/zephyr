@@ -1,4 +1,8 @@
 use crate::chain::transaction::Transaction;
+use crate::chain::block::Block;
+use crate::network::shard_message::ShardMessage;
+use crate::utils::merkle_tree::MerkleTree;
+use tokio::time::{interval, Interval};
 use crate::secure_core::secure_vault::SecureVault;
 use crate::consensus::consensus_config::ConsensusConfig;
 use crate::consensus::qup::{QUPBlock, QUPBlockHeader, QUPUsefulWork, QUPVote};
@@ -39,7 +43,47 @@ pub enum ShardError {
     DecompressionError(#[from] DecompressionError),
     #[error("Failed to generate unique nonce")]
     NonceGenerationError,
-}
+    pub async fn create_snapshot(&self) -> Result<ShardState, ShardError> {
+        let transactions = self.transactions.read().map_err(|_| ShardError::SerializationError("Failed to acquire read lock for transactions".to_string()))?;
+        let state = ShardState {
+            shard_id: self.shard_id,
+            transactions: transactions.iter().map(|tx| {
+                serde_json::from_slice(tx).map_err(|e| {
+                    warn!("Failed to deserialize transaction during snapshot creation: {}", e);
+                    ShardError::SerializationError(e)
+                })
+            }).collect::<Result<_, _>>()?,
+        };
+        Ok(state)
+    }
+
+    pub async fn broadcast_snapshot(&self) -> Result<(), ShardError> {
+        let snapshot = self.create_snapshot().await?;
+        let message = NetworkMessage::ShardMessage(ShardMessage::Snapshot { state: snapshot });
+        for (_, sender) in &self.shard_channels {
+            sender.send(message.clone()).await.map_err(|e| ShardError::MessageSendError(format!("Failed to broadcast snapshot: {}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub fn verify_snapshot(&self, snapshot: &ShardState, global_merkle_root: &str) -> Result<(), ShardError> {
+        let merkle_tree = MerkleTree::new(snapshot.transactions.iter().map(|tx| tx.hash()).collect());
+        if merkle_tree.root() == global_merkle_root {
+            Ok(())
+        } else {
+            Err(ShardError::InvalidTransaction("Snapshot verification failed".to_string()))
+        }
+    }
+
+    pub async fn start_snapshot_interval(&self, interval_duration: Duration) {
+        let mut interval = interval(interval_duration);
+        loop {
+            interval.tick().await;
+            if let Err(e) = self.broadcast_snapshot().await {
+                error!("Failed to broadcast snapshot: {}", e);
+            }
+        }
+    }
 
 pub struct Shard {
     pub transactions: Arc<RwLock<VecDeque<Vec<u8>>>>,

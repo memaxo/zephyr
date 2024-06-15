@@ -51,7 +51,9 @@ pub enum ShardMessage {
         anomaly_type: String,
         details: String,
     },
-}
+    Snapshot {
+        state: ShardState,
+    },
 
 impl ShardMessage {
     pub fn serialize(&self, crypto: &QUPCrypto) -> Result<Vec<u8>, NetworkError> {
@@ -61,6 +63,12 @@ impl ShardMessage {
             .map_err(|e| NetworkError::CompressionFailed(e.to_string()))?;
         let encrypted_data = crypto.encrypt_message(&compressed_data, "shard_key").ok_or(NetworkError::EncryptionFailed)?;
         Ok(encrypted_data)
+    async fn handle_snapshot(&mut self, state: ShardState, global_merkle_root: &str) {
+        if let Err(e) = self.verify_snapshot(&state, global_merkle_root) {
+            error!("Snapshot verification failed: {}", e);
+        } else {
+            info!("Snapshot verified successfully for shard {}", state.shard_id);
+        }
     }
 
     async fn handle_shard_reassignment(
