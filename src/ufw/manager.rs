@@ -70,15 +70,19 @@ fn decompose_problem(problem: &Problem) -> Option<Vec<Problem>> {
 }
 
 fn select_node_for_subtask(subtask: &Problem, nodes: &Vec<Node>) -> Node {
-    // Placeholder implementation for selecting a node for a subtask
-    // Replace with actual logic to select the most suitable node
-    nodes[0].clone()
+    nodes.iter()
+        .filter(|node| node.capabilities >= subtask.requirements)
+        .min_by_key(|node| node.current_load)
+        .unwrap_or_else(|| nodes.iter().max_by_key(|node| node.reliability).unwrap())
+        .clone()
 }
 
 fn select_node_for_problem(problem: &Problem, nodes: &Vec<Node>) -> Node {
-    // Placeholder implementation for selecting a node for a problem
-    // Replace with actual logic to select the most suitable node
-    nodes[0].clone()
+    nodes.iter()
+        .filter(|node| node.capabilities >= problem.requirements)
+        .min_by_key(|node| node.current_load)
+        .unwrap_or_else(|| nodes.iter().max_by_key(|node| node.reliability).unwrap())
+        .clone()
 }
 
 impl UsefulWorkManager {
