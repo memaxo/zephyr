@@ -39,22 +39,24 @@ pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method:
     }
 }
 
-pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method: EncodingMethod) -> (Vec<f64>, SimilarityMetric) {
+pub fn encode_smart_contract(contract: &str, dimension: usize, method: EncodingMethod) -> (Vec<f64>, SimilarityMetric) {
     match method {
         EncodingMethod::Classical => {
-            let tokens = tokenize_smart_contract(contract, n);
-            let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
-                .map(|token| encode_rust_token(token, dimension))
+            let ast = parse_smart_contract(contract);
+            let features = extract_smart_contract_features(&ast);
+            let encoded_features: Vec<Vec<f64>> = features.par_iter()
+                .map(|feature| encode_smart_contract_feature(feature, dimension))
                 .collect();
 
             // Dimensionality reduction using PCA or similar technique
-            let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
+            let reduced_vectors = dimensionality_reduction(&encoded_features, dimension / 2);
             let similarity_metric = select_similarity_metric(&reduced_vectors.iter().flatten().cloned().collect::<Vec<f64>>());
             (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
         },
         EncodingMethod::Quantum => {
-            let tokens = tokenize_smart_contract(contract, n);
-            let data_array: Array1<f64> = Array1::from(tokens.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
+            let ast = parse_smart_contract(contract);
+            let features = extract_smart_contract_features(&ast);
+            let data_array: Array1<f64> = Array1::from(features.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
             let circuit = QuantumEncoder::amplitude_encoding(&data_array);
             // Convert the quantum state back to classical data if needed
             // Placeholder: return an empty vector for now
