@@ -16,7 +16,7 @@ pub enum EncodingMethod {
     Quantum,
 }
 
-pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method: EncodingMethod) -> Vec<f64> {
+pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method: EncodingMethod) -> (Vec<f64>, SimilarityMetric) {
     match method {
         EncodingMethod::Classical => {
             let mut encoded_data = Vec::with_capacity(data.len() * dimension);
@@ -25,7 +25,8 @@ pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method:
                     .map(|transaction| encode_transactional_data(transaction, dimension))
                     .flatten()
             );
-            encoded_data
+            let similarity_metric = select_similarity_metric("numerical_transactional_data");
+            (encoded_data, similarity_metric)
         },
         EncodingMethod::Quantum => {
             let data_str: Vec<String> = data.iter().map(|transaction| transaction.to_string()).collect();
@@ -38,7 +39,7 @@ pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method:
     }
 }
 
-pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method: EncodingMethod) -> Vec<f64> {
+pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method: EncodingMethod) -> (Vec<f64>, SimilarityMetric) {
     match method {
         EncodingMethod::Classical => {
             let tokens = tokenize_smart_contract(contract, n);
@@ -48,7 +49,8 @@ pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method:
 
             // Dimensionality reduction using PCA or similar technique
             let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
-            reduced_vectors.iter().flatten().cloned().collect()
+            let similarity_metric = select_similarity_metric("set_based_representation");
+            (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
         },
         EncodingMethod::Quantum => {
             let tokens = tokenize_smart_contract(contract, n);
@@ -61,7 +63,7 @@ pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method:
     }
 }
 
-pub fn encode_rust_code(code: &str, dimension: usize, method: EncodingMethod) -> Vec<f64> {
+pub fn encode_rust_code(code: &str, dimension: usize, method: EncodingMethod) -> (Vec<f64>, SimilarityMetric) {
     match method {
         EncodingMethod::Classical => {
             let tokens = tokenize_rust_code(code);
@@ -71,7 +73,8 @@ pub fn encode_rust_code(code: &str, dimension: usize, method: EncodingMethod) ->
 
             // Dimensionality reduction using PCA or similar technique
             let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
-            reduced_vectors.iter().flatten().cloned().collect()
+            let similarity_metric = select_similarity_metric("high_dimensional_vector");
+            (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
         },
         EncodingMethod::Quantum => {
             let tokens = tokenize_rust_code(code);
@@ -278,5 +281,19 @@ mod tests {
 
         let encoded_data = StateEncoder::encode_state_data(&state, 128).unwrap();
         assert!(!encoded_data.is_empty());
+    }
+}
+pub enum SimilarityMetric {
+    CosineSimilarity,
+    JaccardSimilarity,
+    EuclideanDistance,
+}
+
+pub fn select_similarity_metric(data_type: &str) -> SimilarityMetric {
+    match data_type {
+        "high_dimensional_vector" => SimilarityMetric::CosineSimilarity,
+        "set_based_representation" => SimilarityMetric::JaccardSimilarity,
+        "numerical_transactional_data" => SimilarityMetric::EuclideanDistance,
+        _ => SimilarityMetric::CosineSimilarity,
     }
 }
