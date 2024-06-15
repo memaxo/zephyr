@@ -15,42 +15,16 @@ pub enum ShardMessage {
         shard_id: u64,
     },
     StateResponse(ShardState),
-    QUPShardBlockProposal(QUPBlock),
-    QUPShardBlockCommit {
-        block_hash: String,
-        signature: QUPSignature,
-    },
-    QUPShardVote(QUPVote),
-    QUPShardUsefulWork(QUPUsefulWork),
-    QKDKeyRequestShard,
-    QKDKeyResponseShard(QKDKey),
-    QKDKeyConfirmationShard,
-    QuantumStateDistributionShard(QuantumState),
-    QuantumStateMeasurementResultsShard(Vec<bool>),
-    ShardSyncRequest {
-        shard_id: u64,
-        sync_hash: String,
-    },
-    ShardSyncResponse {
-        shard_id: u64,
-        sync_data: Vec<u8>,
-    },
-    CrossShardTransactionMessage {
+    CrossShardTransaction {
         transaction: Transaction,
         source_shard_id: u64,
         target_shard_id: u64,
     },
-    ShardBlockProposalMessage {
-        block: Block,
-        shard_id: u64,
+    CrossShardStateUpdate {
+        state_update: ShardState,
+        source_shard_id: u64,
+        target_shard_id: u64,
     },
-    ShardBlockCommitMessage {
-        block_hash: String,
-        shard_id: u64,
-    },
-    RequestModelOutputs(Vec<Vec<f64>>),
-    ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
-    pq_tls_connection: Option<PostQuantumTLSConnection>
 }
 
 impl ShardMessage {
@@ -147,7 +121,7 @@ impl ShardMessageHandler {
         self.send_message(shard_id, message).await
     }
 
-    pub async fn handle_message(&mut self, shard_id: u64, serialized_message: Vec<u8>) {
+    pub async fn handle_message(&mut self, shard_id: u64, serialized_message: Vec<u8>, committee_members: &[String]) {
         if let Some(pq_tls_connection) = &self.pq_tls_connection {
             let serialized_message = pq_tls_connection.receive().await.expect("Failed to receive message over TLS");
             let message = match ShardMessage::deserialize(&serialized_message, &self.crypto) {
@@ -239,6 +213,78 @@ impl ShardMessageHandler {
         }
 
     async fn handle_cross_shard_transaction(
+        &mut self,
+        transaction: Transaction,
+        source_shard_id: u64,
+        target_shard_id: u64,
+        committee_members: &[String],
+    ) {
+        // Validate and process the cross-shard transaction
+        // ...
+
+        // Forward the transaction to the target shard
+        let message = ShardMessage::CrossShardTransaction {
+            transaction,
+            source_shard_id,
+            target_shard_id,
+        };
+        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+    }
+
+    async fn handle_cross_shard_state_update(
+        &mut self,
+        state_update: ShardState,
+        source_shard_id: u64,
+        target_shard_id: u64,
+        committee_members: &[String],
+    ) {
+        // Validate and process the cross-shard state update
+        // ...
+
+        // Forward the state update to the target shard
+        let message = ShardMessage::CrossShardStateUpdate {
+            state_update,
+            source_shard_id,
+            target_shard_id,
+        };
+        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+    }
+
+    async fn route_cross_shard_message(
+        &self,
+        target_shard_id: u64,
+        message: ShardMessage,
+        committee_members: &[String],
+    ) {
+        // Implement the routing mechanism to direct cross-shard messages to the appropriate committee members
+        let target_member = self.select_committee_member(target_shard_id, committee_members);
+        if let Err(e) = self.send_message_to_member(target_member, message).await {
+            error!("Failed to route cross-shard message: {}", e);
+        }
+    }
+
+    fn select_committee_member(&self, shard_id: u64, committee_members: &[String]) -> String {
+        // Implement a round-robin or load-balancing algorithm to select the committee member
+        let index = (shard_id as usize) % committee_members.len();
+        committee_members[index].clone()
+    }
+
+    async fn send_message_to_member(&self, member: String, message: ShardMessage) -> Result<(), NetworkError> {
+        // Ensure secure communication using quantum-resistant encryption and authentication
+        let serialized_message = message.serialize(&self.crypto)?;
+        if let Some(pq_tls_connection) = &self.pq_tls_connection {
+            pq_tls_connection.send(&serialized_message).await.map_err(|e| {
+                NetworkError::MessageSendingFailed(format!(
+                    "Failed to send shard message over TLS: {}",
+                    e
+                ))
+            })?;
+        } else {
+            return Err(NetworkError::MessageSendingFailed(
+                "TLS connection not established".to_string(),
+            ));
+        }
+        Ok(())
         &mut self,
         transaction: Transaction,
         source_shard_id: u64,
