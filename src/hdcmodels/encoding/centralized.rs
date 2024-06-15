@@ -344,6 +344,7 @@ pub enum SimilarityMetric {
     CosineSimilarity,
     JaccardSimilarity,
     EuclideanDistance,
+    WeightedCombination(Vec<(SimilarityMetric, f64)>),
 }
 
 use statrs::statistics::{mean, variance};
@@ -356,6 +357,7 @@ pub fn analyze_data_characteristics(encoded_data: &[f64]) -> (f64, f64) {
 
 pub fn select_similarity_metric(encoded_data: &[f64]) -> SimilarityMetric {
     let (data_mean, data_variance) = analyze_data_characteristics(encoded_data);
+    let sparsity = calculate_sparsity(encoded_data);
 
     if data_variance < 0.1 {
         // Low variance, use Euclidean distance
@@ -363,10 +365,22 @@ pub fn select_similarity_metric(encoded_data: &[f64]) -> SimilarityMetric {
     } else if data_mean > 0.8 {
         // High mean, use Jaccard similarity
         SimilarityMetric::JaccardSimilarity
+    } else if sparsity > 0.5 {
+        // High sparsity, use a weighted combination of metrics
+        SimilarityMetric::WeightedCombination(vec![
+            (SimilarityMetric::CosineSimilarity, 0.5),
+            (SimilarityMetric::JaccardSimilarity, 0.3),
+            (SimilarityMetric::EuclideanDistance, 0.2),
+        ])
     } else {
         // Default to cosine similarity
         SimilarityMetric::CosineSimilarity
     }
+}
+
+fn calculate_sparsity(encoded_data: &[f64]) -> f64 {
+    let zero_count = encoded_data.iter().filter(|&&x| x == 0.0).count();
+    zero_count as f64 / encoded_data.len() as f64
 }
 pub struct ModelEvaluationMetrics {
     pub accuracy: f64,
