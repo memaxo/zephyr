@@ -174,15 +174,43 @@ impl UsefulWorkManager {
     }
 
     pub fn monitor_progress(&self, assignments: Vec<(Node, Problem)>) -> Vec<(Problem, ProgressStatus)> {
-        // 1. Metrics Tracking:
-        // Track progress using the `Metrics` module.
-        // Collect metrics like number of problems solved, solution quality, time taken, resource usage.
+        let mut progress_statuses = Vec::new();
+        let mut status_repository = HashMap::new();
 
-        // 2. Completion Statuses:
-        // Update the status of each problem (e.g., in progress, completed, failed).
+        for (node, problem) in assignments {
+            let start_time = std::time::Instant::now();
+            let mut completed_subtasks = 0;
+            let total_subtasks = problem.subtasks.as_ref().map_or(1, |subtasks| subtasks.len());
 
-        // Placeholder implementation:
-        vec![] // Replace with actual progress tracking logic
+            loop {
+                match self.network.request_progress(&node, &problem) {
+                    Ok(progress) => {
+                        completed_subtasks = progress.completed_subtasks;
+                        let time_elapsed = start_time.elapsed();
+                        let resource_utilization = self.metrics.collect(&node);
+
+                        let completion_percentage = (completed_subtasks as f64 / total_subtasks as f64) * 100.0;
+                        let status = ProgressStatus {
+                            completion_percentage,
+                            time_elapsed,
+                            resource_utilization,
+                        };
+
+                        status_repository.insert(problem.id, status.clone());
+                        progress_statuses.push((problem.clone(), status));
+
+                        if completed_subtasks == total_subtasks {
+                            break;
+                        }
+                    }
+                    Err(_) => {
+                        std::thread::sleep(std::time::Duration::from_secs(5));
+                    }
+                }
+            }
+        }
+
+        progress_statuses
     }
 
     pub fn adapt_problem_selection(&self, progress: Vec<(Problem, ProgressStatus)>) -> Vec<Problem> {
