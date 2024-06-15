@@ -21,7 +21,8 @@ pub enum Message {
     State(Vec<u8>),
     RequestModelOutputs(Vec<Vec<f64>>),
     ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
-    TransactionValidated(Transaction)
+    TransactionValidated(Transaction),
+    UWPSolved(Transaction)
 }
 
 impl Message {

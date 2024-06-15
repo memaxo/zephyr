@@ -563,9 +563,19 @@ impl QUPConsensus {
         let transaction: Transaction = bincode::deserialize(transaction_bytes)
             .map_err(|_| ConsensusError::InvalidTransaction)?;
 
-        // Validate the transaction
-        validate_transaction(&transaction, &self.qup_crypto, &self.state)
-            .map_err(|e| ConsensusError::TransactionValidationError(e.to_string()))?;
+        // Listen for TransactionValidated messages
+        if let Message::TransactionValidated(validated_transaction) = message {
+            // If the transaction contains a UWP, attempt to solve it
+            if let Some(uwp) = &validated_transaction.uwp {
+                let solution = self.solve_useful_work_problem(uwp);
+                let solved_message = NetworkMessage::UWPSolved(validated_transaction.clone());
+                self.network.broadcast(solved_message)?;
+            } else {
+                // If there's no UWP, send the UWPSolved message directly
+                let solved_message = NetworkMessage::UWPSolved(validated_transaction.clone());
+                self.network.broadcast(solved_message)?;
+            }
+        }
 
         // Add the transaction to the transaction pool
         self.transaction_storage.add_transaction(transaction.clone())
