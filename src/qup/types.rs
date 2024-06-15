@@ -1,6 +1,7 @@
 use crate::chain::transaction::Transaction;
 use crate::crypto::hash::Hash;
 use crate::qup::crypto::QUPSignature;
+use crate::token::token_manager::TokenManager;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -18,15 +19,14 @@ pub struct Token {
 
 pub struct QUPState {
     pub tokens: HashMap<String, Token>,
-    pub balances: HashMap<String, HashMap<String, u64>>, // user_id -> (token_symbol -> balance)
+    pub token_manager: TokenManager,
 }
 
 impl QUPState {
     pub fn new() -> Self {
         QUPState {
             tokens: HashMap::new(),
-            balances: HashMap::new(),
-            token_balances: HashMap::new(),
+            token_manager: TokenManager::new(),
         }
     }
 
