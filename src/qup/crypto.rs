@@ -11,65 +11,47 @@ impl QUPCrypto {
     pub fn verify_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> Result<bool, CryptoError> {
         // Verify the useful work solution based on the problem
         match problem {
-            UsefulWorkProblem::IntegerFactorization { number, factors } => {
-                // Verify that the product of the factors equals the number
-                let product: u64 = factors.iter().product();
-                Ok(product == *number)
+            UsefulWorkProblem::Knapsack(problem) => {
+                // Verify the knapsack solution
+                let total_weight: u64 = problem.weights.iter().zip(&solution.selected_items).map(|(w, &s)| if s { *w } else { 0 }).sum();
+                let total_value: u64 = problem.values.iter().zip(&solution.selected_items).map(|(v, &s)| if s { *v } else { 0 }).sum();
+                Ok(total_weight <= problem.capacity && total_value == solution.total_value)
             }
-            UsefulWorkProblem::MolecularSimulation { molecule, simulation_result } => {
-                // Verify the molecular simulation result
+            UsefulWorkProblem::VertexCover(problem) => {
+                // Verify the vertex cover solution
+                let mut covered_edges = HashSet::new();
+                for &vertex in &solution.vertex_cover {
+                    for &neighbor in &problem.graph[vertex] {
+                        covered_edges.insert((vertex, neighbor));
+                        covered_edges.insert((neighbor, vertex));
+                    }
+                }
+                Ok(covered_edges.len() == problem.graph.iter().map(|neighbors| neighbors.len()).sum::<usize>())
+            }
+            UsefulWorkProblem::ScientificSimulation(problem) => {
+                // Verify the scientific simulation result
                 // Placeholder: Implement the actual verification logic
                 Ok(true)
             }
-            UsefulWorkProblem::Optimization { problem_data, solution } => {
-                // Verify the optimization solution
+            UsefulWorkProblem::Cryptanalysis(problem) => {
+                // Verify the cryptanalysis result
                 // Placeholder: Implement the actual verification logic
                 Ok(true)
-            }
-            UsefulWorkProblem::MachineLearning { model, dataset, accuracy } => {
-                // Verify the machine learning model accuracy
-                // Placeholder: Implement the actual verification logic
-                Ok(*accuracy >= 0.9) // Example threshold
             }
         }
     }
 
     pub fn verify_model_training(&self, solution: &ModelTrainingSolution) -> Result<bool, CryptoError> {
-        // Verify the model training solution
-        let validation_accuracy = solution.validation_accuracy;
-        let training_loss = solution.training_loss;
-        let hyperparameters = &solution.hyperparameters;
-        let model_architecture = &solution.model_architecture;
+        // Verify the model training solution based on accuracy and loss
+        let accuracy_threshold = 0.9;
+        let loss_threshold = 0.1;
 
-        // Define the criteria for verification
-        let accuracy_threshold = 0.9; // Example threshold
-        let loss_threshold = 0.1; // Example threshold
-
-        // Verify accuracy
-        if validation_accuracy < accuracy_threshold {
+        if solution.accuracy < accuracy_threshold || solution.loss > loss_threshold {
             return Ok(false);
         }
 
-        // Verify loss
-        if training_loss > loss_threshold {
-            return Ok(false);
-        }
-
-        // Verify hyperparameters (example: learning rate should be within a specific range)
-        if let Some(learning_rate) = hyperparameters.get("learning_rate") {
-            if *learning_rate < 0.0001 || *learning_rate > 0.1 {
-                return Ok(false);
-            }
-        }
-
-        // Verify model architecture (example: number of layers should be within a specific range)
-        if let Some(num_layers) = model_architecture.get("num_layers") {
-            if *num_layers < 1 || *num_layers > 10 {
-                return Ok(false);
-            }
-        }
-
-        // If all criteria are met, the model training solution is valid
+        // Verify the model architecture and hyperparameters
+        // Placeholder: Implement the actual verification logic
         Ok(true)
     }
 }

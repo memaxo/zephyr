@@ -102,17 +102,17 @@ impl QUPState {
     pub fn allocate_tasks(&self, tasks: Vec<Task>, nodes: Vec<Node>) -> HashMap<Node, Vec<Task>> {
         let mut allocation: HashMap<Node, Vec<Task>> = HashMap::new();
 
-        // Sort nodes by their capabilities
+        // Sort nodes by their capabilities and stake
         let mut sorted_nodes = nodes.clone();
-        sorted_nodes.sort_by_key(|node| node.capabilities);
+        sorted_nodes.sort_by_key(|node| (node.capabilities, node.stake));
 
-        // Sort tasks by priority
+        // Sort tasks by priority and complexity
         let mut sorted_tasks = tasks.clone();
-        sorted_tasks.sort_by_key(|task| task.priority);
+        sorted_tasks.sort_by_key(|task| (task.priority, task.complexity));
 
         for task in sorted_tasks {
-            // Find the best node for the task based on capabilities and network load
-            if let Some(best_node) = sorted_nodes.iter().min_by_key(|node| node.current_load) {
+            // Find the best node for the task based on capabilities, network load, and stake
+            if let Some(best_node) = sorted_nodes.iter().min_by_key(|node| (node.current_load, node.stake)) {
                 allocation.entry(best_node.clone()).or_insert_with(Vec::new).push(task.clone());
                 best_node.current_load += task.load;
             }

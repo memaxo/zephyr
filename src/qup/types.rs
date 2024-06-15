@@ -538,14 +538,30 @@ impl SecurityThreats {
     pub fn measure_threats(&mut self, network_state: &NetworkState) {
         self.network_attack_rate = network_state.get_network_attack_rate();
         self.spam_transaction_rate = network_state.get_spam_transaction_rate();
-        // Placeholder: Implement logic to measure quantum attack risk
-        self.quantum_attack_risk = 0.1;
-        // Placeholder: Implement logic to measure sybil attack risk
-        self.sybil_attack_risk = 0.2;
-        // Placeholder: Implement logic to measure double-spending risk
-        self.double_spending_risk = 0.05;
-        // Placeholder: Implement logic to measure DoS attack risk
-        self.dos_attack_risk = 0.3;
+        self.quantum_attack_risk = self.measure_quantum_attack_risk();
+        self.sybil_attack_risk = self.measure_sybil_attack_risk();
+        self.double_spending_risk = self.measure_double_spending_risk();
+        self.dos_attack_risk = self.measure_dos_attack_risk();
+    }
+
+    fn measure_quantum_attack_risk(&self) -> f64 {
+        // Implement logic to measure quantum attack risk
+        0.1 // Placeholder
+    }
+
+    fn measure_sybil_attack_risk(&self) -> f64 {
+        // Implement logic to measure sybil attack risk
+        0.2 // Placeholder
+    }
+
+    fn measure_double_spending_risk(&self) -> f64 {
+        // Implement logic to measure double-spending risk
+        0.05 // Placeholder
+    }
+
+    fn measure_dos_attack_risk(&self) -> f64 {
+        // Implement logic to measure DoS attack risk
+        0.3 // Placeholder
     }
 
     pub fn mitigate_threats(&self, qup_crypto: &QUPCrypto, state: &mut QUPState) {

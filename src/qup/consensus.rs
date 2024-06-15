@@ -32,9 +32,9 @@ use crate::zkp::zk_starks::ZkStarksProof;
 use crate::zkp::crypto::verify_quantum_merkle_proof;
 
 pub enum ConsensusAlgorithm {
-    Standard,
-    Efficient,
-    Secure,
+    QUP,
+    BFT,
+    HDC,
 }
 
 impl ConsensusAlgorithm {
