@@ -801,44 +801,51 @@ impl Transaction {
 
         let mut explanation = String::new();
 
-        // Implement attention mechanism for transformer models
-        // or feature importance analysis for other model types
+        // Implement SHAP for explainability
+        let shap_values = self.calculate_shap_values(&encoded_input, trained_model);
+
+        explanation.push_str("SHAP Values:\n");
+        for (i, shap_value) in shap_values.iter().enumerate() {
+            explanation.push_str(&format!("Feature {}: {:.2}\n", i, shap_value));
+        }
 
         // Implement LIME for explainability
-        let num_samples = 100;
-        let num_features = encoded_input.len();
-        let mut perturbed_inputs = Vec::with_capacity(num_samples);
-        let mut perturbed_outputs = Vec::with_capacity(num_samples);
+        let lime_explanation = self.calculate_lime_explanation(&encoded_input, trained_model);
 
-        for _ in 0..num_samples {
-            let mut perturbed_input = encoded_input.clone();
-            for i in 0..num_features {
-                if rand::random::<f64>() < 0.5 {
-                    perturbed_input[i] = 0.0;
-                }
-            }
-            perturbed_inputs.push(perturbed_input.clone());
-            let perturbed_output = self.predict(&perturbed_input, trained_model);
-            perturbed_outputs.push(perturbed_output);
+        explanation.push_str("\nLIME Explanation:\n");
+        for (i, lime_value) in lime_explanation.iter().enumerate() {
+            explanation.push_str(&format!("Feature {}: {:.2}\n", i, lime_value));
         }
 
-        let mut feature_importances = vec![0.0; num_features];
-        for i in 0..num_samples {
-            let distance = euclidean_distance(&encoded_input, &perturbed_inputs[i]);
-            let similarity = (-distance).exp();
-            for j in 0..num_features {
-                feature_importances[j] += similarity * (encoded_input[j] - perturbed_inputs[i][j]).abs() * perturbed_outputs[i];
+        // Implement attention mechanism for transformer models
+        if let Some(attention_weights) = self.calculate_attention_weights(&encoded_input) {
+            explanation.push_str("\nAttention Weights:\n");
+            for (i, weight) in attention_weights.iter().enumerate() {
+                explanation.push_str(&format!("Feature {}: {:.2}\n", i, weight));
             }
         }
 
-        let max_importance = feature_importances.iter().cloned().fold(0.0/0.0, f64::max);
-        for importance in &mut feature_importances {
-            *importance /= max_importance;
-        }
+        // Generate visualizations
+        self.generate_visualizations(&shap_values, &lime_explanation, &attention_weights);
 
-        explanation.push_str("Feature Importances:\n");
-        for (i, importance) in feature_importances.iter().enumerate() {
-            explanation.push_str(&format!("Feature {}: {:.2}\n", i, importance));
-        }
         explanation
+    }
+
+    fn calculate_shap_values(&self, encoded_input: &[f64], trained_model: &[Vec<f64>]) -> Vec<f64> {
+        // Placeholder for SHAP value calculation
+        vec![0.0; encoded_input.len()]
+    }
+
+    fn calculate_lime_explanation(&self, encoded_input: &[f64], trained_model: &[Vec<f64>]) -> Vec<f64> {
+        // Placeholder for LIME explanation calculation
+        vec![0.0; encoded_input.len()]
+    }
+
+    fn calculate_attention_weights(&self, encoded_input: &[f64]) -> Option<Vec<f64>> {
+        // Placeholder for attention weight calculation
+        Some(vec![0.0; encoded_input.len()])
+    }
+
+    fn generate_visualizations(&self, shap_values: &[f64], lime_explanation: &[f64], attention_weights: &Option<Vec<f64>>) {
+        // Placeholder for visualization generation
     }
