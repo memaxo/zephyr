@@ -7,6 +7,7 @@ use crate::ufw::types::{
     GraphColoringProblem,
     ModelTrainingProblem,
     Reputation,
+    Subtask,
 };
 use rand::Rng;
 use reqwest::Client;
@@ -36,6 +37,45 @@ pub struct UsefulWorkGenerator {
     }
 
 impl UsefulWorkGenerator {
+    pub fn generate_problem(&self, domain: &str, difficulty: u8) -> (UsefulWorkProblem, Vec<Subtask>) {
+        let problem_data = self.generate(domain, difficulty);
+
+        if let Some(subtask_data) = self.identify_decomposition_opportunities(&problem_data) {
+            let subtasks = self.create_subtasks(&subtask_data);
+
+            let problem = UsefulWorkProblem {
+                id: Uuid::new_v4(),
+                domain: domain.to_string(),
+                difficulty,
+                data: problem_data,
+                subtasks: Some(subtasks.clone()),
+            };
+
+            (problem, subtasks)
+        } else {
+            let problem = UsefulWorkProblem {
+                id: Uuid::new_v4(),
+                domain: domain.to_string(),
+                difficulty,
+                data: problem_data,
+                subtasks: None,
+            };
+
+            (problem, Vec::new())
+        }
+    }
+
+    fn identify_decomposition_opportunities(&self, problem_data: &UsefulWorkProblem) -> Option<Vec<Subtask>> {
+        // Placeholder implementation for identifying decomposition opportunities
+        // Replace with actual logic to identify potential subtasks
+        None
+    }
+
+    fn create_subtasks(&self, subtask_data: &Vec<Subtask>) -> Vec<Subtask> {
+        // Placeholder implementation for creating subtasks
+        // Replace with actual logic to create subtasks from subtask data
+        subtask_data.clone()
+    }
     pub fn generate(&self, problem_type: &str, difficulty: u32) -> UsefulWorkProblem {
         match problem_type {
             "knapsack" => self.generate_knapsack_problem(difficulty),
