@@ -314,39 +314,62 @@ impl Sharding {
     pub async fn handle_cross_shard_transaction(&self, transaction: Transaction) -> Result<(), ShardingError> {
         info!("Handling cross-shard transaction...");
 
-        // Identify the destination shard(s) based on the transaction's recipients
-        let virtual_shard_id = self.calculate_virtual_shard_for_transaction(&transaction)?;
-        let shard_id = self.get_physical_shard_id(virtual_shard_id).await?;
-        let shards = self.shards.read().await;
+        // Identify the involved shards based on the transaction's recipients
+        let involved_shards = self.identify_involved_shards(&transaction).await?;
 
-        if let Some(shard) = shards.get(&shard_id) {
-            let encrypted_transaction = self
-                .qup_crypto
-                .encrypt_transaction(&transaction)
-                .map_err(|e| ShardingError::TransactionEncryptionError(e.to_string()))?;
-
-            // Implement two-phase commit protocol
-            self.initiate_two_phase_commit(shard_id, encrypted_transaction).await?;
-            Ok(())
-        } else {
-            Err(ShardingError::ShardNotFound(shard_id))
+        // Lock all involved shards
+        for &shard_id in &involved_shards {
+            self.lock_shard(shard_id).await?;
         }
+
+        // Implement two-phase commit protocol
+        let result = self.initiate_two_phase_commit(&transaction, involved_shards.clone()).await;
+
+        // Unlock all involved shards
+        for &shard_id in &involved_shards {
+            self.unlock_shard(shard_id).await?;
+        }
+
+        result
     }
 
-    async fn initiate_two_phase_commit(&self, shard_id: u64, encrypted_transaction: Vec<u8>) -> Result<(), ShardingError> {
-        // Send Prepare message to all involved shards
-        let prepare_message = ShardMessage::PrepareTransaction { transaction: encrypted_transaction.clone() };
-        self.send_message(shard_id, prepare_message).await?;
+    async fn identify_involved_shards(&self, transaction: &Transaction) -> Result<Vec<u64>, ShardingError> {
+        // Implement logic to identify all involved shards based on the transaction's recipients
+        // For now, we'll just return a vector with a single shard ID
+        let virtual_shard_id = self.calculate_virtual_shard_for_transaction(transaction)?;
+        let shard_id = self.get_physical_shard_id(virtual_shard_id).await?;
+        Ok(vec![shard_id])
+    }
 
-        // Wait for acknowledgments
-        let ack_received = self.wait_for_acknowledgments(shard_id).await?;
-        if !ack_received {
-            return Err(ShardingError::MessageSendingFailed("Failed to receive acknowledgments for Prepare message".to_string()));
+    async fn initiate_two_phase_commit(&self, transaction: &Transaction, involved_shards: Vec<u64>) -> Result<(), ShardingError> {
+        // Prepare phase
+        for &shard_id in &involved_shards {
+            let prepare_message = ShardMessage::PrepareTransaction { transaction: transaction.clone() };
+            self.send_message(shard_id, prepare_message).await?;
         }
 
-        // Send Commit message to finalize the transaction on all shards
-        let commit_message = ShardMessage::CommitTransaction { transaction: encrypted_transaction };
-        self.send_message(shard_id, commit_message).await?;
+        // Wait for acknowledgments
+        let mut acks = Vec::new();
+        for &shard_id in &involved_shards {
+            let ack = self.wait_for_acknowledgments(shard_id).await?;
+            acks.push(ack);
+        }
+
+        // Check if all shards are ready to commit
+        if acks.iter().all(|&ack| ack) {
+            // Commit phase
+            for &shard_id in &involved_shards {
+                let commit_message = ShardMessage::CommitTransaction { transaction: transaction.clone() };
+                self.send_message(shard_id, commit_message).await?;
+            }
+        } else {
+            // Abort phase
+            for &shard_id in &involved_shards {
+                let abort_message = ShardMessage::AbortTransaction { transaction: transaction.clone() };
+                self.send_message(shard_id, abort_message).await?;
+            }
+            return Err(ShardingError::MessageSendingFailed("Failed to receive acknowledgments for Prepare message".to_string()));
+        }
 
         Ok(())
     }
@@ -356,6 +379,26 @@ impl Sharding {
         // For now, we'll just simulate the acknowledgment process
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         Ok(true)
+    }
+
+    async fn lock_shard(&self, shard_id: u64) -> Result<(), ShardingError> {
+        let shards = self.shards.read().await;
+        if let Some(shard) = shards.get(&shard_id) {
+            shard.lock().await;
+            Ok(())
+        } else {
+            Err(ShardingError::ShardNotFound(shard_id))
+        }
+    }
+
+    async fn unlock_shard(&self, shard_id: u64) -> Result<(), ShardingError> {
+        let shards = self.shards.read().await;
+        if let Some(shard) = shards.get(&shard_id) {
+            shard.unlock().await;
+            Ok(())
+        } else {
+            Err(ShardingError::ShardNotFound(shard_id))
+        }
     }
 
 
