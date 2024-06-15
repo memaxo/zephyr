@@ -179,19 +179,46 @@ impl QUPConsensus {
             return Err(ConsensusError::InvalidBlock);
         }
 
+        // Calculate utility points based on the transaction's ContributionType
+        for transaction in &block.transactions {
+            match &transaction.contribution_type {
+                ContributionType::UsefulWork(problem) => {
+                    let difficulty = calculate_problem_difficulty(problem);
+                    let utility_points = difficulty * self.config.useful_work_reward_multiplier;
+                    transaction.utility_points = utility_points;
+                }
+                ContributionType::ModelTraining(solution) => {
+                    let utility_points = calculate_model_training_up(solution, &self.state);
+                    transaction.utility_points = utility_points;
+                }
+            }
+        }
+
+        // Validate the proof/result using the appropriate method from QUPCrypto
+        for transaction in &block.transactions {
+            match &transaction.contribution_type {
+                ContributionType::UsefulWork(problem) => {
+                    if let Some(solution) = &transaction.contribution_solution {
+                        if !self.qup_crypto.verify_useful_work(problem, solution)? {
+                            return Err(ConsensusError::InvalidProof);
+                        }
+                    }
+                }
+                ContributionType::ModelTraining(solution) => {
+                    if !self.qup_crypto.verify_model_training(solution)? {
+                        return Err(ConsensusError::InvalidProof);
+                    }
+                }
+            }
+        }
+
         // Add the block to the local pool of proposed blocks
         self.state.add_proposed_block(block.clone())?;
 
         // Check if the block has reached quorum within the shard
         if self.state.has_quorum_within_shard(shard_id, &block.hash())? {
             // Participate in the global consensus process
-            let consensus_algorithm = self.security_manager.determine_consensus_algorithm(&self.state)?;
-
-            match consensus_algorithm {
-                ConsensusAlgorithm::Efficient => self.process_propose_efficient(shard_id, block),
-                ConsensusAlgorithm::Secure => self.process_propose_secure(shard_id, block),
-                ConsensusAlgorithm::Standard => self.process_propose_standard(shard_id, block),
-            }
+            self.process_propose_common(shard_id, block)
         } else {
             Ok(())
         }
@@ -257,62 +284,6 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn process_propose_efficient(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
-        self.process_propose_common(shard_id, &block)?;
-
-        // Use a more efficient consensus algorithm under high load
-        // For example, we can use a simplified voting mechanism
-        let vote = self.cast_vote(block.hash())?;
-        self.state.add_vote(vote.clone())?;
-
-        // Check if the block has reached quorum
-        if self.state.has_quorum(&block.hash())? {
-            self.commit_block(block)?;
-        }
-
-        Ok(())
-    }
-
-    fn process_propose_secure(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
-        self.process_propose_common(shard_id, &block)?;
-
-        // Generate history proof
-        let history_proof = self.generate_history_proof();
-
-        // Add history proof to the block
-        block.history_proof = history_proof;
-
-        // Generate useful work problem and solution
-        let useful_work_problem = self.generate_useful_work_problem();
-        let useful_work_solution = self.solve_useful_work_problem(&useful_work_problem);
-
-        // Validate the useful work solution
-        if !self.validate_uwp_solution(&useful_work_solution)? {
-            return Err(ConsensusError::InvalidUsefulWorkSolution);
-        }
-
-        // Generate proof of useful work
-        let useful_work_proof = self.generate_useful_work_proof(&useful_work_solution);
-
-        // Add useful work problem, solution, proof, and history proof to the block
-        block.useful_work_problem = Some(useful_work_problem);
-        block.useful_work_solution = Some(useful_work_solution);
-        block.useful_work_proof = Some(useful_work_proof);
-        block.history_proof = history_proof;
-
-        // Broadcast the block to other validators
-        let message = NetworkMessage::BlockProposal {
-            block: bincode::serialize(&block).unwrap(),
-            signature: sign_data(&bincode::serialize(&block).unwrap(), &self.key_pair).unwrap(),
-            sampled_model_outputs: block.sampled_model_outputs.clone(),
-        };
-        self.network.broadcast(message)?;
-
-        // Add the block to the local pool of proposed blocks
-        self.state.add_proposed_block(block)?;
-
-        Ok(())
-    }
 
     fn process_propose_common(&self, shard_id: u64, block: &QUPBlock) -> Result<(), ConsensusError> {
         // Validate the block
@@ -350,6 +321,11 @@ impl QUPConsensus {
         // Check if the block has reached supermajority
         if self.state.has_supermajority(&vote.block_hash)? {
             let block = self.state.get_proposed_block(&vote.block_hash)?;
+            
+            // Calculate the total utility points for the block
+            let total_utility_points: u64 = block.transactions.iter().map(|tx| tx.utility_points).sum();
+            block.utility_points = total_utility_points;
+
             self.commit_block(block)?;
         }
 
@@ -377,8 +353,8 @@ impl QUPConsensus {
         // Apply the block to the state
         self.state.apply_block(&block)?;
     
-        // Distribute rewards to validators and delegators
-        self.distribute_rewards(&block)?;
+        // Distribute rewards based on utility points
+        self.distribute_rewards_up(&block)?;
     
         // Optimize the block using the HDC model
         let optimized_block = self.hdc_model.optimize_block(&block);
