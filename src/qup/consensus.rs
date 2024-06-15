@@ -211,6 +211,11 @@ impl QUPConsensus {
         let useful_work_problem = self.generate_useful_work_problem();
         let useful_work_solution = self.solve_useful_work_problem(&useful_work_problem);
 
+        // Validate the useful work solution
+        if !self.validate_uwp_solution(&useful_work_solution)? {
+            return Err(ConsensusError::InvalidUsefulWorkSolution);
+        }
+
         // Generate proof of useful work
         let useful_work_proof = self.generate_useful_work_proof(&useful_work_solution);
 
@@ -356,8 +361,7 @@ impl QUPConsensus {
             return Ok(false);
         }
         if let Some(useful_work_solution) = &block.useful_work_solution {
-            let proof = ZkStarksProof::new(vec![useful_work_solution.clone()]);
-            if !self.verify_zkp(&proof) {
+            if !self.validate_uwp_solution(useful_work_solution)? {
                 return Ok(false);
             }
         }
@@ -385,6 +389,35 @@ impl QUPConsensus {
         // ...
 
         Ok(is_valid)
+    }
+
+    fn validate_uwp_solution(&self, solution: &UsefulWorkSolution) -> Result<bool, ConsensusError> {
+        // Validate the UWP solution based on metrics and thresholds
+        let solution_quality = self.evaluate_solution_quality(solution);
+        let computation_time = solution.computation_time;
+        let resource_usage = solution.resource_usage;
+
+        let min_solution_quality = self.config.min_solution_quality;
+        let max_computation_time = self.config.max_computation_time;
+        let max_resource_usage = self.config.max_resource_usage;
+
+        if solution_quality < min_solution_quality {
+            return Ok(false);
+        }
+        if computation_time > max_computation_time {
+            return Ok(false);
+        }
+        if resource_usage > max_resource_usage {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
+    fn evaluate_solution_quality(&self, solution: &UsefulWorkSolution) -> f64 {
+        // Placeholder for actual solution quality evaluation logic
+        // Example: Calculate the total value of a knapsack solution
+        solution.quality
     }
 
     fn slash_validator(&mut self, validator: &str) -> Result<(), ConsensusError> {
