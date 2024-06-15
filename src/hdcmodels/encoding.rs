@@ -31,6 +31,8 @@ pub fn encode_natural_language(text: &str, dimension: usize) -> Vec<f64> {
     vec![0.0; dimension] // Placeholder
 }
 
+use smart_contract_optimizer::{optimize_gas, optimize_bytecode};
+
 // Smart Contract Encoding
 pub fn encode_smart_contract(contract: &str, dimension: usize) -> Vec<f64> {
     // 1. Tokenize contract using domain-specific tokenizer for smart contract language
@@ -38,7 +40,15 @@ pub fn encode_smart_contract(contract: &str, dimension: usize) -> Vec<f64> {
     // 3. Perform control flow analysis to identify execution paths
     // 4. Combine token embeddings, function features, and control flow patterns
     // 5. Perform dimensionality reduction to get final encoding vector
-    vec![0.0; dimension] // Placeholder
+    let mut encoded_contract = vec![0.0; dimension]; // Placeholder
+
+    // Gas optimization
+    encoded_contract = optimize_gas(encoded_contract);
+
+    // Bytecode optimization
+    encoded_contract = optimize_bytecode(encoded_contract);
+
+    encoded_contract
 }
 
 // Transactional Data Encoding

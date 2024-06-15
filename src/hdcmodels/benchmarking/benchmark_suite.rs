@@ -72,6 +72,8 @@ pub struct Dataset {
     pub data: Vec<(Vec<f64>, String)>,
 }
 
+use plotters::prelude::*;
+
 impl Dataset {
     pub fn load(id: &str) -> Self {
         let data = load_dataset(id);
@@ -87,5 +89,77 @@ impl Dataset {
 
     pub fn iter(&self) -> std::slice::Iter<(Vec<f64>, String)> {
         self.data.iter()
+    }
+}
+
+pub struct BenchmarkReport {
+    accuracy: f64,
+    precision: f64,
+    recall: f64,
+    f1_score: f64,
+    throughput: f64,
+    latency: f64,
+    memory_usage: f64,
+    energy_consumption: f64,
+}
+
+impl BenchmarkReport {
+    pub fn new() -> Self {
+        BenchmarkReport {
+            accuracy: 0.0,
+            precision: 0.0,
+            recall: 0.0,
+            f1_score: 0.0,
+            throughput: 0.0,
+            latency: 0.0,
+            memory_usage: 0.0,
+            energy_consumption: 0.0,
+        }
+    }
+
+    pub fn generate_report(&self) {
+        println!("Accuracy: {}", self.accuracy);
+        println!("Precision: {}", self.precision);
+        println!("Recall: {}", self.recall);
+        println!("F1-Score: {}", self.f1_score);
+        println!("Throughput: {}", self.throughput);
+        println!("Latency: {}", self.latency);
+        println!("Memory Usage: {}", self.memory_usage);
+        println!("Energy Consumption: {}", self.energy_consumption);
+    }
+
+    pub fn visualize(&self) {
+        let root = BitMapBackend::new("benchmark_report.png", (640, 480)).into_drawing_area();
+        root.fill(&WHITE).unwrap();
+
+        let mut chart = ChartBuilder::on(&root)
+            .caption("Benchmark Report", ("sans-serif", 50).into_font())
+            .margin(5)
+            .x_label_area_size(30)
+            .y_label_area_size(30)
+            .build_cartesian_2d(0..8, 0.0..1.0)
+            .unwrap();
+
+        chart.configure_mesh().draw().unwrap();
+
+        chart
+            .draw_series(LineSeries::new(
+                vec![
+                    (0, self.accuracy),
+                    (1, self.precision),
+                    (2, self.recall),
+                    (3, self.f1_score),
+                    (4, self.throughput),
+                    (5, self.latency),
+                    (6, self.memory_usage),
+                    (7, self.energy_consumption),
+                ],
+                &RED,
+            ))
+            .unwrap()
+            .label("Metrics")
+            .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+
+        chart.configure_series_labels().background_style(&WHITE.mix(0.8)).draw().unwrap();
     }
 }
