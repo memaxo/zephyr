@@ -72,7 +72,15 @@ pub enum ShardError {
             memory_usage,
             transaction_volume,
             network_bandwidth,
-        }
+            ShardMessage::StateUpdate { state } => {
+                if let Err(e) = self.verify_snapshot(&state, "global_merkle_root") {
+                    error!("Failed to verify state update: {}", e);
+                } else {
+                    let decompressed_state = self.decompress_state(&state).unwrap();
+                    let mut transactions = self.transactions.write().unwrap();
+                    self.merge_state(&mut transactions, decompressed_state);
+                }
+            }
     }
 
     fn calculate_network_bandwidth(&self) -> f64 {
@@ -566,43 +574,39 @@ impl Shard {
     }
 
     async fn synchronize_state(&self) {
-        let network_load = self.calculate_network_load();
-        let state_change_rate = self.calculate_state_change_rate();
-
-        // Determine synchronization frequency based on network load and state change rate
-        let sync_frequency = self.determine_sync_frequency(network_load, state_change_rate);
-
-        // Schedule state synchronization
-        let mut interval = tokio::time::interval(sync_frequency);
+        let mut interval = tokio::time::interval(Duration::from_secs(60)); // Example interval, adjust as needed
         loop {
             interval.tick().await;
-            self.perform_state_synchronization().await;
+            self.gossip_state().await;
         }
-        let shard_states: Vec<ShardState> = futures::future::join_all(self.shard_channels.iter().map(|(&shard_id, tx)| {
-            let request = ShardMessage::StateRequest { shard_id: self.shard_id };
-            let message = NetworkMessage::ShardMessage(request);
-            tx.send(message).then(|result| async {
-                match result {
-                    Ok(_) => {
-                        match self.incoming_messages.recv().await {
-                            Some(NetworkMessage::ShardMessage(ShardMessage::StateResponse(state))) => Ok(state),
-                            Some(_) => Err(ShardError::MessageSendError("Unexpected response type".to_string())),
-                            None => Err(ShardError::MessageSendError("Failed to receive state response".to_string())),
-                        }
-                    },
-                    Err(e) => Err(ShardError::MessageSendError(format!("Failed to send state request: {}", e))),
-                }
-            })
-        })).await.into_iter().filter_map(Result::ok).collect();
+    }
 
-        let mut transactions = self.transactions.write().map_err(|_| ShardError::SerializationError("Failed to acquire write lock for transactions".to_string())).unwrap();
-        for state in shard_states {
-            if state.shard_id != self.shard_id {
-                self.merge_state(&mut transactions, state);
+    async fn gossip_state(&self) {
+        // Push local state to replicas
+        self.push_state_to_replicas().await;
+
+        // Pull state from other replicas
+        self.pull_state_from_replicas().await;
+    }
+
+    async fn push_state_to_replicas(&self) {
+        let local_state = self.create_snapshot().await.unwrap();
+        for (_, sender) in &self.shard_channels {
+            let message = NetworkMessage::ShardMessage(ShardMessage::StateUpdate { state: local_state.clone() });
+            if let Err(e) = sender.send(message).await {
+                error!("Failed to push state to replica: {}", e);
             }
         }
+    }
 
-        info!("State synchronization completed for shard {}", self.shard_id);
+    async fn pull_state_from_replicas(&self) {
+        for (_, sender) in &self.shard_channels {
+            let request = ShardMessage::StateRequest { shard_id: self.shard_id };
+            let message = NetworkMessage::ShardMessage(request);
+            if let Err(e) = sender.send(message).await {
+                error!("Failed to request state from replica: {}", e);
+            }
+        }
     }
 
 

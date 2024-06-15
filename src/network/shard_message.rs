@@ -28,15 +28,8 @@ pub enum ShardMessage {
         target_shard_id: u64,
         signature: Vec<u8>,
     },
-    CrossShardTransaction {
-        transaction: Transaction,
-        source_shard_id: u64,
-        target_shard_id: u64,
-    },
-    CrossShardStateUpdate {
-        state_update: ShardState,
-        source_shard_id: u64,
-        target_shard_id: u64,
+    StateUpdate {
+        state: CompressedShardState,
     },
     ShardReassignment {
         old_shard_id: u64,
