@@ -282,8 +282,8 @@ impl NetworkManager {
         Ok(())
     }
 
-    fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
-        while let Some(message) = self.message_receiver.recv() {
+    async fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
+        while let Some(message) = self.message_receiver.recv().await {
             match message {
                 Message::SignedMessage { message, signature } => {
                     // Verify the message signature using post-quantum cryptography
@@ -294,12 +294,19 @@ impl NetworkManager {
                     // Process the verified message based on its type
                     match message {
                         Message::TransactionBroadcast(transaction) => {
-                            // Handle transaction broadcast
-                            // ...
+                            self.route_to_pipeline_stage("Transaction", message).await?;
                         }
                         Message::BlockBroadcast(block) => {
-                            // Handle block broadcast
-                            // ...
+                            self.route_to_pipeline_stage("Block", message).await?;
+                        }
+                        Message::TransactionValidated(transaction) => {
+                            self.route_to_pipeline_stage("Validation", message).await?;
+                        }
+                        Message::UWPSolved(transaction) => {
+                            self.route_to_pipeline_stage("UWP", message).await?;
+                        }
+                        Message::ContractExecuted(transaction, state) => {
+                            self.route_to_pipeline_stage("Contract", message).await?;
                         }
                         // Handle other message types
                         // ...
@@ -320,6 +327,20 @@ impl NetworkManager {
             }
         }
         Ok(())
+    }
+
+    async fn route_to_pipeline_stage(&self, stage: &str, message: Message) -> Result<(), NetworkError> {
+        // Implement load balancing and fault tolerance mechanisms
+        let peers = self.peers.read().await;
+        let available_peers: Vec<&Peer> = peers.values().filter(|peer| peer.is_available()).collect();
+
+        if available_peers.is_empty() {
+            return Err(NetworkError::NoAvailablePeers);
+        }
+
+        // Simple round-robin load balancing
+        let peer = available_peers.iter().cycle().next().unwrap();
+        peer.send(message).await.map_err(|e| NetworkError::MessageSendError(e.to_string()))
     }
         async fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
             while let Some(message) = self.message_receiver.recv().await {
