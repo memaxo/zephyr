@@ -87,6 +87,11 @@ pub trait UsefulWorkSolutionTrait {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ContributionType {
+    UsefulWork(UsefulWorkProblem),
+    ModelTraining(ModelTrainingProblem),
+}
+
 pub enum UsefulWorkProblem {
     // Optimization problems
     Knapsack(KnapsackProblem),
@@ -100,19 +105,12 @@ pub enum UsefulWorkProblem {
     MarketEquilibrium(MarketEquilibriumProblem),
     SupplyChainOptimization(SupplyChainProblem),
 
-    // Graph problems
+    // Graph problems 
     MaximumFlow(MaximumFlowProblem),
     ShortestPath(ShortestPathProblem),
     MinimumSpanningTree(MinimumSpanningTreeProblem),
     GraphColoring(GraphColoringProblem),
     NetworkFlow(NetworkFlowProblem),
-
-    // Machine learning problems
-    ModelTraining(ModelTrainingProblem),
-    HyperparameterTuning(HyperparameterTuningProblem),
-    FeatureSelection(FeatureSelectionProblem),
-    DataClustering(DataClusteringProblem),
-    AnomalyDetection(AnomalyDetectionProblem),
 
     // Scientific computing problems
     MatrixFactorization(MatrixFactorizationProblem),
@@ -212,6 +210,12 @@ pub struct VertexCoverProblem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ContributionSolution {
+    UsefulWork(UsefulWorkSolution),
+    ModelTraining(ModelTrainingSolution),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UsefulWorkSolution {
     Knapsack(KnapsackSolution),
     VertexCover(VertexCoverSolution),
@@ -226,6 +230,14 @@ pub enum UsefulWorkSolution {
     PortfolioOptimization(PortfolioOptimizationSolution),
     MarketEquilibrium(MarketEquilibriumSolution),
     // Add more useful work solution types as needed
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelTrainingSolution {
+    pub model_id: String,
+    pub model_parameters: Vec<f64>,
+    pub training_dataset_hash: Hash,
+    pub test_accuracy: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -254,6 +266,7 @@ pub struct QUPTransaction {
     pub to: Vec<u8>,
     pub amount: u64,
     pub signature: QUPSignature,
+    pub contribution_type: ContributionType,
     // Add more transaction-specific fields as needed
 }
 
@@ -270,10 +283,11 @@ pub struct QUPBlock {
     pub transactions: Vec<QUPTransaction>,
     pub votes: Vec<QUPVote>,
     pub aggregated_model: Option<HDCModel>,
-    pub useful_work_solution: Option<UsefulWorkSolution>,
-    pub useful_work_proof: Option<Vec<u8>>,
+    pub contribution_solution: Option<ContributionSolution>,
+    pub contribution_proof: Option<Vec<u8>>,
     pub history_proof: Vec<Hash>,
     pub sampled_model_outputs: Vec<(Vec<f64>, Vec<f64>)>, // (input, output) pairs
+    pub utility_points: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
