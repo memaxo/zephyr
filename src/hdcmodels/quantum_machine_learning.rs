@@ -71,10 +71,15 @@ impl QuantumMachineLearningOptimizer {
     }
 
     fn extract_solution(&self, quantum_weights: &Array2<Complex<f64>>) -> Vec<f64> {
-        // Extract the solution from the optimized quantum weights
-        // This may involve measuring the quantum state or applying a decoding scheme
-        // You need to implement this based on the specific problem and the HDC model
+        // For a classification problem, we can assume that the solution is a label.
+        // We will decode the quantum weights to obtain the label.
+        // This is a placeholder implementation and should be replaced with the actual decoding logic.
 
-        vec![0.0; self.num_qubits]
+        let mut solution = Vec::new();
+        for i in 0..self.num_qubits {
+            let weight_sum: f64 = quantum_weights.row(i).map(|c| c.re).sum();
+            solution.push(if weight_sum > 0.0 { 1.0 } else { 0.0 });
+        }
+        solution
     }
 }
