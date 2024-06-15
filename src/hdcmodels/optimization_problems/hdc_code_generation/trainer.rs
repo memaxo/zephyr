@@ -1,8 +1,8 @@
 use crate::hdcmodels::optimization_problems::hdc_code_generation::model::CodeGenerationModel;
 use crate::hdcmodels::Dataset;
 use crate::hdcmodels::optimization_problems::hdc_code_generation::optimizer::Optimizer;
-use std::fs::File;
-use std::io::{self, Write};
+use std::fs::{File, OpenOptions};
+use std::io::{self, Write, Read};
 
 pub struct Trainer {
     model: CodeGenerationModel,
