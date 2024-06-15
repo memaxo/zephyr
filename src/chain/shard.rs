@@ -184,6 +184,11 @@ impl Shard {
                     debug!("Received unsupported network message type");
                 }
             }
+            ShardMessage::CrossShardTransaction { transaction, source_shard_id, target_shard_id } => {
+                self.handle_cross_shard_transaction(transaction, source_shard_id, target_shard_id, committee_members).await;
+            }
+            ShardMessage::CrossShardStateUpdate { state_update, source_shard_id, target_shard_id } => {
+                self.handle_cross_shard_state_update(state_update, source_shard_id, target_shard_id, committee_members).await;
         }
         Ok(())
     }
