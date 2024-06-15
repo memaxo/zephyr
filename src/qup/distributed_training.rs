@@ -15,6 +15,26 @@ pub struct DatasetShard {
     pub data: Vec<f64>,
 }
 
+impl HDCModel {
+    pub fn train_on_shard(&mut self, shard: &DatasetShard) -> Vec<Vec<f64>> {
+        let dataset = Dataset {
+            items: shard.data.clone(),
+        };
+        self.train(&dataset)
+    }
+
+    pub fn train(&mut self, dataset: &Dataset, shard_index: Option<usize>, partitioned_dataset: Option<&PartitionedDataset>) -> Vec<Vec<f64>> {
+        if let Some(index) = shard_index {
+            if let Some(partitioned) = partitioned_dataset {
+                if let Some(shard) = partitioned.get_shard(&NodeId::new()).and_then(|shards| shards.get(index)) {
+                    return self.train_on_shard(shard);
+                }
+            }
+        }
+        self.train(dataset)
+    }
+}
+
 pub fn verify_model_outputs(
     sampled_models: Vec<HDCModel>,
     validation_data: Vec<(Vec<f64>, String)>,
