@@ -35,30 +35,50 @@ impl RewardDistributor {
 
     pub fn distribute_rewards(&self, state: &mut State, block_header: &QUPBlockHeader) {
         let total_reward = self.calculate_total_reward(block_header);
-        let (validator_reward, delegator_reward) = match self.config.reward_scheme {
-            RewardScheme::FixedReward(_) => {
-                let validator_reward = self.calculate_validator_reward(total_reward, 1, 1);
-                (validator_reward, total_reward - validator_reward)
-            }
-            RewardScheme::ProportionalReward { .. } => {
-                let useful_work_contribution = self.calculate_useful_work_contribution(block_header);
-                let poh_contribution = self.calculate_poh_contribution(block_header);
-                let total_contribution = useful_work_contribution + poh_contribution;
-                let validator_reward = self.calculate_validator_reward(total_reward, useful_work_contribution, total_contribution);
-                (validator_reward, total_reward - validator_reward)
-            }
-            RewardScheme::PerformanceBasedReward { .. } => {
-                let performance_score = self.calculate_performance_score(block_header);
-                let validator_reward = self.calculate_validator_reward(total_reward, performance_score, 1);
-                (validator_reward, total_reward - validator_reward)
-            }
-        };
+        let total_utility_points = self.calculate_total_utility_points(block_header);
+        let reward_rate = self.adjust_reward_rate(total_utility_points);
 
         let validator_address = self.get_block_validator_address(block_header);
+        let validator_utility_points = state.get_utility_points(&validator_address);
+        let validator_reward = self.calculate_validator_reward(total_reward, validator_utility_points, total_utility_points, reward_rate);
         self.distribute_validator_reward(state, &validator_address, validator_reward);
 
-        let delegator_rewards = self.calculate_delegator_rewards(state, delegator_reward);
+        let delegator_rewards = self.calculate_delegator_rewards(state, total_reward - validator_reward, total_utility_points, reward_rate);
         self.distribute_delegator_rewards(state, &delegator_rewards);
+    }
+
+    fn calculate_total_utility_points(&self, block_header: &QUPBlockHeader) -> u64 {
+        // Calculate the total utility points earned by all validators and delegators in the block
+        // This can be done by summing up the utility points from the block transactions
+        // ...
+        0 // Placeholder value
+    }
+
+    fn adjust_reward_rate(&self, total_utility_points: u64) -> f64 {
+        // Implement a dynamic reward rate adjustment based on the total utility points
+        // This could involve adjusting the base reward or the reward multiplier
+        // Example: Increase the reward rate if total utility points are above a certain threshold
+        if total_utility_points > self.config.utility_points_threshold {
+            self.config.base_reward_rate * 1.1
+        } else {
+            self.config.base_reward_rate
+        }
+    }
+
+    fn calculate_validator_reward(&self, total_reward: u64, validator_utility_points: u64, total_utility_points: u64, reward_rate: f64) -> u64 {
+        // Calculate the validator's reward based on their utility points and the adjusted reward rate
+        let validator_reward_share = validator_utility_points as f64 / total_utility_points as f64;
+        (total_reward as f64 * validator_reward_share * reward_rate) as u64
+    }
+
+    fn calculate_delegator_rewards(&self, state: &State, total_delegator_reward: u64, total_utility_points: u64, reward_rate: f64) -> HashMap<Vec<u8>, u64> {
+        let mut delegator_rewards = HashMap::new();
+        for (delegator_address, delegator_utility_points) in state.get_all_delegator_utility_points() {
+            let delegator_reward_share = delegator_utility_points as f64 / total_utility_points as f64;
+            let delegator_reward = (total_delegator_reward as f64 * delegator_reward_share * reward_rate) as u64;
+            delegator_rewards.insert(delegator_address, delegator_reward);
+        }
+        delegator_rewards
     }
 
     fn calculate_total_reward(&self, block_header: &QUPBlockHeader) -> u64 {
