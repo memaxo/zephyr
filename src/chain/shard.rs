@@ -46,6 +46,7 @@ pub struct Shard {
     pub incoming_messages: Receiver<NetworkMessage>,
     encryption_key: Arc<RwLock<EncryptionKey>>,
     pub transaction_queue: TransactionQueue,
+    pub responsible_member: String,
     pub block_buffer: Buffer<Block>,
     pub outgoing_messages: Sender<NetworkMessage>,
     pub shard_channels: HashMap<u64, Sender<NetworkMessage>>,
@@ -67,7 +68,33 @@ impl Hash for ShardState {
         self.shard_id.hash(state);
         for transaction in &self.transactions {
             transaction.hash(state);
+            responsible_member,
         }
+    }
+
+    async fn broadcast_validated_block(
+        &self,
+        block_header: QUPBlockHeader,
+        transactions: Vec<Transaction>,
+        useful_work: QUPUsefulWork,
+        signature: QUPSignature,
+    ) -> Result<(), ShardError> {
+        let block = QUPBlock {
+            header: block_header,
+            transactions,
+            useful_work,
+            signature,
+        };
+        let message = NetworkMessage::QUPMessage(QUPMessage::BlockProposal {
+            block_header: block.header.clone(),
+            transactions: block.transactions.clone(),
+            useful_work: block.useful_work.clone(),
+            signature: block.signature.clone(),
+        });
+        for (_, sender) in &self.shard_channels {
+            sender.send(message.clone()).await.map_err(|e| ShardError::MessageSendError(format!("Failed to broadcast validated block: {}", e)))?;
+        }
+        Ok(())
     }
 
     fn apply_state_changes(&self, updated_state: HashMap<String, Value>) -> Result<(), ShardError> {
@@ -97,6 +124,9 @@ impl Hash for ShardState {
         }
 
         Ok(())
+
+        // Broadcast the validated block to other nodes in the network
+        self.broadcast_validated_block(block_header, transactions, useful_work, signature).await?;
     }
 
     async fn broadcast_updated_state(&self) -> Result<(), ShardError> {
@@ -110,7 +140,7 @@ impl Hash for ShardState {
 }
 
 impl Shard {
-    pub fn new(shard_id: u64, total_shards: u64, encryption_key: EncryptionKey, consensus_config: ConsensusConfig) -> Self {
+    pub fn new(shard_id: u64, total_shards: u64, encryption_key: EncryptionKey, consensus_config: ConsensusConfig, responsible_member: String) -> Self {
         let (tx, rx) = mpsc::channel(1024);
         let encryption_key = Arc::new(RwLock::new(encryption_key));
         let nonce_counter = Arc::new(RwLock::new(0));
@@ -184,6 +214,11 @@ impl Shard {
         signature: QUPSignature,
     ) -> Result<(), ShardError> {
         // Verify the block proposal signature
+        // Verify the block proposal signature
+        if self.responsible_member != block_header.proposer {
+            return Err(ShardError::InvalidTransaction("Invalid block proposer".to_string()));
+        }
+
         // Process the block proposal
         // ...
 
@@ -196,6 +231,11 @@ impl Shard {
         signature: QUPSignature,
     ) -> Result<(), ShardError> {
         // Verify the block commit signature
+        // Verify the block commit signature
+        if self.responsible_member != block_header.proposer {
+            return Err(ShardError::InvalidTransaction("Invalid block proposer".to_string()));
+        }
+
         // Commit the block
         // ...
 
@@ -204,6 +244,11 @@ impl Shard {
 
     async fn handle_qup_vote(&mut self, vote: QUPVote) -> Result<(), ShardError> {
         // Verify the vote signature
+        // Verify the vote signature
+        if self.responsible_member != vote.voter {
+            return Err(ShardError::InvalidTransaction("Invalid vote".to_string()));
+        }
+
         // Process the vote
         // ...
 
@@ -212,6 +257,11 @@ impl Shard {
 
     async fn handle_qup_useful_work(&mut self, useful_work: QUPUsefulWork) -> Result<(), ShardError> {
         // Verify the useful work
+        // Verify the useful work
+        if self.responsible_member != useful_work.worker {
+            return Err(ShardError::InvalidTransaction("Invalid useful work".to_string()));
+        }
+
         // Process the useful work
         // ...
 
