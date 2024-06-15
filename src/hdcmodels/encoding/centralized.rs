@@ -20,7 +20,7 @@ pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method:
             let mut encoded_data = Vec::with_capacity(data.len() * dimension);
             encoded_data.par_extend(
                 data.par_iter()
-                    .map(|transaction| random_projection(&transaction.to_string(), dimension))
+                    .map(|transaction| encode_transactional_data(transaction, dimension))
                     .flatten()
             );
             encoded_data
@@ -41,7 +41,7 @@ pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method:
         EncodingMethod::Classical => {
             let tokens = tokenize_smart_contract(contract, n);
             let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
-                .map(|token| random_projection(token, dimension))
+                .map(|token| encode_rust_token(token, dimension))
                 .collect();
 
             // Dimensionality reduction using PCA or similar technique
@@ -64,7 +64,7 @@ pub fn encode_rust_code(code: &str, dimension: usize, method: EncodingMethod) ->
         EncodingMethod::Classical => {
             let tokens = tokenize_rust_code(code);
             let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
-                .map(|token| random_projection(token, dimension))
+                .map(|token| encode_natural_language_token(token, dimension))
                 .collect();
 
             // Dimensionality reduction using PCA or similar technique
@@ -87,7 +87,7 @@ pub fn encode_natural_language(text: &str, dimension: usize, method: EncodingMet
         EncodingMethod::Classical => {
             let tokens = tokenize_natural_language(text);
             let token_vectors: Vec<Vec<f64>> = tokens.par_iter()
-                .map(|token| random_projection(token, dimension))
+                .map(|token| encode_smart_contract_token(token, dimension))
                 .collect();
 
             // Dimensionality reduction using PCA or similar technique
@@ -149,9 +149,29 @@ fn tokenize_smart_contract(contract: &str, n: usize) -> Vec<String> {
     tokens
 }
 
-fn random_projection(token: &str, dimension: usize) -> Vec<f64> {
-    let mut rng = rand::thread_rng();
-    (0..dimension).map(|_| rng.gen_range(-1.0..1.0)).collect()
+use rust_code_embeddings::RustCodeEmbedder;
+use word2vec::WordVector;
+use smart_contract_embeddings::SmartContractEmbedder;
+use transactional_data_encoding::TransactionalDataEncoder;
+
+fn encode_rust_token(token: &str, dimension: usize) -> Vec<f64> {
+    let embedder = RustCodeEmbedder::new(dimension);
+    embedder.embed_token(token)
+}
+
+fn encode_natural_language_token(token: &str, dimension: usize) -> Vec<f64> {
+    let word_vector = WordVector::load("path/to/word2vec/model");
+    word_vector.embed(token, dimension)
+}
+
+fn encode_smart_contract_token(token: &str, dimension: usize) -> Vec<f64> {
+    let embedder = SmartContractEmbedder::new(dimension);
+    embedder.embed_token(token)
+}
+
+fn encode_transactional_data(data: &Transaction, dimension: usize) -> Vec<f64> {
+    let encoder = TransactionalDataEncoder::new(dimension);
+    encoder.encode(data)
 }
 
 fn dimensionality_reduction(vectors: &Vec<Vec<f64>>, reduced_dimension: usize) -> Vec<Vec<f64>> {
