@@ -1,5 +1,5 @@
-use pqcrypto_dilithium::dilithium2::{sign, verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, sign_detached, verify_detached};
-use pqcrypto_kyber::kyber512::{encapsulate, decapsulate, PublicKey as KyberPublicKey, SecretKey as KyberSecretKey, Ciphertext as KyberCiphertext, SharedSecret as KyberSharedSecret};
+use pqcrypto_dilithium::dilithium5::{sign, verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, sign_detached, verify_detached};
+use pqcrypto_kyber::kyber1024::{encapsulate, decapsulate, PublicKey as KyberPublicKey, SecretKey as KyberSecretKey, Ciphertext as KyberCiphertext, SharedSecret as KyberSharedSecret};
 use crate::qup::crypto_common::{Decrypt, Encrypt, Sign, Verify};
 use crate::secure_core::secure_vault::SecureVault;
 use serde::{Serialize, Deserialize};
@@ -134,18 +134,39 @@ impl QUPCrypto {
 pub fn verify_signature(data: &[u8], signature: &[u8], public_key: &DilithiumPublicKey) -> bool {
     verify(data, signature, public_key).is_ok()
 }
-    // Implement quantum-resistant decryption here
-    Ok(data.to_vec()) // Placeholder
+    decrypt_quantum_data(data, key)
 }
 
-pub fn sign_quantum_data(data: &[u8], key: &QuantumPrivateKey) -> QuantumSignature {
-    // Implement quantum-resistant signing here
-    QuantumSignature::default() // Placeholder
+pub fn sign_quantum_data(data: &[u8], key: &DilithiumSecretKey) -> Vec<u8> {
+    sign(data, key).to_vec()
 }
 
-pub fn verify_quantum_signature(data: &[u8], signature: &QuantumSignature, key: &QuantumPublicKey) -> bool {
-    // Implement quantum-resistant signature verification here
-    true // Placeholder
+pub fn verify_quantum_signature(data: &[u8], signature: &[u8], key: &DilithiumPublicKey) -> bool {
+    verify(data, signature, key).is_ok()
+}
+
+pub fn verify_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> Result<bool, CryptoError> {
+    // Verify the useful work solution based on the problem
+    // Implement the verification logic for each type of useful work problem
+    match problem {
+        // ...
+    }
+}
+
+pub fn verify_model_training(&self, solution: &ModelTrainingSolution) -> Result<bool, CryptoError> {
+    // Verify the model training solution
+    // Check the accuracy, model parameters, etc.
+    // Implement the verification logic
+    Ok(true) // Placeholder
+}
+
+fn decrypt_quantum_data(data: &[u8], key: &KyberSecretKey) -> Result<Vec<u8>, CryptoError> {
+    // Implement quantum-resistant decryption using Kyber
+    let ciphertext = KyberCiphertext::from_bytes(data)?;
+    let shared_secret = decapsulate(&ciphertext, key)?;
+    // Use the shared secret to decrypt the data
+    // ...
+    Ok(vec![]) // Placeholder
 }
 pub fn delta_encode(data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
     // Placeholder for delta encoding logic
