@@ -1,10 +1,7 @@
 use crate::hdcmodels::encoding::centralized::*;
-use transformers::codebert::CodeBERT;
-use transformers::bert::BERT;
-use transformers::roberta::RoBERTa;
-use openai::gpt3::GPT3;
+use rust_bert::pipelines::sentence_embeddings::{SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType};
+use openai_rs::GPT3;
 use regex::Regex;
-use ply::lexer::Lexer;
 
 // Rust Code Encoding
 pub fn encode_rust_code(code: &str, dimension: usize) -> Vec<f64> {

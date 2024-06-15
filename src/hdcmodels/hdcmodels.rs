@@ -4,11 +4,10 @@ use crate::hdcmodels::encoding::{
 use crate::hdcmodels::similarity::{cosine_similarity, hamming_distance};
 use crate::state::account::Account;
 use std::time::Instant;
-use quantum_resistant_crypto::{encrypt, decrypt, KeyPair};
 use pqcrypto_dilithium::dilithium;
 use pqcrypto_kyber::kyber;
-use qiskit::algorithms::{QSVM, VQE, KernelType, FeatureMap, Ansatz};
-use qiskit::error_correction::{ShorCode, SurfaceCode};
+use qiskit_rs::algorithms::{QSVM, VQE, KernelType, FeatureMap, Ansatz};
+use qiskit_rs::error_correction::{ShorCode, SurfaceCode};
 use crate::optimizers::{Adam, SGD, FTRL};
 use crate::consensus::raft::Raft;
 use std::fs::File;
