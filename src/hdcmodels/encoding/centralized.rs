@@ -7,7 +7,9 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::hash::Hash;
 use crate::hdcmodels::quantum_encoding::QuantumEncoder;
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
+use linfa::prelude::*;
+use linfa::dataset::Dataset;
 
 pub enum EncodingMethod {
     Classical,
@@ -175,9 +177,22 @@ fn encode_transactional_data(data: &Transaction, dimension: usize) -> Vec<f64> {
 }
 
 fn dimensionality_reduction(vectors: &Vec<Vec<f64>>, reduced_dimension: usize) -> Vec<Vec<f64>> {
-    // Placeholder for dimensionality reduction logic (e.g., PCA)
-    // Replace this with the actual implementation
-    vectors.iter().map(|v| v.iter().take(reduced_dimension).cloned().collect()).collect()
+    // Convert the vector of vectors to a 2D array
+    let data: Array2<f64> = Array2::from_shape_vec((vectors.len(), vectors[0].len()), vectors.iter().flatten().cloned().collect()).unwrap();
+
+    // Create a dataset from the 2D array
+    let dataset = Dataset::from(data);
+
+    // Perform PCA
+    let pca = PCA::params(reduced_dimension)
+        .fit(&dataset)
+        .expect("Failed to perform PCA");
+
+    // Transform the data using the PCA projection
+    let transformed_data = pca.transform(dataset).expect("Failed to transform data");
+
+    // Convert the transformed data back to a vector of vectors
+    transformed_data.into_vec().chunks(reduced_dimension).map(|chunk| chunk.to_vec()).collect()
 }
 
 pub fn encode_dataset_shard(shard: &[f64], dimension: usize, method: EncodingMethod) -> Vec<f64> {
