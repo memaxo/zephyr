@@ -3,6 +3,7 @@ use crate::hdcmodels::similarity::{cosine_similarity, hamming_distance};
 
 pub mod encoding;
 pub mod similarity;
+pub mod plugin;
 
 const HYPERVECTOR_DIMENSION: usize = 5000;
 

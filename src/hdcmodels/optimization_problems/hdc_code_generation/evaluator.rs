@@ -1,5 +1,6 @@
 use crate::optimization_problems::hdc_code_generation::{CodeDataset, CodeGenerationModel};
 use crate::optimization_problems::hdc_code_generation::preprocessor::Preprocessor;
+use crate::plugin::{PluginManager, Plugin};
 use serde::Serialize;
 use tree_sitter::{Parser, Language};
 use nltk::translate::bleu_score;
@@ -13,7 +14,13 @@ pub struct EvaluationResult {
     pub perplexity: f32,
     pub accuracy: f32,
     pub bleu_score: f32,
+    plugin_manager: PluginManager,
 }
+
+impl<'a> Evaluator<'a> {
+    pub fn new(dataset: &'a CodeDataset, preprocessor: Preprocessor, plugin_manager: PluginManager) -> Self {
+        Evaluator { dataset, preprocessor, plugin_manager }
+    }
 
 pub struct Evaluator<'a> {
     dataset: &'a CodeDataset,
