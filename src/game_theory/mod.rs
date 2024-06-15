@@ -33,9 +33,21 @@ impl RewardManager {
     }
 
     pub fn calculate_rewards(&self, block: &QUPBlock) -> HashMap<NodeId, RewardAmount> {
-        // Implement the logic to calculate rewards based on stake, performance, and reward_rate
-        // Return a HashMap mapping node IDs to their respective reward amounts
-        todo!()
+        let mut rewards = HashMap::new();
+
+        for (node_id, stake) in block.stakes.iter() {
+            let performance = block.performance.get(node_id).unwrap_or(&0.0);
+            let reward = self.calculate_individual_reward(*stake, *performance, self.reward_rate);
+            rewards.insert(node_id.clone(), reward);
+        }
+
+        rewards
+    }
+
+    fn calculate_individual_reward(&self, stake: u64, performance: f64, reward_rate: f64) -> u64 {
+        let stake_reward = stake as f64 * reward_rate;
+        let performance_bonus = stake_reward * performance;
+        (stake_reward + performance_bonus) as u64
     }
 
     pub fn distribute_rewards(&self, rewards: &HashMap<NodeId, RewardAmount>) {
