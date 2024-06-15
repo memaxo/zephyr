@@ -4,9 +4,11 @@ use crate::hdcmodels::encoding::{
 use crate::hdcmodels::similarity::{cosine_similarity, hamming_distance};
 use crate::state::account::Account;
 use std::time::Instant;
-use quantum_resistant_crypto::encrypt;
-use quantum_resistant_crypto::decrypt;
-use quantum_resistant_crypto::KeyPair;
+use quantum_resistant_crypto::{encrypt, decrypt, KeyPair};
+use pqcrypto_dilithium::dilithium;
+use pqcrypto_kyber::kyber;
+use qiskit::algorithms::{QSVM, VQE};
+use qiskit::error_correction::{ShorCode, SurfaceCode};
 use crate::optimizers::{Adam, SGD, FTRL};
 use crate::consensus::raft::Raft;
 use std::fs::File;
@@ -121,7 +123,7 @@ impl HDCModel {
         // Convert model parameters back to original precision
     }
     pub fn new(similarity_metric: SimilarityMetric) -> Self {
-        let encryption_key = KeyPair::generate();
+        let encryption_key = dilithium::keypair();
         HDCModel {
             dimension: 5000,
             similarity_metric,
@@ -562,12 +564,41 @@ impl HDCModel {
         trained_model: &[Vec<f64>],
     ) -> String {
         let encoded_query = encode_natural_language(natural_language_query, self.dimension);
+        let qsvm = QSVM::new();
+        let vqe = VQE::new();
+        let shor_code = ShorCode::new();
+        let surface_code = SurfaceCode::new();
 
         let mut max_similarity = f64::NEG_INFINITY;
+        let encoded_query_corrected = shor_code.encode(&encoded_query);
         let mut best_match_index = 0;
 
         for (i, code_vector) in trained_model.iter().enumerate() {
+            let code_vector_corrected = surface_code.encode(code_vector);
             let similarity = match self.similarity_metric {
+                SimilarityMetric::CosineSimilarity => {
+                    cosine_similarity(&encoded_query_corrected, &code_vector_corrected)
+                }
+                SimilarityMetric::HammingDistance => {
+                    1.0 - (hamming_distance(&encoded_query_corrected, &code_vector_corrected) as f64
+                        / self.dimension as f64)
+                }
+                SimilarityMetric::JaccardSimilarity => {
+                    jaccard_similarity(&encoded_query_corrected, &code_vector_corrected)
+                }
+                SimilarityMetric::EuclideanDistance => {
+                    1.0 / (1.0 + euclidean_distance(&encoded_query_corrected, &code_vector_corrected))
+                }
+                SimilarityMetric::WassersteinDistance => {
+                    wasserstein_distance(&encoded_query_corrected, &code_vector_corrected)
+                }
+                SimilarityMetric::JensenShannonDivergence => {
+                    jensen_shannon_divergence(&encoded_query_corrected, &code_vector_corrected)
+                }
+                SimilarityMetric::DynamicTimeWarping => {
+                    dynamic_time_warping(&encoded_query_corrected, &code_vector_corrected)
+                }
+            };
                 SimilarityMetric::CosineSimilarity => {
                     cosine_similarity(&encoded_query, code_vector, SimilarityMetric::CosineSimilarity)
                 }
