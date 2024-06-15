@@ -18,6 +18,36 @@ impl VerificationGame {
         VerificationGame {
             challenges: HashMap::new(),
         }
+    pub fn submit_evidence(&self, challenge_id: &ChallengeId, evidence: String) {
+        // Store the evidence for the challenge
+        // (Assuming a function `store_evidence` exists)
+        store_evidence(challenge_id, evidence);
+    pub fn handle_multiple_challenges(&mut self, task_id: &str, state: &mut QUPState) {
+        // Handle multiple challenges for the same task
+        let challenges: Vec<ChallengeId> = self.challenges.iter()
+            .filter(|(_, challenge)| challenge.task_id == task_id)
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        for challenge_id in challenges {
+            self.resolve_dispute(&challenge_id, state);
+        }
+    }
+
+    pub fn prevent_malicious_agents(&self, agent_id: &AgentId, state: &mut QUPState) {
+        // Implement measures to prevent malicious agents
+        let reputation = state.get_reputation(agent_id);
+        if reputation < -50 {
+            // Example threshold for penalizing malicious agents
+            state.ban_agent(agent_id);
+        }
+    }
+
+    pub fn resolve_dispute(&self, challenge_id: &ChallengeId, state: &mut QUPState) {
+        // Implement dispute resolution mechanism
+        // (Assuming a function `resolve_dispute_via_vote` exists)
+        let result = resolve_dispute_via_vote(challenge_id);
+        self.resolve_challenge(challenge_id.clone(), result, state);
     }
 
     pub fn initiate_challenge(
@@ -44,6 +74,7 @@ impl VerificationGame {
         state: &mut QUPState,
     ) {
         if let Some(challenge) = self.challenges.remove(&challenge_id) {
+            log::info!("Resolving challenge: {:?}", challenge_id);
             match result {
                 VerificationResult::Pass => {
                     // The node passes the verification

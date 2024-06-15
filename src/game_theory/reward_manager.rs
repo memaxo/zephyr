@@ -20,6 +20,7 @@ impl RewardManager {
 
     pub fn calculate_rewards(&self, block: &QUPBlock, state: &QUPState) -> HashMap<NodeId, RewardAmount> {
         let mut rewards = HashMap::new();
+        log::info!("Calculating rewards for block: {:?}", block);
 
         // Calculate validator reward
         let validator_reward = self.calculate_validator_reward(block, state);
@@ -36,6 +37,22 @@ impl RewardManager {
             let useful_work_reward = self.calculate_useful_work_reward(block, state);
             rewards.insert(useful_work_solution.provider.clone(), useful_work_reward);
         }
+
+        // Early Adopter Bonus
+        if block.height < 10000 {
+            let early_adopter_bonus = 500.0;
+            rewards.insert(block.validator.clone(), early_adopter_bonus as RewardAmount);
+        }
+
+        // Referral Bonus
+        if let Some(referrer) = state.get_referrer(&block.validator) {
+            let referral_bonus = 200.0;
+            rewards.insert(referrer.clone(), referral_bonus as RewardAmount);
+        }
+
+        // Community Rewards
+        let community_reward = 100.0;
+        state.add_to_community_fund(community_reward as RewardAmount);
 
         rewards
     }
@@ -71,7 +88,11 @@ impl RewardManager {
     fn calculate_block_reward(&self, height: BlockHeight) -> RewardAmount {
         // Implement the logic to calculate the block reward based on the block height
         // This can be a fixed amount or a dynamic formula
-        1000.0 // Example fixed block reward
+        // Example dynamic block reward calculation
+        let initial_reward = 1000.0;
+        let halving_interval = 100000; // Example halving interval
+        let halvings = height / halving_interval;
+        initial_reward / 2.0_f64.powi(halvings as i32)
     }
 
     pub fn slash(&self, node_id: &NodeId, amount: PenaltyAmount, state: &mut QUPState) {
