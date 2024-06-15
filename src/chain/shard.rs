@@ -76,7 +76,9 @@ impl Hash for ShardState {
             state.insert(key, value);
         }
         // Process transactions from the queue
-        while let Some(transaction) = self.transaction_queue.dequeue() {
+        let batch_size = 10; // Example batch size, adjust as needed
+        let transactions = self.transaction_queue.dequeue_batch(batch_size);
+        for transaction in transactions {
             self.encrypt_and_compress_transaction(transaction, secure_vault)?;
         }
 
@@ -85,8 +87,8 @@ impl Hash for ShardState {
             self.process_shard_block_proposal(block).await?;
         }
 
-        // Sort transactions by timestamp or any other ordering mechanism
-        ordered_transactions.sort_by_key(|tx| tx.timestamp());
+        // Sort transactions by timestamp, then by order received
+        ordered_transactions.sort_by_key(|tx| (tx.timestamp(), tx.order_received()));
 
         // Process transactions in order
         for transaction in ordered_transactions {

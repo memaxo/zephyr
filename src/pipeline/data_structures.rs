@@ -23,6 +23,19 @@ impl TransactionQueue {
         queue.pop_front()
     }
 
+    pub fn dequeue_batch(&self, batch_size: usize) -> Vec<Transaction> {
+        let mut queue = self.queue.lock().unwrap();
+        let mut batch = Vec::new();
+        for _ in 0..batch_size {
+            if let Some(transaction) = queue.pop_front() {
+                batch.push(transaction);
+            } else {
+                break;
+            }
+        }
+        batch
+    }
+
     pub fn len(&self) -> usize {
         let queue = self.queue.lock().unwrap();
         queue.len()

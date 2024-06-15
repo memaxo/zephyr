@@ -146,8 +146,9 @@ impl NetworkManager {
         // Synchronize state with other nodes
         self.synchronize_state().await?;
 
-        // Process transactions from the queue
-        while let Some(transaction) = self.transaction_queue.dequeue() {
+        let batch_size = 10; // Example batch size, adjust as needed
+        let transactions = self.transaction_queue.dequeue_batch(batch_size);
+        for transaction in transactions {
             self.process_transaction(transaction).await?;
         }
 
