@@ -84,6 +84,7 @@ pub enum ShardError {
         let message = NetworkMessage::ShardMessage(ShardMessage::FraudProof { fraud_proof });
         for (_, sender) in &self.shard_channels {
             sender.send(message.clone()).await.map_err(|e| ShardError::MessageSendError(format!("Failed to broadcast fraud proof: {}", e)))?;
+            replica_nodes,
         }
         Ok(())
     }
@@ -318,7 +319,7 @@ impl Hash for ShardState {
 }
 
 impl Shard {
-    pub fn new(shard_id: u64, total_shards: u64, encryption_key: EncryptionKey, consensus_config: ConsensusConfig, responsible_member: String) -> Self {
+    pub fn new(shard_id: u64, total_shards: u64, encryption_key: EncryptionKey, consensus_config: ConsensusConfig, responsible_member: String, replica_nodes: Vec<String>) -> Self {
         let (tx, rx) = mpsc::channel(1024);
         let encryption_key = Arc::new(RwLock::new(encryption_key));
         let nonce_counter = Arc::new(RwLock::new(0));
@@ -339,9 +340,12 @@ impl Shard {
     }
 
     pub async fn distribute_to_replicas(&self, data: Vec<u8>) -> Result<(), ShardError> {
-        for replica in &self.replica_nodes {
-            let message = NetworkMessage::ReplicaData { data: data.clone() };
-            self.send_message_to_replica(replica, message).await?;
+        let mut replicas = self.replica_nodes.iter().cycle();
+        for _ in 0..3 {
+            if let Some(replica) = replicas.next() {
+                let message = NetworkMessage::ReplicaData { data: data.clone() };
+                self.send_message_to_replica(replica, message).await?;
+            }
         }
         Ok(())
     }
