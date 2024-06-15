@@ -5,6 +5,10 @@ use std::cmp::Ordering;
 pub struct LamportTimestamp {
     pub counter: u64,
     pub node_id: String,
+    pub fn get_load(&self) -> f64 {
+        // Placeholder for actual network load calculation
+        0.5
+    }
 }
 
 impl LamportTimestamp {

@@ -104,6 +104,7 @@ impl BlockInterface for Block {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
+    pub utility_points: u64,
     pub common: BlockFields,
     pub difficulty: u64,
     pub nonce: u64,

@@ -151,6 +151,7 @@ impl QUPConsensus {
     }
 
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
+        self.dynamic_task_allocation()?;
         self.check_for_sybil_attack(&message, &self.config)?;
         match message {
             ConsensusMessage::Propose(block) => {
@@ -174,6 +175,7 @@ impl QUPConsensus {
     }
 
     fn process_propose(&mut self, shard_id: u64, block: QUPBlock, committee_members: &[u64]) -> Result<(), ConsensusError> {
+        self.calculate_utility_points(&mut block);
         // Validate the block within the shard
         if !self.validate_block_within_shard(shard_id, &block)? {
             return Err(ConsensusError::InvalidBlock);
@@ -367,6 +369,11 @@ impl QUPConsensus {
     }
     
     fn distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
+        let total_up = block.utility_points;
+        for (node, up) in &self.staking {
+            let reward = (up * self.config.block_reward) / total_up;
+            self.state.token_manager.mint("QUP", reward, node);
+        }
         let total_rewards = self.calculate_total_rewards(block);
         let rewards = self.calculate_rewards(block, total_rewards);
     
@@ -557,6 +564,39 @@ impl QUPConsensus {
     }
     
     fn adjust_difficulty(&mut self, total_utility_points: u64) {
+        if total_utility_points > self.config.target_utility_points {
+            self.config.useful_work_difficulty += 1;
+            self.config.model_training_difficulty += 1;
+        } else if total_utility_points < self.config.target_utility_points {
+            self.config.useful_work_difficulty = self.config.useful_work_difficulty.saturating_sub(1);
+            self.config.model_training_difficulty = self.config.model_training_difficulty.saturating_sub(1);
+        }
+    }
+
+    fn dynamic_task_allocation(&mut self) -> Result<(), ConsensusError> {
+        let network_load = self.network.get_load();
+        if network_load > self.config.high_load_threshold {
+            self.config.useful_work_difficulty += 1;
+        } else if network_load < self.config.low_load_threshold {
+            self.config.model_training_difficulty += 1;
+        }
+        Ok(())
+    }
+
+    fn calculate_utility_points(&self, block: &mut QUPBlock) {
+        let mut total_up = 0;
+        for tx in &block.transactions {
+            match tx.contribution_type {
+                ContributionType::UsefulWork(_) => {
+                    total_up += self.config.useful_work_reward_multiplier;
+                }
+                ContributionType::ModelTraining(_) => {
+                    total_up += self.config.model_training_reward_multiplier;
+                }
+            }
+        }
+        block.utility_points = total_up;
+    }
         // Adjust the useful work and model training difficulties based on the total utility points
         if total_utility_points > self.config.target_utility_points {
             self.config.useful_work_difficulty += 1;
