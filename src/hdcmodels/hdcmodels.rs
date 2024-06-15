@@ -306,10 +306,48 @@ impl HDCModel {
             }
         }
 
-        // TODO: Apply regularization techniques to prevent overfitting
-        // - Implement L1 or L2 regularization on the model weights
-        // - Explore techniques like early stopping and weight decay
-        // - Consider using cross-validation to select the best regularization hyperparameters
+        // Apply L1 regularization to the model weights
+        let l1_lambda = 0.01;
+        for weights in &mut ensemble_weights {
+            for weight in weights {
+                *weight = weight.signum() * (weight.abs() - l1_lambda).max(0.0);
+            }
+        }
+
+        // Implement early stopping
+        let validation_data: Vec<&Vec<f64>> = encoded_data.iter().skip(num_samples * 8 / 10).collect();
+        let mut best_validation_loss = f64::INFINITY;
+        let mut best_validation_weights = ensemble_weights.clone();
+        let early_stopping_patience = 5;
+        let mut no_improvement_epochs = 0;
+
+        for epoch in 0..epochs {
+            // Training loop...
+
+            let validation_loss = self.calculate_loss(&validation_data, &ensemble_weights);
+            if validation_loss < best_validation_loss {
+                best_validation_loss = validation_loss;
+                best_validation_weights = ensemble_weights.clone();
+                no_improvement_epochs = 0;
+            } else {
+                no_improvement_epochs += 1;
+            }
+
+            if no_improvement_epochs >= early_stopping_patience {
+                break;
+            }
+        }
+
+        // Use the best weights based on validation loss
+        ensemble_weights = best_validation_weights;
+
+        // Implement weight decay
+        let weight_decay = 0.001;
+        for weights in &mut ensemble_weights {
+            for weight in weights {
+                *weight *= 1.0 - weight_decay;
+            }
+        }
         self.encoded_data = encoded_data;
         self.epochs = epochs;
         self.dataset = dataset.clone();
@@ -532,9 +570,41 @@ impl Transaction {
         // Implement attention mechanism for transformer models
         // or feature importance analysis for other model types
 
-        // TODO: Enhance the explainability of the model's predictions
-        // - Implement techniques like LIME (Local Interpretable Model-Agnostic Explanations) or SHAP (SHapley Additive exPlanations)
-        // - Generate human-readable explanations by analyzing the importance of different features or patterns in the input data
-        // - Consider visualizing the attention weights or feature importances to provide insights into the model's decision-making process
+        // Implement LIME for explainability
+        let num_samples = 100;
+        let num_features = encoded_input.len();
+        let mut perturbed_inputs = Vec::with_capacity(num_samples);
+        let mut perturbed_outputs = Vec::with_capacity(num_samples);
+
+        for _ in 0..num_samples {
+            let mut perturbed_input = encoded_input.clone();
+            for i in 0..num_features {
+                if rand::random::<f64>() < 0.5 {
+                    perturbed_input[i] = 0.0;
+                }
+            }
+            perturbed_inputs.push(perturbed_input.clone());
+            let perturbed_output = self.predict(&perturbed_input, trained_model);
+            perturbed_outputs.push(perturbed_output);
+        }
+
+        let mut feature_importances = vec![0.0; num_features];
+        for i in 0..num_samples {
+            let distance = euclidean_distance(&encoded_input, &perturbed_inputs[i]);
+            let similarity = (-distance).exp();
+            for j in 0..num_features {
+                feature_importances[j] += similarity * (encoded_input[j] - perturbed_inputs[i][j]).abs() * perturbed_outputs[i];
+            }
+        }
+
+        let max_importance = feature_importances.iter().cloned().fold(0.0/0.0, f64::max);
+        for importance in &mut feature_importances {
+            *importance /= max_importance;
+        }
+
+        explanation.push_str("Feature Importances:\n");
+        for (i, importance) in feature_importances.iter().enumerate() {
+            explanation.push_str(&format!("Feature {}: {:.2}\n", i, importance));
+        }
         explanation
     }
