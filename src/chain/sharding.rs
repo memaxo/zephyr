@@ -10,7 +10,7 @@ use crate::qup::state::QUPState;
 use crate::secure_core::secure_vault::SecureVault;
 use crate::utils::hashing::{hash_transaction, ShardingHash};
 use crate::utils::versioning::Versioned;
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, trace, warn, log_enabled, Level};
 use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
@@ -30,7 +30,54 @@ pub struct Sharding {
     qup_crypto: Arc<QUPCrypto>,
     qup_state: Arc<QUPState>,
     hash_ring: Arc<Mutex<BTreeMap<u64, u64>>>,
-}
+    pub async fn monitor_shard_loads(&self) {
+        loop {
+            let shard_loads = self.collect_shard_load_statistics().await;
+            self.balance_shard_loads(shard_loads).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        }
+    }
+
+    async fn collect_shard_load_statistics(&self) -> HashMap<u64, usize> {
+        let shards = self.shards.read().await;
+        let mut shard_loads = HashMap::new();
+        for (shard_id, shard) in shards.iter() {
+            let load = shard.get_load().await;
+            shard_loads.insert(*shard_id, load);
+        }
+        shard_loads
+    }
+
+    async fn balance_shard_loads(&self, shard_loads: HashMap<u64, usize>) {
+        let average_load: usize = shard_loads.values().sum::<usize>() / shard_loads.len();
+        let mut overloaded_shards = Vec::new();
+        let mut underloaded_shards = Vec::new();
+
+        for (shard_id, load) in shard_loads.iter() {
+            if *load > average_load {
+                overloaded_shards.push(*shard_id);
+            } else if *load < average_load {
+                underloaded_shards.push(*shard_id);
+            }
+        }
+
+        for overloaded_shard in overloaded_shards {
+            if let Some(underloaded_shard) = underloaded_shards.pop() {
+                self.move_data_between_shards(overloaded_shard, underloaded_shard).await;
+            }
+        }
+    }
+
+    async fn move_data_between_shards(&self, from_shard_id: u64, to_shard_id: u64) {
+        let shards = self.shards.read().await;
+        if let (Some(from_shard), Some(to_shard)) = (shards.get(&from_shard_id), shards.get(&to_shard_id)) {
+            let data_to_move = from_shard.extract_data().await;
+            to_shard.add_data(data_to_move).await;
+            info!("Moved data from shard {} to shard {}", from_shard_id, to_shard_id);
+        } else {
+            error!("Failed to move data between shards: {} -> {}", from_shard_id, to_shard_id);
+        }
+    }
 
 #[derive(Error, Debug)]
 pub enum ShardingError {
