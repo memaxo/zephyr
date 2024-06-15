@@ -214,18 +214,50 @@ impl UsefulWorkManager {
     }
 
     pub fn adapt_problem_selection(&self, progress: Vec<(Problem, ProgressStatus)>) -> Vec<Problem> {
-        // 1. Factors for Adaptation:
-        // - Completion status and quality of previous solutions
-        // - Current network capabilities and resource availability
-        // - Community feedback and priority adjustments
+        let mut adapted_problems = Vec::new();
+        let mut success_rates = HashMap::new();
+        let mut network_load = self.network.get_current_load();
+        let community_feedback = self.network.get_community_feedback();
 
-        // 2. Adaptation Strategies:
-        // - Adjust problem difficulty levels
-        // - Change problem types based on demand or relevance
-        // - Modify distribution strategy to improve load balancing
+        for (problem, status) in progress {
+            let success_rate = success_rates.entry(problem.domain.clone()).or_insert((0, 0));
+            if status.completion_percentage == 100.0 {
+                success_rate.0 += 1; // Increment success count
+            }
+            success_rate.1 += 1; // Increment total count
+        }
 
-        // Placeholder implementation:
-        vec![] // Replace with actual problem selection logic
+        for (domain, (success_count, total_count)) in &success_rates {
+            let success_rate = *success_count as f64 / *total_count as f64;
+            if success_rate < 0.5 {
+                // Adjust difficulty or type if success rate is low
+                let adjusted_difficulty = if network_load > 0.7 {
+                    // Reduce difficulty during high network load
+                    1
+                } else {
+                    2
+                };
+                adapted_problems.push(self.generator.generate_problem(domain, adjusted_difficulty));
+            } else {
+                // Maintain or increase difficulty if success rate is high
+                let adjusted_difficulty = if network_load < 0.3 {
+                    // Increase difficulty during low network load
+                    4
+                } else {
+                    3
+                };
+                adapted_problems.push(self.generator.generate_problem(domain, adjusted_difficulty));
+            }
+        }
+
+        // Incorporate community feedback
+        for feedback in community_feedback {
+            if feedback.relevance > 0.8 {
+                adapted_problems.push(self.generator.generate_problem(&feedback.domain, feedback.difficulty));
+            }
+        }
+
+        adapted_problems
     }
 
     pub fn integrate_with_consensus(&self, solutions: Vec<(Problem, Solution)>) {
