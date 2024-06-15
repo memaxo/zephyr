@@ -52,16 +52,20 @@ pub fn encode_smart_contract(contract: &str, dimension: usize, method: EncodingM
             let reduced_vectors = dimensionality_reduction(&encoded_features, dimension / 2);
             let similarity_metric = select_similarity_metric(&reduced_vectors.iter().flatten().cloned().collect::<Vec<f64>>());
             (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
-        },
+        }
         EncodingMethod::Quantum => {
             let ast = parse_smart_contract(contract);
             let features = extract_smart_contract_features(&ast);
             let data_array: Array1<f64> = Array1::from(features.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
             let circuit = QuantumEncoder::amplitude_encoding(&data_array);
-            // Convert the quantum state back to classical data if needed
-            // Placeholder: return an empty vector for now
-            vec![]
-        },
+            
+            // Perform measurement to convert quantum state back to classical data
+            let classical_data = QuantumEncoder::measure(&circuit);
+            
+            // Perform dimensionality reduction to get final encoding vector
+            let final_encoding = dimensionality_reduction(&vec![classical_data], dimension);
+            (final_encoding[0].clone(), SimilarityMetric::CosineSimilarity) // Placeholder for similarity metric
+        }
     }
 }
 
@@ -231,6 +235,9 @@ fn encode_transactional_data(data: &Transaction, dimension: usize) -> Vec<f64> {
     encoder.encode(data)
 }
 
+use linfa::prelude::*;
+use linfa_reduction::PCA;
+
 fn dimensionality_reduction(vectors: &Vec<Vec<f64>>, reduced_dimension: usize) -> Vec<Vec<f64>> {
     // Convert the vector of vectors to a 2D array
     let data: Array2<f64> = Array2::from_shape_vec((vectors.len(), vectors[0].len()), vectors.iter().flatten().cloned().collect()).unwrap();
@@ -239,9 +246,7 @@ fn dimensionality_reduction(vectors: &Vec<Vec<f64>>, reduced_dimension: usize) -
     let dataset = Dataset::from(data);
 
     // Perform PCA
-    let pca = PCA::params(reduced_dimension)
-        .fit(&dataset)
-        .expect("Failed to perform PCA");
+    let pca = PCA::params(reduced_dimension).fit(&dataset).expect("Failed to perform PCA");
 
     // Transform the data using the PCA projection
     let transformed_data = pca.transform(dataset).expect("Failed to transform data");
