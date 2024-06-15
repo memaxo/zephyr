@@ -7,6 +7,8 @@ use std::time::Instant;
 use quantum_resistant_crypto::encrypt;
 use quantum_resistant_crypto::decrypt;
 use quantum_resistant_crypto::KeyPair;
+use crate::optimizers::{Adam, SGD};
+use crate::lr_schedulers::ReduceLROnPlateau;
 
 pub struct HDCModel {
     dimension: usize,
@@ -52,44 +54,33 @@ impl HDCModel {
 
         // Optimization algorithms
         let optimizers = vec![
-            ("SGD", SGD::default()),
-            ("Adam", Adam::default()),
-            ("RMSprop", RMSprop::default()),
+            ("SGD", SGD::new(learning_rate, 0.9)), // SGD with momentum
+            ("Adam", Adam::new(learning_rate)),
         ];
 
         // Learning rate scheduling
         let lr_schedulers = vec![
-            ("ReduceLROnPlateau", ReduceLROnPlateau::default()),
-            ("StepLR", StepLR::new(0.1, 10)),
-            ("ExponentialLR", ExponentialLR::new(0.95)),
+            ("ReduceLROnPlateau", ReduceLROnPlateau::new(learning_rate)),
         ];
 
-        let mut best_optimizer = "";
-        let mut best_lr_scheduler = "";
         let mut best_accuracy = 0.0;
         let mut best_weights = weights.clone();
 
         for (optimizer_name, mut optimizer) in optimizers {
-            for (lr_scheduler_name, mut lr_scheduler) in &lr_schedulers {
-                // Reset weights for each combination
-                weights = vec![vec![0.0; num_features]; num_samples];
+            for epoch in 0..epochs {
+                // Training loop...
 
-                for epoch in 0..epochs {
-                    // Training loop...
+                // Update learning rate
+                let lr = lr_scheduler.get_last_lr()[0];
+                optimizer.set_lr(lr);
 
-                    // Update learning rate
-                    let lr = lr_scheduler.get_last_lr()[0];
-                    optimizer.set_lr(lr);
+                // Validation and accuracy calculation...
 
-                    // Validation and accuracy calculation...
-
-                    // Update learning rate scheduler
-                    lr_scheduler.step(best_accuracy);
-                }
+                // Update learning rate scheduler
+                lr_scheduler.step(best_accuracy);
 
                 if best_accuracy > best_optimizer_accuracy {
                     best_optimizer = optimizer_name;
-                    best_lr_scheduler = lr_scheduler_name;
                     best_optimizer_accuracy = best_accuracy;
                     best_weights = weights.clone();
                 }
