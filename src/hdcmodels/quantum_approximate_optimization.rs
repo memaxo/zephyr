@@ -33,7 +33,7 @@ impl QAOA {
 
         for _ in 0..max_iterations {
             self.update_parameters(problem);
-            let candidate_solution = self.execute_qaoa(problem);
+            let candidate_solution = self.execute_qaoa_step(problem);
             let candidate_energy = problem.evaluate_energy(&candidate_solution);
 
             if candidate_energy < best_energy {
@@ -45,16 +45,36 @@ impl QAOA {
         best_solution
     }
 
+    fn execute_qaoa_step<P: OptimizationProblem>(&self, problem: &P) -> Vec<f64> {
+        let num_qubits = problem.dimension();
+        let mut state = Array1::from_elem(2usize.pow(num_qubits as u32), Complex::new(1.0, 0.0));
+
+        for layer in 0..self.num_layers {
+            // Apply problem Hamiltonian
+            state = self.apply_problem_hamiltonian(problem, state.clone(), self.gamma[layer]);
+
+            // Apply mixing Hamiltonian
+            state = self.apply_mixing_hamiltonian(state.clone(), self.beta[layer]);
+        }
+
+        // Measure the final state to obtain the solution
+        let solution = self.measure_state(state, num_qubits);
+        solution
+    }
+
     fn update_parameters<P: OptimizationProblem>(&mut self, problem: &P) {
         // Update gamma and beta parameters using an optimization algorithm
         // (e.g., gradient descent, Nelder-Mead, etc.)
         // The objective function should be the expectation value of the problem Hamiltonian
         // You can use the HDC model to evaluate the expectation value for different parameter values
         // and update the parameters to minimize the energy
-        // This is a placeholder implementation that randomly updates the parameters
+        // Update gamma and beta parameters using gradient descent
+        let learning_rate = 0.01;
         for i in 0..self.num_layers {
-            self.gamma[i] = rand::random();
-            self.beta[i] = rand::random();
+            let gradient_gamma = self.calculate_gradient_gamma(problem, i);
+            let gradient_beta = self.calculate_gradient_beta(problem, i);
+            self.gamma[i] -= learning_rate * gradient_gamma;
+            self.beta[i] -= learning_rate * gradient_beta;
         }
     }
 
@@ -113,7 +133,12 @@ impl QAOA {
 
     fn measure_state(&self, state: Array1<Complex<f64>>, num_qubits: usize) -> Vec<f64> {
         // Measure the quantum state to obtain the solution
-        // This is a placeholder implementation that simply returns the first basis state
-        self.hdc_model.decode_solution(0, num_qubits)
+        // Perform a measurement on the quantum state in the computational basis
+        // This implementation assumes the state is a probability distribution over basis states
+        let mut rng = rand::thread_rng();
+        let mut probabilities: Vec<f64> = state.iter().map(|amplitude| amplitude.norm_sqr()).collect();
+        let dist = rand::distributions::WeightedIndex::new(&probabilities).unwrap();
+        let measured_state = dist.sample(&mut rng);
+        self.hdc_model.decode_solution(measured_state, num_qubits)
     }
 }
