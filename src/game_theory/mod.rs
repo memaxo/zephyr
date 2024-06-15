@@ -50,9 +50,10 @@ impl RewardManager {
         (stake_reward + performance_bonus) as u64
     }
 
-    pub fn distribute_rewards(&self, rewards: &HashMap<NodeId, RewardAmount>) {
-        // Implement the logic to distribute the calculated rewards to the respective nodes
-        todo!()
+    pub fn distribute_rewards(&self, rewards: &HashMap<NodeId, RewardAmount>, state: &mut QUPState) {
+        for (node_id, reward) in rewards {
+            state.add_tokens(node_id, *reward);
+        }
     }
 
     pub fn calculate_penalties(&self, node_id: &NodeId, violation: &str) -> PenaltyAmount {
