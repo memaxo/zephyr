@@ -37,8 +37,8 @@ pub struct CommunicationProtocol {
 
 impl CommunicationProtocol {
     pub async fn send_model_update(&self, model: &HDCModel, recipient: &str) -> Result<(), ConsensusError> {
-        let serialized_model = bincode::serialize(model)?;
-        let compressed_model = self.compress_data(&serialized_model).await?;
+        let serialized_model = serialize_hdc_model(model)?;
+        let compressed_model = compress_data(&serialized_model).await?;
         let encrypted_model = self.encrypt_with_qkd(&compressed_model, recipient)?;
         let message = NetworkMessage::ModelUpdate {
             model: encrypted_model,
@@ -49,8 +49,8 @@ impl CommunicationProtocol {
     pub async fn receive_model_update(&self, message: NetworkMessage) -> Result<HDCModel, ConsensusError> {
         if let NetworkMessage::ModelUpdate { model } = message {
             let decrypted_model = self.decrypt_with_qkd(&model)?;
-            let decompressed_model = self.decompress_data(&decrypted_model).await?;
-            let deserialized_model: HDCModel = bincode::deserialize(&decompressed_model)?;
+            let decompressed_model = decompress_data(&decrypted_model).await?;
+            let deserialized_model = deserialize_hdc_model(&decompressed_model)?;
             Ok(deserialized_model)
         } else {
             Err(ConsensusError::InvalidMessage)
@@ -65,19 +65,6 @@ impl CommunicationProtocol {
         }
     }
 
-    async fn compress_data(&self, data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
-        let mut encoder = GzipEncoder::new(data);
-        let mut compressed_data = Vec::new();
-        encoder.read_to_end(&mut compressed_data).await?;
-        Ok(compressed_data)
-    }
-
-    async fn decompress_data(&self, data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
-        let mut decoder = GzipDecoder::new(data);
-        let mut decompressed_data = Vec::new();
-        decoder.read_to_end(&mut decompressed_data).await?;
-        Ok(decompressed_data)
-    }
 
     fn encrypt_with_qkd(&self, data: &[u8], recipient: &str) -> Result<Vec<u8>, ConsensusError> {
         let shared_keys = self.shared_keys.lock().unwrap();
