@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::time::interval;
@@ -54,6 +55,7 @@ struct Node {
     }
 
     pub async fn run_speculative_execution(&self, task: Vec<u8>, critical: bool) -> Vec<u8> {
+        self.balance_load().await;
         if critical {
             self.replicate_and_vote(task).await
         } else {
@@ -62,6 +64,7 @@ struct Node {
     }
 
     async fn replicate_and_vote(&self, task: Vec<u8>) -> Vec<u8> {
+        self.balance_load().await;
         let mut nodes = self.nodes.lock().unwrap();
         let mut results = HashMap::new();
         let mut tasks_assigned = HashSet::new();
@@ -96,7 +99,44 @@ struct Node {
 struct Checkpoint {
     model_state: Vec<u8>,
     training_progress: usize,
-}
+    async fn balance_load(&self) {
+        let mut nodes = self.nodes.lock().unwrap();
+        let mut load_counts = HashMap::new();
+
+        for node in nodes.values() {
+            *load_counts.entry(node.id).or_insert(0) += 1;
+        }
+
+        let average_load = load_counts.values().sum::<usize>() / load_counts.len();
+        let mut overloaded_nodes = Vec::new();
+        let mut underloaded_nodes = Vec::new();
+
+        for (node_id, load) in load_counts {
+            if load > average_load {
+                overloaded_nodes.push(node_id);
+            } else if load < average_load {
+                underloaded_nodes.push(node_id);
+            }
+        }
+
+        for overloaded_node in overloaded_nodes {
+            if let Some(underloaded_node) = underloaded_nodes.pop() {
+                self.reassign_tasks(overloaded_node, underloaded_node).await;
+            }
+        }
+    }
+
+    async fn reassign_tasks(&self, from_node: usize, to_node: usize) {
+        let mut nodes = self.nodes.lock().unwrap();
+        if let Some(from_node) = nodes.get_mut(&from_node) {
+            if let Some(to_node) = nodes.get_mut(&to_node) {
+                let task = from_node.shard.pop();
+                if let Some(task) = task {
+                    to_node.shard.push(task);
+                }
+            }
+        }
+    }
 
 impl FaultTolerantDistributedTrainingNode {
     pub async fn train_anomaly_detection_model(&self, training_data: Vec<Vec<f64>>) -> IsolationForest {

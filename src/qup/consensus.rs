@@ -1,4 +1,5 @@
 use crate::chain::transaction::{Transaction, TransactionType};
+use std::collections::HashSet;
 use crate::qup::vdf::VDF;
 use crate::storage::{block_storage::BlockStorage, transaction_storage::TransactionStorage};
 use crate::consensus::ConsensusMessage;
@@ -35,7 +36,47 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
-}
+    fn check_for_sybil_attack(&self, message: &ConsensusMessage) -> Result<(), ConsensusError> {
+        let mut unique_nodes = HashSet::new();
+        match message {
+            ConsensusMessage::Propose(block) => {
+                for transaction in &block.transactions {
+                    unique_nodes.insert(transaction.sender.clone());
+                }
+            }
+            ConsensusMessage::Vote(vote) => {
+                unique_nodes.insert(vote.voter.clone());
+            }
+            _ => {}
+        }
+
+        if unique_nodes.len() < self.config.min_unique_nodes {
+            return Err(ConsensusError::SybilAttackDetected);
+        }
+
+        Ok(())
+    }
+
+    fn check_for_dos_attack(&self) -> Result<(), ConsensusError> {
+        let current_time = Instant::now();
+        let mut request_counts = self.request_counts.lock().unwrap();
+        request_counts.retain(|&timestamp, _| current_time.duration_since(timestamp) < self.config.dos_time_window);
+
+        if request_counts.len() > self.config.max_requests_per_window {
+            return Err(ConsensusError::DosAttackDetected);
+        }
+
+        Ok(())
+    }
+
+    fn verify_data_integrity(&self, data: &[u8], expected_hash: &Hash) -> Result<(), ConsensusError> {
+        let calculated_hash = self.qup_crypto.hash(data);
+        if &calculated_hash != expected_hash {
+            return Err(ConsensusError::DataTamperingDetected);
+        }
+
+        Ok(())
+    }
 
 impl ConsensusAlgorithm {
     pub fn register_committee_member(&self, shard_id: u64) {
@@ -130,6 +171,7 @@ impl QUPConsensus {
     }
 
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
+        self.check_for_sybil_attack(&message)?;
         match message {
             ConsensusMessage::Propose(block) => {
                 self.process_propose(block)

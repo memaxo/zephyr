@@ -447,11 +447,63 @@ mod protocol_message {
         }
     }
 }
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap};
+use std::time::{Duration, Instant};
+use tokio::sync::mpsc::{self, Sender, Receiver};
+use tokio::time::sleep;
 use std::cmp::Reverse;
 
 struct PriorityQueue<T> {
     heap: BinaryHeap<Reverse<T>>,
+}
+
+pub struct NetworkProtocol {
+    pub priority_queue: PriorityQueue<NetworkMessage>,
+    pub pending_acks: HashMap<u64, Instant>,
+    pub retransmission_interval: Duration,
+    pub sender: Sender<NetworkMessage>,
+    pub receiver: Receiver<NetworkMessage>,
+}
+
+impl NetworkProtocol {
+    pub fn new(retransmission_interval: Duration) -> Self {
+        let (sender, receiver) = mpsc::channel(1024);
+        NetworkProtocol {
+            priority_queue: PriorityQueue::new(),
+            pending_acks: HashMap::new(),
+            retransmission_interval,
+            sender,
+            receiver,
+        }
+    }
+
+    pub async fn send_message(&mut self, message: NetworkMessage) {
+        self.priority_queue.push(message.clone());
+        self.pending_acks.insert(message.id, Instant::now());
+        self.sender.send(message).await.unwrap();
+    }
+
+    pub async fn receive_message(&mut self) -> Option<NetworkMessage> {
+        self.receiver.recv().await
+    }
+
+    pub async fn handle_ack(&mut self, message_id: u64) {
+        self.pending_acks.remove(&message_id);
+    }
+
+    pub async fn retransmit_messages(&mut self) {
+        loop {
+            sleep(self.retransmission_interval).await;
+            let now = Instant::now();
+            for (message_id, timestamp) in self.pending_acks.iter() {
+                if now.duration_since(*timestamp) > self.retransmission_interval {
+                    if let Some(message) = self.priority_queue.get_by_id(*message_id) {
+                        self.sender.send(message.clone()).await.unwrap();
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<T> PriorityQueue<T> {
