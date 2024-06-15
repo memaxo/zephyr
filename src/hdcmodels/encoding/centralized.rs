@@ -173,10 +173,29 @@ fn extract_smart_contract_features(ast: &Tree) -> Vec<String> {
 
     features
 }
+    let mut features = Vec::new();
+    let root_node = ast.root_node();
 
-fn encode_smart_contract_features(features: &[String], dimension: usize) -> Vec<f64> {
-    // Placeholder implementation, replace with actual encoding logic
-    vec![0.0; dimension]
+    for child in root_node.children(&mut ast.walk()) {
+        match child.kind() {
+            "function_definition" => {
+                features.push(format!("function:{}", child.child_by_field_name("name").unwrap().utf8_text(contract.as_bytes()).unwrap()));
+                // Extract function arguments, return types, etc.
+            }
+            "contract_declaration" => {
+                features.push(format!("contract:{}", child.child_by_field_name("name").unwrap().utf8_text(contract.as_bytes()).unwrap()));
+            }
+            // Extract other relevant features
+            _ => {}
+        }
+    }
+
+    features
+}
+
+fn encode_smart_contract_feature(feature: &str, dimension: usize) -> Vec<f64> {
+    let embedder = SmartContractEmbedder::new(dimension);
+    embedder.embed_token(feature)
 }
 
 fn encode_smart_contract(contract: &str, dimension: usize) -> Vec<f64> {
