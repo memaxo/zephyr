@@ -145,13 +145,44 @@ fn tokenize_natural_language(text: &str) -> Vec<String> {
         .collect()
 }
 
-fn tokenize_smart_contract(contract: &str, n: usize) -> Vec<String> {
-    // Efficient tokenization logic using N-grams
-    let mut tokens = Vec::new();
-    for i in 0..contract.len() - n + 1 {
-        tokens.push(contract[i..i + n].to_string());
+use tree_sitter::{Parser, Tree};
+
+fn parse_smart_contract(contract: &str) -> Tree {
+    let mut parser = Parser::new();
+    parser.set_language(tree_sitter_solidity::language()).expect("Error loading Solidity grammar");
+    parser.parse(contract, None).expect("Error parsing smart contract")
+}
+
+fn extract_smart_contract_features(ast: &Tree) -> Vec<String> {
+    let mut features = Vec::new();
+    let root_node = ast.root_node();
+
+    for child in root_node.children(&mut ast.walk()) {
+        match child.kind() {
+            "function_definition" => {
+                features.push(format!("function:{}", child.child_by_field_name("name").unwrap().utf8_text(contract.as_bytes()).unwrap()));
+                // Extract function arguments, return types, etc.
+            }
+            "contract_declaration" => {
+                features.push(format!("contract:{}", child.child_by_field_name("name").unwrap().utf8_text(contract.as_bytes()).unwrap()));
+            }
+            // Extract other relevant features
+            _ => {}
+        }
     }
-    tokens
+
+    features
+}
+
+fn encode_smart_contract_features(features: &[String], dimension: usize) -> Vec<f64> {
+    // Placeholder implementation, replace with actual encoding logic
+    vec![0.0; dimension]
+}
+
+fn encode_smart_contract(contract: &str, dimension: usize) -> Vec<f64> {
+    let ast = parse_smart_contract(contract);
+    let features = extract_smart_contract_features(&ast);
+    encode_smart_contract_features(&features, dimension)
 }
 
 use rust_code_embeddings::RustCodeEmbedder;
