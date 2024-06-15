@@ -22,6 +22,9 @@ use rayon::prelude::*;
 use std::sync::Arc;
 use crossbeam_utils::thread;
 
+use crate::game_theory::reward_manager::RewardManager;
+use crate::game_theory::verification_game::VerificationGame;
+
 use crate::chain::blockchain::Blockchain;
 use crate::zkp::prover::Prover;
 use crate::zkp::zk_starks::ZkStarksProof;
@@ -496,7 +499,26 @@ impl QUPConsensus {
 
     fn commit_block(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
         self.state.apply_block(&block)?;
-        self.distribute_rewards(&block)?;
+        
+        // Distribute rewards and penalties using the RewardManager
+        let rewards = self.reward_manager.calculate_rewards(&block);
+        self.reward_manager.distribute_rewards(&rewards);
+
+        // Check for non-compliant results and initiate verification games
+        for transaction in &block.transactions {
+            if let Some(result) = self.check_compliance(&transaction) {
+                if !result {
+                    let game = VerificationGame::new(
+                        transaction.id.clone(),
+                        block.validator.clone(),
+                        transaction.sender.clone(),
+                        self.config.verification_game_stake,
+                    );
+                    game.initiate();
+                }
+            }
+        }
+
         self.transaction_storage.clear_pool()?;
         Ok(())
     }
