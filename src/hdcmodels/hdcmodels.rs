@@ -40,6 +40,36 @@ pub struct HDCModel {
 }
 
 impl HDCModel {
+    pub fn evaluate_solution(&self, problem: &Problem, solution: &Solution) -> f64 {
+        if let Some(subtasks) = &problem.subtasks {
+            let subtask_scores = subtasks
+                .iter()
+                .map(|subtask| self.evaluate_subtask_solution(subtask, solution))
+                .collect::<Vec<_>>();
+
+            self.aggregate_subtask_scores(&subtask_scores, &problem.dependency_graph)
+        } else {
+            self.evaluate_problem_solution(problem, solution)
+        }
+    }
+
+    fn evaluate_subtask_solution(&self, subtask: &Subtask, solution: &Solution) -> f64 {
+        // Placeholder implementation for evaluating subtask solution
+        // Replace with actual logic to evaluate the solution of a subtask
+        10.0 // Example subtask score
+    }
+
+    fn aggregate_subtask_scores(&self, subtask_scores: &Vec<f64>, dependency_graph: &Option<HashMap<Uuid, Vec<Uuid>>>) -> f64 {
+        // Placeholder implementation for aggregating subtask scores
+        // Replace with actual logic to aggregate scores based on dependencies
+        subtask_scores.iter().sum() // Example aggregation by summing scores
+    }
+
+    fn evaluate_problem_solution(&self, problem: &Problem, solution: &Solution) -> f64 {
+        // Placeholder implementation for evaluating problem solution
+        // Replace with actual logic to evaluate the solution of a problem
+        100.0 // Example problem score
+    }
     pub fn checkpoint(&self, path: &str) -> io::Result<()> {
         let mut file = File::create(path)?;
         let encoded_data = bincode::serialize(&self)?;
