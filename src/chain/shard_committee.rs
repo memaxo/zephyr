@@ -11,9 +11,25 @@ pub struct ShardCommittee {
         }
     }
 
+    fn get_node_metrics(&self, node_id: &NodeId) -> NodeMetrics {
+        // Placeholder for actual metrics retrieval logic
+        NodeMetrics {
+            latency: 0,
+            availability: 0,
+            storage_capacity: 0,
+        }
+    }
+
     fn select_new_member(&self, shard_id: u64) -> Option<NodeId> {
-        // Placeholder for selection algorithm, e.g., round-robin, reputation-based
-        self.members.get((shard_id as usize) % self.members.len()).cloned()
+        // Prioritize nodes with low latency, high availability, and sufficient storage capacity
+        let mut candidates: Vec<&NodeId> = self.members.iter().collect();
+        candidates.sort_by(|a, b| {
+            // Placeholder for actual metrics, e.g., latency, availability, storage capacity
+            let a_metrics = self.get_node_metrics(a);
+            let b_metrics = self.get_node_metrics(b);
+            a_metrics.cmp(&b_metrics)
+        });
+        candidates.first().cloned().cloned()
     }
 
     fn recover_shard_state(&self, shard_id: u64, new_member: NodeId) {
