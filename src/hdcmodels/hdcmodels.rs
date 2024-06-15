@@ -171,7 +171,7 @@ impl HDCModel {
 
         // Learning rate scheduling
         let lr_schedulers = vec![
-            ("ReduceLROnPlateau", ReduceLROnPlateau::new(learning_rate)),
+            ("ReduceLROnPlateau", ReduceLROnPlateau::new(learning_rate, 0.1, 10, 1e-6)), // factor, patience, min_lr
         ];
 
         let mut best_accuracy = 0.0;
@@ -182,13 +182,15 @@ impl HDCModel {
                 // Training loop...
 
                 // Update learning rate
-                let lr = lr_scheduler.get_last_lr()[0];
-                optimizer.set_lr(lr);
+                for (scheduler_name, mut lr_scheduler) in &mut lr_schedulers {
+                    let lr = lr_scheduler.get_last_lr()[0];
+                    optimizer.set_lr(lr);
 
-                // Validation and accuracy calculation...
+                    // Validation and accuracy calculation...
 
-                // Update learning rate scheduler
-                lr_scheduler.step(best_accuracy);
+                    // Update learning rate scheduler
+                    lr_scheduler.step(best_accuracy);
+                }
 
                 if best_accuracy > best_optimizer_accuracy {
                     best_optimizer = optimizer_name;
