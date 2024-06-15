@@ -8,7 +8,7 @@ use crate::network::shard_message::{ShardMessage, ShardMessageAck};
 use crate::qup::crypto::{QUPCrypto, KeyRotationEvent};
 use crate::qup::state::QUPState;
 use crate::secure_core::secure_vault::SecureVault;
-use crate::utils::hashing::{hash_transaction, ShardingHash, consistent_hash};
+use crate::utils::hashing::{hash_transaction, ShardingHash};
 use crate::utils::versioning::Versioned;
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
@@ -75,7 +75,7 @@ impl Sharding {
     }
 
     pub async fn add_transaction(&self, transaction: Transaction) -> Result<(), ShardingError> {
-        let shard_id = self.calculate_shard_for_transaction(&transaction);
+        let shard_id = self.calculate_shard_for_transaction(&transaction)?;
         let shards = self.shards.read().await;
         if let Some(shard) = shards.get(&shard_id) {
             let encrypted_transaction = self
@@ -98,7 +98,7 @@ impl Sharding {
 
 
     pub async fn distribute_transaction(&self, transaction: Transaction) {
-        let shard_id = self.calculate_shard_for_transaction(&transaction);
+        let shard_id = self.calculate_shard_for_transaction(&transaction)?;
         let validator_shard_id = self.validator_manager.get_validator_shard_id().await;
 
         if shard_id == validator_shard_id {
@@ -168,13 +168,19 @@ impl Sharding {
     }
 
 
-    fn calculate_shard_for_transaction(&self, transaction: &Transaction) -> u64 {
+    fn calculate_shard_for_transaction(&self, transaction: &Transaction) -> Result<u64, ShardingError> {
+        let committee = self.qup_state.validator_committee.as_ref().ok_or(ShardingError::ShardNotFound(0))?;
         let transaction_hash = hash_transaction(transaction);
-        self.assign_transaction_to_shard(transaction_hash, self.total_shards)
+        let shard_id = self.assign_transaction_to_shard(transaction_hash, &committee.members)?;
+        Ok(shard_id)
     }
 
-    fn assign_transaction_to_shard(&self, transaction_hash: u64, num_shards: u64) -> u64 {
-        consistent_hash(transaction_hash, num_shards)
+    fn assign_transaction_to_shard(&self, transaction_hash: u64, committee_members: &[String]) -> Result<u64, ShardingError> {
+        // Implement a round-robin or load-balancing algorithm
+        // For simplicity, we'll use a round-robin approach here
+        let num_shards = committee_members.len() as u64;
+        let shard_id = transaction_hash % num_shards;
+        Ok(shard_id)
     }
 
     pub async fn start_shard_message_handler(&self) {
