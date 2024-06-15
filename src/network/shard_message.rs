@@ -3,6 +3,7 @@ use crate::chain::transaction::Transaction;
 use crate::consensus::qup::{QUPBlock, QUPBlockHeader, QUPUsefulWork, QUPVote};
 use crate::qup::crypto::{QUPCrypto, QUPSignature};
 use crate::utils::error::NetworkError;
+use crate::network::shard_network::ShardNetwork;
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
@@ -186,37 +187,10 @@ impl ShardMessage {
         &self,
         target_shard_id: u64,
         message: ShardMessage,
-        committee_members: &[String],
     ) {
-        // Implement the routing mechanism to direct cross-shard messages to the appropriate committee members
-        let target_member = self.select_committee_member(target_shard_id, committee_members);
-        if let Err(e) = self.send_message_to_member(target_member, message).await {
+        if let Err(e) = self.shard_network.send_message(target_shard_id, message).await {
             error!("Failed to route cross-shard message: {}", e);
         }
-    }
-
-    fn select_committee_member(&self, shard_id: u64, committee_members: &[String]) -> String {
-        // Implement a round-robin or load-balancing algorithm to select the committee member
-        let index = (shard_id as usize) % committee_members.len();
-        committee_members[index].clone()
-    }
-
-    async fn send_message_to_member(&self, member: String, message: ShardMessage) -> Result<(), NetworkError> {
-        // Ensure secure communication using quantum-resistant encryption and authentication
-        let serialized_message = message.serialize(&self.crypto)?;
-        if let Some(pq_tls_connection) = &self.pq_tls_connection {
-            pq_tls_connection.send(&serialized_message).await.map_err(|e| {
-                NetworkError::MessageSendingFailed(format!(
-                    "Failed to send shard message over TLS: {}",
-                    e
-                ))
-            })?;
-        } else {
-            return Err(NetworkError::MessageSendingFailed(
-                "TLS connection not established".to_string(),
-            ));
-        }
-        Ok(())
     }
 
     pub fn deserialize(data: &[u8], crypto: &QUPCrypto) -> Result<Self, NetworkError> {
