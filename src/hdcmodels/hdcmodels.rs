@@ -15,7 +15,11 @@ use std::fs::File;
 use std::io::{self, Write, Read};
 use crate::lr_schedulers::ReduceLROnPlateau;
 
+use crate::ufw::types::{Problem, Subtask};
+
 pub struct HDCModel {
+    // Existing fields...
+    pub dependency_graph: Option<HashMap<Uuid, Vec<Uuid>>>, // Map of subtask ID to its dependencies
     dimension: usize,
     similarity_metric: SimilarityMetric,
     accuracy: f64,
