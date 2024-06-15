@@ -1,7 +1,7 @@
 pub trait Plugin {
-    fn initialize(&self);
+    fn initialize(&mut self);
     fn execute(&self, input: &str) -> String;
-    fn finalize(&self);
+    fn finalize(&mut self);
 }
 
 pub struct PluginManager {
@@ -15,6 +15,18 @@ impl PluginManager {
 
     pub fn register_plugin(&mut self, plugin: Box<dyn Plugin>) {
         self.plugins.push(plugin);
+    }
+
+    pub fn initialize_all(&mut self) {
+        for plugin in &mut self.plugins {
+            plugin.initialize();
+        }
+    }
+
+    pub fn finalize_all(&mut self) {
+        for plugin in &mut self.plugins {
+            plugin.finalize();
+        }
     }
 
     pub fn execute_all(&self, input: &str) -> Vec<String> {

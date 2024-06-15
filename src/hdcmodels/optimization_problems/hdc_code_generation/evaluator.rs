@@ -1,6 +1,6 @@
 use crate::optimization_problems::hdc_code_generation::{CodeDataset, CodeGenerationModel};
 use crate::optimization_problems::hdc_code_generation::preprocessor::Preprocessor;
-use crate::plugin::{PluginManager, Plugin};
+use crate::hdcmodels::optimization_problems::hdc_code_generation::plugin::{PluginManager, Plugin};
 use serde::Serialize;
 use tree_sitter::{Parser, Language};
 use nltk::translate::bleu_score;
@@ -15,7 +15,8 @@ pub struct EvaluationResult {
     pub accuracy: f32,
     pub bleu_score: f32,
     plugin_manager: PluginManager,
-    pub fn evaluate(&self, model: &CodeGenerationModel) -> Result<EvaluationResult, String> {
+    pub fn evaluate(&mut self, model: &CodeGenerationModel) -> Result<EvaluationResult, String> {
+        self.plugin_manager.initialize_all();
         let code_snippets = self.dataset.get_code_snippets();
         let preprocessed_snippets = self.preprocessor.preprocess(&code_snippets);
 
@@ -53,6 +54,7 @@ pub struct EvaluationResult {
             plugin_manager: self.plugin_manager.clone(),
         };
 
+        self.plugin_manager.finalize_all();
         Ok(evaluation_result)
     }
 }
