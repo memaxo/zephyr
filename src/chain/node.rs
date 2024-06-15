@@ -32,6 +32,12 @@ impl Node {
         });
         nodes
     }
+
+    pub async fn store_benchmark_results(&self) -> Result<(), NodeError> {
+        // Placeholder for actual storage logic
+        println!("Storing benchmark results for node {}: {:?}", self.id, self.benchmark_results);
+        Ok(())
+    }
 }
 
 pub struct HardwareCapabilities {
@@ -86,6 +92,8 @@ impl Node {
             benchmark_results: None,
         };
 
+        node.assess_hardware().await?;
+        node.store_benchmark_results().await?;
         node.assess_hardware().await?;
         Ok(node)
     }

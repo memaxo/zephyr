@@ -1,6 +1,7 @@
 use sysinfo::{System, SystemExt, ProcessorExt};
 use crate::hardware_assessment::requirements::MinimumHardwareRequirements;
 use crate::utils::node_id::NodeId;
+mod benchmarks;
 
 pub struct HardwareCapabilities {
     pub cpu_cores: usize,
@@ -23,6 +24,7 @@ pub fn verify_hardware(node_id: &NodeId) -> bool {
     let cpu_cores = system.processors().len();
     let memory_gb = system.total_memory() / 1024 / 1024;
     let storage_gb = system.total_swap() / 1024 / 1024; // Placeholder for actual storage retrieval
+    // Retrieve GPU cores and network bandwidth if available
 
     let capabilities = HardwareCapabilities {
         cpu_cores,
@@ -53,4 +55,15 @@ pub fn run_benchmarks(node_id: &NodeId) -> BenchmarkResult {
 pub fn store_benchmark_results(node_id: &NodeId, results: BenchmarkResult) {
     // Placeholder for actual storage logic
     println!("Storing benchmark results for node {}: {:?}", node_id, results);
+}
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum HardwareAssessmentError {
+    #[error("Hardware verification failed")]
+    HardwareVerificationFailed,
+    #[error("Benchmark error")]
+    BenchmarkError,
+    #[error("Data storage error")]
+    DataStorageError,
 }
