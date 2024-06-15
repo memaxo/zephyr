@@ -3,6 +3,7 @@ use crate::network::Network; // Placeholder for network communication module
 use crate::consensus::Consensus; // Placeholder for consensus module
 use crate::metrics::Metrics; // Placeholder for metrics collection
 use crate::ufw::resources::{calculate_computational_resources, calculate_network_resources, calculate_storage_resources, calculate_quantum_specific_resources};
+use std::collections::HashMap;
 
 pub struct UsefulWorkManager {
     generator: UsefulWorkGenerator,
@@ -11,6 +12,22 @@ pub struct UsefulWorkManager {
     network: Network,
     consensus: Consensus,
     metrics: Metrics,
+fn decompose_problem(problem: &Problem) -> Option<Vec<Problem>> {
+    // Placeholder implementation for problem decomposition
+    // Replace with actual logic to decompose the problem into subtasks
+    None
+}
+
+fn select_node_for_subtask(subtask: &Problem, nodes: &Vec<Node>) -> Node {
+    // Placeholder implementation for selecting a node for a subtask
+    // Replace with actual logic to select the most suitable node
+    nodes[0].clone()
+}
+
+fn select_node_for_problem(problem: &Problem, nodes: &Vec<Node>) -> Node {
+    // Placeholder implementation for selecting a node for a problem
+    // Replace with actual logic to select the most suitable node
+    nodes[0].clone()
 }
 
 impl UsefulWorkManager {
@@ -45,19 +62,23 @@ impl UsefulWorkManager {
     }
 
     pub fn distribute_problems(&self, problems: Vec<Problem>, nodes: Vec<Node>) -> Vec<(Node, Problem)> {
-        // 1. Criteria for Distribution:
-        // - Node's computational capabilities (CPU, GPU, quantum)
-        // - Node's reputation (based on past performance)
-        // - Problem's resource requirements (from resource estimation functions)
-        // - Network topology and bandwidth considerations
+        let mut assignments = Vec::new();
+        let mut subtask_graph = HashMap::new(); // Dependency graph
 
-        // 2. Load Balancing Strategies:
-        // - Round-robin assignment
-        // - Weighted random assignment based on node capabilities
-        // - Consistent hashing to ensure problems stay on the same node
+        for problem in problems {
+            if let Some(subtasks) = decompose_problem(&problem) {
+                for subtask in subtasks {
+                    let node = select_node_for_subtask(&subtask, &nodes);
+                    assignments.push((node, subtask.clone()));
+                    subtask_graph.entry(problem.id).or_insert(Vec::new()).push(subtask.id);
+                }
+            } else {
+                let node = select_node_for_problem(&problem, &nodes);
+                assignments.push((node, problem));
+            }
+        }
 
-        // Placeholder implementation (replace with actual logic):
-        problems.into_iter().zip(nodes).collect() // Naive round-robin
+        assignments
     }
 
     pub fn collect_solutions(&self, assignments: Vec<(Node, Problem)>) -> Vec<(Problem, Solution)> {
