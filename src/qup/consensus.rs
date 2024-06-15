@@ -185,6 +185,14 @@ impl QUPConsensus {
         }
     }
 
+    pub async fn resolve_conflict(&self, conflicting_data: &str) -> Result<(), ConsensusError> {
+        // Implement logic to resolve conflict using consensus mechanism
+        // For example, using BFT or voting
+        // ...
+
+        Ok(())
+    }
+
     fn process_propose(&mut self, shard_id: u64, block: QUPBlock, committee_members: &[u64]) -> Result<(), ConsensusError> {
         // Validate the block within the shard
         if !self.validate_block_within_shard(shard_id, &block)? {

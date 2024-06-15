@@ -1,7 +1,7 @@
 use crate::chain::transaction::Transaction;
 use crate::chain::block::Block;
 use crate::network::shard_message::ShardMessage;
-use crate::utils::merkle_tree::MerkleTree;
+use crate::utils::merkle_tree::{MerkleTree, MerkleProof};
 use tokio::time::{interval, Interval};
 use crate::secure_core::secure_vault::SecureVault;
 use crate::consensus::consensus_config::ConsensusConfig;
@@ -75,7 +75,45 @@ pub enum ShardError {
         }
     }
 
-    pub async fn start_snapshot_interval(&self, interval_duration: Duration) {
+    pub async fn handle_discrepancy(&self, snapshot: &ShardState) -> Result<(), ShardError> {
+        let local_state = self.create_snapshot().await?;
+        if local_state.hash() != snapshot.hash() {
+            self.initiate_reconciliation(snapshot).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn initiate_reconciliation(&self, snapshot: &ShardState) -> Result<(), ShardError> {
+        let request = ShardMessage::MerkleProofRequest { shard_id: self.shard_id, state_hash: snapshot.hash() };
+        for (_, sender) in &self.shard_channels {
+            sender.send(NetworkMessage::ShardMessage(request.clone())).await.map_err(|e| ShardError::MessageSendError(format!("Failed to send Merkle proof request: {}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub async fn handle_merkle_proof_request(&self, state_hash: &str) -> Result<(), ShardError> {
+        let local_state = self.create_snapshot().await?;
+        let merkle_proof = MerkleTree::new(local_state.transactions.iter().map(|tx| tx.hash()).collect()).generate_proof(state_hash);
+        let response = ShardMessage::MerkleProofResponse { shard_id: self.shard_id, merkle_proof };
+        for (_, sender) in &self.shard_channels {
+            sender.send(NetworkMessage::ShardMessage(response.clone())).await.map_err(|e| ShardError::MessageSendError(format!("Failed to send Merkle proof response: {}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub async fn handle_merkle_proof_response(&self, merkle_proof: MerkleProof) -> Result<(), ShardError> {
+        // Implement logic to handle Merkle proof response and identify discrepancies
+        // ...
+
+        Ok(())
+    }
+
+    pub async fn resolve_conflict(&self, conflicting_data: &str) -> Result<(), ShardError> {
+        // Implement logic to resolve conflict using consensus mechanism
+        // ...
+
+        Ok(())
+    }
         let mut interval = interval(interval_duration);
         loop {
             interval.tick().await;
@@ -100,7 +138,46 @@ pub struct Shard {
     last_prune_time: Instant,
     consensus_config: ConsensusConfig,
     nonce_counter: Arc<RwLock<u64>>,
-}
+    async fn handle_shard_message(&mut self, message: ShardMessage) -> Result<(), ShardError> {
+        match message {
+            ShardMessage::StateRequest { shard_id } => {
+                let transactions = self.transactions.read().map_err(|_| ShardError::SerializationError("Failed to acquire read lock for transactions".to_string()))?;
+                let state = ShardState {
+                    shard_id: self.shard_id,
+                    transactions: transactions.iter().map(|tx| {
+                        serde_json::from_slice(tx).map_err(|e| {
+                            warn!("Failed to deserialize transaction during state request: {}", e);
+                            ShardError::SerializationError(e)
+                        })
+                    }).collect::<Result<_, _>>()?,
+                };
+                let response = ShardMessage::StateResponse(state);
+                self.send_message_to_shard(shard_id, NetworkMessage::ShardMessage(response)).await?;
+            }
+            ShardMessage::StateResponse(state) => {
+                if state.shard_id != self.shard_id {
+                    warn!("Received state response from unexpected shard: {}", state.shard_id);
+                    return Ok(());
+                }
+                let decompressed_state = decompress_data(&state).map_err(ShardError::DecompressionError)?;
+                let mut transactions = self.transactions.write().map_err(|_| ShardError::SerializationError("Failed to acquire write lock for transactions".to_string()))?;
+                self.merge_state(&mut transactions, decompressed_state);
+            }
+            ShardMessage::MerkleProofRequest { shard_id, state_hash } => {
+                self.handle_merkle_proof_request(&state_hash).await?;
+            }
+            ShardMessage::MerkleProofResponse { shard_id, merkle_proof } => {
+                self.handle_merkle_proof_response(merkle_proof).await?;
+            }
+            ShardMessage::CrossShardTransaction { transaction, source_shard_id, target_shard_id } => {
+                self.handle_cross_shard_transaction(transaction, source_shard_id, target_shard_id, committee_members).await;
+            }
+            ShardMessage::CrossShardStateUpdate { state_update, source_shard_id, target_shard_id } => {
+                self.handle_cross_shard_state_update(state_update, source_shard_id, target_shard_id, committee_members).await;
+            }
+        }
+        Ok(())
+    }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShardState {
