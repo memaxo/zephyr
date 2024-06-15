@@ -73,8 +73,45 @@ impl Preprocessor {
     }
 }
 
+use tree_sitter::{Parser, Language, Node};
+extern "C" { fn tree_sitter_rust() -> Language; }
+extern "C" { fn tree_sitter_python() -> Language; }
+extern "C" { fn tree_sitter_javascript() -> Language; }
+
 fn remove_comments_external(snippet: &str) -> String {
-    // Placeholder function for removing comments from code snippets
-    // Replace this with your actual comment removal logic
+    let languages = vec![
+        ("rust", unsafe { tree_sitter_rust() }),
+        ("python", unsafe { tree_sitter_python() }),
+        ("javascript", unsafe { tree_sitter_javascript() }),
+    ];
+
+    for (lang_name, language) in languages {
+        let mut parser = Parser::new();
+        parser.set_language(language).unwrap();
+        if let Some(tree) = parser.parse(snippet, None) {
+            let root_node = tree.root_node();
+            if root_node.has_error() {
+                continue;
+            }
+            return remove_comments_from_node(snippet, root_node);
+        }
+    }
+
     snippet.to_string()
+}
+
+fn remove_comments_from_node(snippet: &str, node: Node) -> String {
+    let mut result = String::new();
+    let mut cursor = node.walk();
+
+    for child in node.children(&mut cursor) {
+        if child.kind() == "comment" {
+            continue;
+        }
+        let start = child.start_byte();
+        let end = child.end_byte();
+        result.push_str(&snippet[start..end]);
+    }
+
+    result
 }

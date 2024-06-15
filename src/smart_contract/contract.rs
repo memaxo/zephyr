@@ -6,6 +6,13 @@ use crate::statement::parse_statement;
 use crate::function::parse_function_declaration;
 use crate::type_annotation::parse_type_annotation;
 
+pub enum Operation {
+    // ... (Existing variants) ...
+    CreateSubtask(String, String),
+    AssignSubtask(String, String),
+    SubmitSubtaskSolution(String, String),
+}
+
 pub struct Subtask {
     pub id: String,
     pub data: String,       // Could be a serialized representation of the subtask data
