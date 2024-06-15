@@ -25,7 +25,7 @@ pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method:
                     .map(|transaction| encode_transactional_data(transaction, dimension))
                     .flatten()
             );
-            let similarity_metric = select_similarity_metric("numerical_transactional_data");
+            let similarity_metric = select_similarity_metric(&encoded_data);
             (encoded_data, similarity_metric)
         },
         EncodingMethod::Quantum => {
@@ -49,7 +49,7 @@ pub fn encode_smart_contract(contract: &str, dimension: usize, n: usize, method:
 
             // Dimensionality reduction using PCA or similar technique
             let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
-            let similarity_metric = select_similarity_metric("set_based_representation");
+            let similarity_metric = select_similarity_metric(&reduced_vectors.iter().flatten().cloned().collect::<Vec<f64>>());
             (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
         },
         EncodingMethod::Quantum => {
@@ -73,7 +73,7 @@ pub fn encode_rust_code(code: &str, dimension: usize, method: EncodingMethod) ->
 
             // Dimensionality reduction using PCA or similar technique
             let reduced_vectors = dimensionality_reduction(&token_vectors, dimension / 2);
-            let similarity_metric = select_similarity_metric("high_dimensional_vector");
+            let similarity_metric = select_similarity_metric(&reduced_vectors.iter().flatten().cloned().collect::<Vec<f64>>());
             (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
         },
         EncodingMethod::Quantum => {
@@ -325,12 +325,26 @@ pub enum SimilarityMetric {
     EuclideanDistance,
 }
 
-pub fn select_similarity_metric(data_type: &str) -> SimilarityMetric {
-    match data_type {
-        "high_dimensional_vector" => SimilarityMetric::CosineSimilarity,
-        "set_based_representation" => SimilarityMetric::JaccardSimilarity,
-        "numerical_transactional_data" => SimilarityMetric::EuclideanDistance,
-        _ => SimilarityMetric::CosineSimilarity,
+use statrs::statistics::{mean, variance};
+
+pub fn analyze_data_characteristics(encoded_data: &[f64]) -> (f64, f64) {
+    let data_mean = mean(encoded_data);
+    let data_variance = variance(encoded_data);
+    (data_mean, data_variance)
+}
+
+pub fn select_similarity_metric(encoded_data: &[f64]) -> SimilarityMetric {
+    let (data_mean, data_variance) = analyze_data_characteristics(encoded_data);
+
+    if data_variance < 0.1 {
+        // Low variance, use Euclidean distance
+        SimilarityMetric::EuclideanDistance
+    } else if data_mean > 0.8 {
+        // High mean, use Jaccard similarity
+        SimilarityMetric::JaccardSimilarity
+    } else {
+        // Default to cosine similarity
+        SimilarityMetric::CosineSimilarity
     }
 }
 pub struct ModelEvaluationMetrics {
