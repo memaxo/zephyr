@@ -49,11 +49,11 @@ pub fn calculate_pearson_correlation(vec1: &[f64], vec2: &[f64]) -> f64 {
 pub fn hamming_distance(vec1: &[f64], vec2: &[f64], metric: SimilarityMetric) -> usize {
     match metric {
         SimilarityMetric::HammingDistance => {
-    vec1.iter()
-        .zip(vec2)
-        .filter(|(x, y)| (x.signum() - y.signum()).abs() > f64::EPSILON)
-        .count()
-}
+            let distance = vec1.iter()
+                .zip(vec2)
+                .filter(|(x, y)| (x.signum() - y.signum()).abs() > f64::EPSILON)
+                .count();
+            distance
         }
         _ => panic!("Invalid similarity metric for Hamming distance"),
     }
