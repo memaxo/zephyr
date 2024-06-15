@@ -35,7 +35,9 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
-    pub committee_members: Arc<RwLock<HashSet<u64>>>, // set of active committee members
+}
+
+impl ConsensusAlgorithm {
     pub fn register_committee_member(&self, shard_id: u64) {
         self.committee_members.write().unwrap().insert(shard_id);
     }
@@ -43,6 +45,7 @@ pub enum ConsensusAlgorithm {
     pub fn unregister_committee_member(&self, shard_id: u64) {
         self.committee_members.write().unwrap().remove(&shard_id);
     }
+}
 
 pub struct QUPConsensus {
     pub shard_recovery_manager: Arc<ShardRecoveryManager>,
@@ -146,11 +149,6 @@ impl QUPConsensus {
             return Err(ConsensusError::InvalidBlock);
         }
 
-        // Validate the block within the shard
-        if !self.validate_block_within_shard(shard_id, &block)? {
-            return Err(ConsensusError::InvalidBlock);
-        }
-
         // Add the block to the local pool of proposed blocks
         self.state.add_proposed_block(block.clone())?;
 
@@ -167,6 +165,24 @@ impl QUPConsensus {
         } else {
             Ok(())
         }
+    }
+
+    fn process_bft_vote(&mut self, shard_id: u64, vote: QUPVote) -> Result<(), ConsensusError> {
+        // Verify the vote signature
+        if !self.verify_vote_signature(&vote)? {
+            return Err(ConsensusError::InvalidSignature);
+        }
+
+        // Add the vote to the state
+        self.state.add_vote(vote.clone())?;
+
+        // Check if the block has reached supermajority
+        if self.state.has_supermajority(&vote.block_hash)? {
+            let block = self.state.get_proposed_block(&vote.block_hash)?;
+            self.commit_block(block)?;
+        }
+
+        Ok(())
     }
 
     fn process_propose_standard(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
@@ -301,8 +317,8 @@ impl QUPConsensus {
         // Add the vote to the state
         self.state.add_vote(vote.clone())?;
 
-        // Check if the block has reached quorum
-        if self.state.has_quorum(vote.block_hash)? {
+        // Check if the block has reached supermajority
+        if self.state.has_supermajority(&vote.block_hash)? {
             let block = self.state.get_proposed_block(&vote.block_hash)?;
             self.commit_block(block)?;
         }
@@ -417,7 +433,18 @@ impl QUPConsensus {
             return Ok(false);
         }
 
+        // Validate BFT signatures
+        if !self.validate_bft_signatures(block)? {
+            return Ok(false);
+        }
+
         Ok(is_valid)
+    }
+
+    fn validate_bft_signatures(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
+        // Placeholder for actual BFT signature validation logic
+        // Example: Verify that a supermajority of committee members have signed the block
+        Ok(true)
     }
 
     fn validate_block_common(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
