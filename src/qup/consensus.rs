@@ -181,7 +181,7 @@ impl QUPConsensus {
             return Err(ConsensusError::InvalidBlock);
         }
 
-        // Calculate utility points based on the transaction's ContributionType
+        // Calculate utility points (UP) based on the transaction's ContributionType
         for transaction in &block.transactions {
             match &transaction.contribution_type {
                 ContributionType::UsefulWork(problem) => {
@@ -377,12 +377,10 @@ impl QUPConsensus {
         let total_rewards = self.calculate_total_rewards(block);
         let rewards = self.calculate_rewards(block, total_rewards);
     
-        // Distribute rewards to validators based on their stake
-        for (validator, reward) in rewards {
-            if let Some(stake) = self.staking.get(&validator) {
-                let validator_reward = reward * *stake / self.state.get_total_stake();
-                self.state.token_manager.mint("QUP", validator_reward, &validator);
-            }
+        // Distribute rewards proportionally to the UP earned by each node
+        for (node, up) in &self.staking {
+            let reward = (up * self.config.block_reward) / total_up;
+            self.state.token_manager.mint("QUP", reward, node);
         }
     
         // Distribute rewards for useful work
@@ -597,7 +595,7 @@ impl QUPConsensus {
         }
         block.utility_points = total_up;
     }
-        // Adjust the useful work and model training difficulties based on the total utility points
+        // Adjust the difficulty of tasks dynamically based on the total utility points (UP)
         if total_utility_points > self.config.target_utility_points {
             self.config.useful_work_difficulty += 1;
             self.config.model_training_difficulty += 1;
