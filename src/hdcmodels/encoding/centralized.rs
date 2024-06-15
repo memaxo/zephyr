@@ -232,6 +232,11 @@ impl StateEncoder {
 }
 
 #[cfg(test)]
+pub fn evaluate_model(metrics: &ModelEvaluationMetrics, benchmarks: &ModelEvaluationBenchmarks) -> bool {
+    metrics.meets_benchmarks(benchmarks)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::chain::state::Account;
@@ -297,3 +302,54 @@ pub fn select_similarity_metric(data_type: &str) -> SimilarityMetric {
         _ => SimilarityMetric::CosineSimilarity,
     }
 }
+pub struct ModelEvaluationMetrics {
+    pub accuracy: f64,
+    pub efficiency: f64,
+    pub generalizability: f64,
+    pub robustness: f64,
+}
+
+pub struct ModelEvaluationBenchmarks {
+    pub accuracy_threshold: f64,
+    pub efficiency_threshold: f64,
+    pub generalizability_threshold: f64,
+    pub robustness_threshold: f64,
+}
+
+impl ModelEvaluationMetrics {
+    pub fn new(accuracy: f64, efficiency: f64, generalizability: f64, robustness: f64) -> Self {
+        ModelEvaluationMetrics {
+            accuracy,
+            efficiency,
+            generalizability,
+            robustness,
+        }
+    }
+
+    pub fn meets_benchmarks(&self, benchmarks: &ModelEvaluationBenchmarks) -> bool {
+        self.accuracy >= benchmarks.accuracy_threshold
+            && self.efficiency >= benchmarks.efficiency_threshold
+            && self.generalizability >= benchmarks.generalizability_threshold
+            && self.robustness >= benchmarks.robustness_threshold
+    }
+}
+
+impl ModelEvaluationBenchmarks {
+    pub fn new(accuracy_threshold: f64, efficiency_threshold: f64, generalizability_threshold: f64, robustness_threshold: f64) -> Self {
+        ModelEvaluationBenchmarks {
+            accuracy_threshold,
+            efficiency_threshold,
+            generalizability_threshold,
+            robustness_threshold,
+        }
+    }
+}
+    #[test]
+    fn test_model_evaluation() {
+        let metrics = ModelEvaluationMetrics::new(0.95, 0.90, 0.85, 0.92);
+        let benchmarks = ModelEvaluationBenchmarks::new(0.90, 0.85, 0.80, 0.90);
+        assert!(evaluate_model(&metrics, &benchmarks));
+
+        let metrics = ModelEvaluationMetrics::new(0.85, 0.90, 0.85, 0.92);
+        assert!(!evaluate_model(&metrics, &benchmarks));
+    }
