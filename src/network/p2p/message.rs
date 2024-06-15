@@ -20,7 +20,8 @@ pub enum Message {
     GetState(u64),
     State(Vec<u8>),
     RequestModelOutputs(Vec<Vec<f64>>),
-    ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>)
+    ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
+    TransactionValidated(Transaction)
 }
 
 impl Message {
@@ -77,6 +78,12 @@ impl MessageHandler {
         let topic = Topic::new(topic);
         let data = message.serialize().unwrap();
         self.floodsub.publish(topic.clone(), data.clone());
+        self.gossipsub.publish(topic, data).unwrap();
+    }
+
+    pub fn send_message_to_useful_work_node(&self, message: Message) {
+        let topic = Topic::new("useful_work_node");
+        let data = message.serialize().unwrap();
         self.gossipsub.publish(topic, data).unwrap();
     }
 
