@@ -42,6 +42,27 @@ pub struct DistributedTrainingConfig {
     pub sampling_rate: f64,
     pub confidence_level: f64,
     pub max_acceptable_error: f64,
+pub struct QUPConfig {
+    pub consensus_config: ConsensusConfig,
+    pub network_config: NetworkConfig,
+    pub block_reward: u64,
+    pub validator_reward_ratio: f64,
+    pub useful_work_config: UsefulWorkConfig,
+    pub reward_scheme: RewardScheme,
+    pub supports_quantum: bool,
+    pub block_storage_path: String,
+    pub transaction_storage_path: String,
+    pub state_storage_path: String,
+    pub contract_storage_path: String,
+    pub quantum_node_settings: QuantumNodeSettings,
+    pub useful_work_problem_types: Vec<UsefulWorkProblemType>,
+    pub cryptographic_parameters: CryptographicParameters,
+    pub load_threshold: f64,
+    pub attack_threshold: f64,
+    pub quorum_threshold: f64,
+    pub confirmation_threshold: usize,
+    pub confirmation_timeout: std::time::Duration,
+    pub distributed_training_config: DistributedTrainingConfig,
 }
 
 impl DistributedTrainingConfig {

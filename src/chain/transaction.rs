@@ -70,6 +70,11 @@ impl Transaction {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transaction {
     pub common: TransactionFields,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Transaction {
+    pub common: TransactionFields,
+    pub contribution_type: ContributionType,
+    pub utility_points: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

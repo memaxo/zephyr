@@ -7,6 +7,21 @@ use sha2::{Sha256, Digest};
 
 pub struct QUPCrypto {
     secure_vault: SecureVault,
+impl QUPCrypto {
+    pub fn verify_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> Result<bool, CryptoError> {
+        // Verify the useful work solution based on the problem
+        // Implement the verification logic for each type of useful work problem
+        match problem {
+            // ...
+        }
+    }
+
+    pub fn verify_model_training(&self, solution: &ModelTrainingSolution) -> Result<bool, CryptoError> {
+        // Verify the model training solution
+        // Check the accuracy, model parameters, etc.
+        // Implement the verification logic
+        Ok(true) // Placeholder
+    }
 }
 
 impl QUPCrypto {

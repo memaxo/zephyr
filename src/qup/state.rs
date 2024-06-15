@@ -28,6 +28,14 @@ pub struct QUPState {
     quantum_node: Arc<QuantumNode>,
     pub reputations: HashMap<String, Reputation>,
     pub validator_utility_points: HashMap<String, u64>,
+impl QUPState {
+    pub fn update_utility_points(&mut self, node_id: &str, points: UtilityPoints) {
+        *self.validator_utility_points.entry(node_id.to_string()).or_insert(0) += points.0;
+    }
+
+    pub fn get_utility_points(&self, node_id: &str) -> UtilityPoints {
+        UtilityPoints(*self.validator_utility_points.get(node_id).unwrap_or(&0))
+    }
 }
 
     pub fn get_network_load(&self) -> f64 {

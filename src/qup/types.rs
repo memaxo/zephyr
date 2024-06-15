@@ -8,7 +8,14 @@ use std::collections::HashMap;
 pub trait UsefulWorkProblemTrait {
     fn solve(&self) -> Box<dyn UsefulWorkSolutionTrait>;
     pub token_balances: HashMap<String, HashMap<String, u64>>, // user_id -> (token_symbol -> balance)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ContributionType {
+    UsefulWork(UsefulWorkProblem),
+    ModelTraining(ModelTrainingProblem),
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UtilityPoints(pub u64);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Token {
