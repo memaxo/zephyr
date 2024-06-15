@@ -73,6 +73,28 @@ impl QUPState {
         Ok(vec![])
     }
 
+    pub fn allocate_tasks(&self, tasks: Vec<Task>, nodes: Vec<Node>) -> HashMap<Node, Vec<Task>> {
+        let mut allocation: HashMap<Node, Vec<Task>> = HashMap::new();
+
+        // Sort nodes by their capabilities
+        let mut sorted_nodes = nodes.clone();
+        sorted_nodes.sort_by_key(|node| node.capabilities);
+
+        // Sort tasks by priority
+        let mut sorted_tasks = tasks.clone();
+        sorted_tasks.sort_by_key(|task| task.priority);
+
+        for task in sorted_tasks {
+            // Find the best node for the task based on capabilities and network load
+            if let Some(best_node) = sorted_nodes.iter().min_by_key(|node| node.current_load) {
+                allocation.entry(best_node.clone()).or_insert_with(Vec::new).push(task.clone());
+                best_node.current_load += task.load;
+            }
+        }
+
+        allocation
+    }
+
     pub fn get_useful_work_problem(&self, _solution: &UsefulWorkSolution) -> Option<UsefulWorkProblem> {
         // Placeholder implementation
         None
