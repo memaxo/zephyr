@@ -7,6 +7,19 @@ pub struct ShardRecoveryManager {
     shard_states: Arc<RwLock<HashMap<u64, Vec<u8>>>>, // shard_id -> state snapshot
     heartbeat_intervals: Arc<RwLock<HashMap<u64, Instant>>>, // shard_id -> last heartbeat time
     committee_members: Arc<RwLock<HashSet<u64>>>, // set of active committee members
+    fn retrieve_latest_snapshot(&self, shard_id: u64) -> Vec<u8> {
+        // Placeholder for actual logic to retrieve the latest snapshot
+        vec![]
+    }
+
+    fn validate_snapshot(&self, snapshot: &[u8]) -> bool {
+        // Placeholder for actual snapshot validation logic
+        true
+    }
+
+    fn resolve_discrepancies(&self, shard_id: u64, discrepancies: Vec<Vec<u8>>) {
+        // Placeholder for actual consensus mechanism to resolve discrepancies
+    }
 }
 
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(30); // 30 seconds timeout for heartbeats
@@ -94,23 +107,36 @@ impl ShardRecoveryManager {
     }
 
     pub fn detect_shard_failure(&self, shard_id: u64) -> bool {
-        // Implement the logic to monitor shard health using heartbeats or other liveness checks
-        // For now, we'll just return false to indicate no failure detected
+        let now = Instant::now();
+        let heartbeats = self.heartbeat_intervals.read().unwrap();
+        if let Some(&last_heartbeat) = heartbeats.get(&shard_id) {
+            if now.duration_since(last_heartbeat) > HEARTBEAT_TIMEOUT {
+                return true;
+            }
+        }
         false
     }
 
 
     pub fn restore_shard_state(&self, shard_id: u64, state_snapshot: Vec<u8>) -> bool {
-        // Restore the shard state from a snapshot or backup
-        self.shard_states.write().unwrap().insert(shard_id, state_snapshot);
+        // Retrieve the latest state snapshot of the failed shard from a reliable source
+        let latest_snapshot = self.retrieve_latest_snapshot(shard_id);
 
-        // Notify other components of the restored shard state
-        self.broadcast_shard_state_restored(shard_id);
+        // Validate the integrity of the snapshot
+        if self.validate_snapshot(&latest_snapshot) {
+            // Restore the shard state from the snapshot
+            self.shard_states.write().unwrap().insert(shard_id, latest_snapshot);
 
-        // Restart any shard-specific services or processes
-        self.restart_shard_services(shard_id);
+            // Notify other components of the restored shard state
+            self.broadcast_shard_state_restored(shard_id);
 
-        true
+            // Restart any shard-specific services or processes
+            self.restart_shard_services(shard_id);
+
+            true
+        } else {
+            false
+        }
     }
 
     fn broadcast_shard_state_restored(&self, shard_id: u64) {
@@ -140,7 +166,19 @@ impl ShardRecoveryManager {
     }
 
     fn reconcile_and_update_state(&self, shard_id: u64, latest_states: Vec<Vec<u8>>) {
-        // Implement the logic to reconcile discrepancies and update the shard state
-        // ...
+        // Compare the restored state with the states of other shards
+        let restored_state = self.shard_states.read().unwrap().get(&shard_id).cloned().unwrap_or_default();
+        let mut discrepancies = Vec::new();
+
+        for state in latest_states {
+            if state != restored_state {
+                discrepancies.push(state);
+            }
+        }
+
+        // Resolve any discrepancies using a consensus mechanism
+        if !discrepancies.is_empty() {
+            self.resolve_discrepancies(shard_id, discrepancies);
+        }
     }
 }
