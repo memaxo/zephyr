@@ -6,6 +6,7 @@ use tokio::task;
 use zephyr_explorer::BlockchainExplorer;
 use isolation_forest::{IsolationForest, IsolationForestOptions};
 use ndarray::Array2;
+use log::{info, error};
 
 pub struct TrainingMetrics {
     pub loss: f64,
@@ -16,6 +17,15 @@ pub struct TrainingMetrics {
     pub model_parallelism: Option<ModelParallelismMetrics>,
     pub network_latency: f64,
     pub transaction_throughput: usize,
+    pub cross_shard_latency: f64,
+    pub cross_shard_throughput: usize,
+}
+
+#[derive(Deserialize)]
+struct CrossShardEvent {
+    event: String,
+    shard_id: u64,
+    target_shard_id: u64,
 }
 
 impl BlockchainExplorer {
@@ -62,9 +72,18 @@ pub fn collect_metrics(model_parallelism: Option<ModelParallelismMetrics>) -> Tr
     let network_latency = 0.0; // Replace with actual network latency calculation
     let transaction_throughput = 0; // Replace with actual transaction throughput calculation
 
+    let cross_shard_latency = 0.0; // Replace with actual cross-shard latency calculation
+    let cross_shard_throughput = 0; // Replace with actual cross-shard throughput calculation
+
     let mut metrics = TrainingMetrics::new(loss, accuracy, memory_usage, cpu_usage, network_latency, transaction_throughput);
+    metrics.cross_shard_latency = cross_shard_latency;
+    metrics.cross_shard_throughput = cross_shard_throughput;
     metrics.model_parallelism = model_parallelism;
     metrics
+}
+
+pub fn log_cross_shard_event(event: &str, shard_id: u64, target_shard_id: u64) {
+    info!("Cross-shard event: {} from shard {} to shard {}", event, shard_id, target_shard_id);
 }
 
 pub fn evaluate_model(model: &Model, validation_dataset: &Dataset, model_parallelism: Option<ModelParallelismMetrics>) -> TrainingMetrics {
@@ -101,7 +120,18 @@ pub async fn start_dashboard(metrics: Arc<Mutex<TrainingMetrics>>, explorer: Blo
                         "synchronization_time": mp.synchronization_time.as_secs_f64(),
                     })
                 }),
+                "cross_shard_latency": metrics.cross_shard_latency,
+                "cross_shard_throughput": metrics.cross_shard_throughput,
             }))
+        });
+
+    let cross_shard_event_route = warp::path("cross_shard_event")
+        .and(warp::post())
+        .and(warp::body::json())
+        .map(|event: CrossShardEvent| {
+            log_cross_shard_event(&event.event, event.shard_id, event.target_shard_id);
+            warp::reply::json(&json!({
+                "status": "Cross-shard event logged"
         });
 
     let routes = metrics_route.with(warp::cors().allow_any_origin());
@@ -131,7 +161,7 @@ pub async fn start_dashboard(metrics: Arc<Mutex<TrainingMetrics>>, explorer: Blo
             }))
         });
 
-    let routes = metrics_route.or(explorer_route).or(anomaly_detection_route).with(warp::cors().allow_any_origin());
+    let routes = metrics_route.or(explorer_route).or(anomaly_detection_route).or(cross_shard_event_route).with(warp::cors().allow_any_origin());
 
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
