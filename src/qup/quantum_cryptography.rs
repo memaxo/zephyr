@@ -1,4 +1,5 @@
 use crate::qup::traits::QuantumCryptography;
+use crate::qup::error_correction::correct_errors;
 
 pub struct QuantumCryptographyImpl;
 
