@@ -14,6 +14,7 @@ use log::{debug, error, info, trace, warn};
 use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Mutex;
+use sha2::{Sha256, Digest};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
@@ -94,7 +95,13 @@ impl Sharding {
         hasher.finish()
     }
 
-    pub async fn init_shards(&self) {
+    fn calculate_hrw_weight(&self, transaction_id: &str, shard_id: u64) -> u64 {
+        let mut hasher = Sha256::new();
+        hasher.update(transaction_id.as_bytes());
+        hasher.update(&shard_id.to_le_bytes());
+        let result = hasher.finalize();
+        u64::from_be_bytes(result[0..8].try_into().unwrap())
+    }
         let mut shards = self.shards.write().await;
         for shard_id in 0..self.total_shards {
             let encryption_key = self.secure_vault.generate_encryption_key().await;
@@ -198,16 +205,19 @@ impl Sharding {
 
 
     fn calculate_shard_for_transaction(&self, transaction: &Transaction) -> Result<u64, ShardingError> {
-        let transaction_id = transaction.id.clone();
-        let transaction_hash = self.hash_transaction_id(&transaction_id);
+        let transaction_id = &transaction.id;
+        let mut max_weight = 0;
+        let mut selected_shard = 0;
 
-        let hash_ring = self.hash_ring.lock().unwrap();
-        let shard_id = match hash_ring.range(transaction_hash..).next() {
-            Some((_, &shard_id)) => shard_id,
-            None => *hash_ring.values().next().unwrap(),
-        };
+        for shard_id in 0..self.total_shards {
+            let weight = self.calculate_hrw_weight(transaction_id, shard_id);
+            if weight > max_weight {
+                max_weight = weight;
+                selected_shard = shard_id;
+            }
+        }
 
-        Ok(shard_id)
+        Ok(selected_shard)
     }
 
     pub async fn start_shard_message_handler(&self) {
