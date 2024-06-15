@@ -44,32 +44,42 @@ pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method:
 
 pub fn encode_smart_contract(contract: &str, dimension: usize, method: EncodingMethod) -> (Vec<f64>, SimilarityMetric) {
     match method {
-        EncodingMethod::Classical => {
-            let ast = parse_smart_contract(contract);
-            let features = extract_smart_contract_features(&ast);
-            let encoded_features: Vec<Vec<f64>> = features.par_iter()
-                .map(|feature| encode_smart_contract_feature(feature, dimension))
-                .collect();
-
-            // Dimensionality reduction using PCA or similar technique
-            let reduced_vectors = dimensionality_reduction(&encoded_features, dimension / 2);
-            let similarity_metric = select_similarity_metric(&reduced_vectors.iter().flatten().cloned().collect::<Vec<f64>>());
-            (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
-        }
-        EncodingMethod::Quantum => {
-            let ast = parse_smart_contract(contract);
-            let features = extract_smart_contract_features(&ast);
-            let data_array: Array1<f64> = Array1::from(features.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
-            let circuit = QuantumEncoder::amplitude_encoding(&data_array);
-            
-            // Perform measurement to convert quantum state back to classical data
-            let classical_data = QuantumEncoder::measure(&circuit);
-            
-            // Perform dimensionality reduction to get final encoding vector
-            let final_encoding = dimensionality_reduction(&vec![classical_data], dimension);
-            (final_encoding[0].clone(), SimilarityMetric::CosineSimilarity) // Placeholder for similarity metric
-        }
+        EncodingMethod::Classical => encode_smart_contract_classical(contract, dimension),
+        EncodingMethod::Quantum => encode_smart_contract_quantum(contract, dimension),
     }
+}
+
+fn encode_smart_contract_classical(contract: &str, dimension: usize) -> (Vec<f64>, SimilarityMetric) {
+    let ast = parse_smart_contract(contract);
+    let features = extract_smart_contract_features(&ast);
+    let encoded_features: Vec<Vec<f64>> = features.par_iter()
+        .map(|feature| encode_smart_contract_feature(feature, dimension))
+        .collect();
+
+    // Dimensionality reduction using PCA or similar technique
+    let reduced_vectors = dimensionality_reduction(&encoded_features, dimension / 2);
+    let similarity_metric = select_similarity_metric(&reduced_vectors.iter().flatten().cloned().collect::<Vec<f64>>());
+    (reduced_vectors.iter().flatten().cloned().collect(), similarity_metric)
+}
+
+fn encode_smart_contract_quantum(contract: &str, dimension: usize) -> (Vec<f64>, SimilarityMetric) {
+    let ast = parse_smart_contract(contract);
+    let features = extract_smart_contract_features(&ast);
+    let data_array: Array1<f64> = Array1::from(features.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
+    let circuit = QuantumEncoder::amplitude_encoding(&data_array);
+    
+    // Perform measurement to convert quantum state back to classical data
+    let classical_data = match QuantumEncoder::measure(&circuit) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("Error during quantum measurement: {}", e);
+            return (vec![], SimilarityMetric::CosineSimilarity); // Return empty vector on error
+        }
+    };
+    
+    // Perform dimensionality reduction to get final encoding vector
+    let final_encoding = dimensionality_reduction(&vec![classical_data], dimension);
+    (final_encoding[0].clone(), SimilarityMetric::CosineSimilarity) // Placeholder for similarity metric
 }
 
 pub fn encode_rust_code(code: &str, dimension: usize, method: EncodingMethod) -> (Vec<f64>, SimilarityMetric) {
@@ -307,8 +317,13 @@ impl StateEncoder {
             }
 
             // Normalization for balance
-            let normalized_balance = (account.balance - state.accounts.iter().map(|a| a.balance).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap())
-                / (state.accounts.iter().map(|a| a.balance).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() - state.accounts.iter().map(|a| a.balance).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap());
+            let min_balance = state.accounts.iter().map(|a| a.balance).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0);
+            let max_balance = state.accounts.iter().map(|a| a.balance).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(1.0);
+            let normalized_balance = if max_balance != min_balance {
+                (account.balance - min_balance) / (max_balance - min_balance)
+            } else {
+                0.0
+            };
             account_encoding.push(normalized_balance);
 
             encoded_data.push(account_encoding);

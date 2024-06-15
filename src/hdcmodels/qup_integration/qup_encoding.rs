@@ -35,10 +35,13 @@ impl QUPEncoding {
 
     fn post_quantum_encrypt(&self, data: &[f64]) -> Vec<f64> {
         let serialized_data = bincode::serialize(data).expect("Failed to serialize data");
-        let encrypted_data = self
-            .qup_crypto
-            .encrypt(&serialized_data)
-            .expect("Failed to encrypt data");
+        let encrypted_data = match self.qup_crypto.encrypt(&serialized_data) {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Encryption error: {}", e);
+                return vec![]; // Return empty vector on error
+            }
+        };
         let deserialized_data: Vec<f64> =
             bincode::deserialize(&encrypted_data).expect("Failed to deserialize data");
         deserialized_data
