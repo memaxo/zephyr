@@ -177,6 +177,18 @@ impl Client {
                                     self.qkd_completed_peers.insert(self.peer.address.clone());
                                     info!("QKD key exchange completed with peer: {}", self.peer.address);
                                 }
+                                Message::VerificationGameChallenge(challenge) => {
+                                    // Handle VerificationGameChallenge
+                                    let response = self.handle_verification_game_challenge(challenge).await;
+                                    let response_message = Message::VerificationGameResponse(response);
+                                    if let Err(e) = self.pq_tls_connection.as_mut().unwrap().send(&response_message.serialize()?).await {
+                                        error!("Failed to send VerificationGameResponse: {}", e);
+                                    }
+                                }
+                                Message::VerificationGameResponse(response) => {
+                                    // Handle VerificationGameResponse 
+                                    self.handle_verification_game_response(response).await;
+                                }
                                 _ => {
                                     match Message::from_protocol_message(protocol_message) {
                                         Ok(zephyr_message) => {
@@ -240,3 +252,16 @@ impl Client {
         // ...
     }
 }
+    async fn update_peer_selection_weights(&mut self) {
+        // Retrieve the reputations of connected peers
+        let peer_reputations = self.get_peer_reputations().await;
+
+        // Calculate the total reputation score
+        let total_reputation: u64 = peer_reputations.values().sum();
+
+        // Update the peer selection weights based on reputation
+        for (peer_id, reputation) in peer_reputations {
+            let weight = reputation as f64 / total_reputation as f64;
+            self.peer_selection_weights.insert(peer_id, weight);
+        }
+    }

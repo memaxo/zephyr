@@ -223,6 +223,18 @@ async fn handle_connection(
                 self.qkd_completed_peers.insert(peer_address.clone());
                 info!("QKD key exchange completed with peer: {}", peer_address);
             }
+            Message::VerificationGameChallenge(challenge) => {
+                // Handle VerificationGameChallenge
+                let response = self.handle_verification_game_challenge(challenge).await;
+                let response_message = Message::VerificationGameResponse(response);
+                if let Err(e) = pq_tls_connection.send(&response_message.serialize()?).await {
+                    error!("Failed to send VerificationGameResponse: {}", e);
+                }
+            }
+            Message::VerificationGameResponse(response) => {
+                // Handle VerificationGameResponse
+                self.handle_verification_game_response(response).await;
+            }
             _ => {
                 let zephyr_message = Message::from_protocol_message(protocol_message)?;
                 let (response_sender, response_receiver) = oneshot::channel();
@@ -242,6 +254,9 @@ async fn handle_connection(
 
     // Remove the peer from the list of connected peers
     peers.lock().unwrap().remove(&peer_address);
+
+    // Update peer selection weights based on reputation
+    self.update_peer_selection_weights().await;
 
     let mut blacklist = peers.lock().unwrap();
     *blacklist.entry(peer_address.clone()).or_insert(0) += 1;
