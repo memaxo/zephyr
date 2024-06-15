@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
+#[derive(Clone)]
 pub struct TransactionQueue {
     queue: Arc<Mutex<VecDeque<Transaction>>>,
 }
@@ -28,6 +29,7 @@ impl TransactionQueue {
     }
 }
 
+#[derive(Clone)]
 pub struct Buffer<T> {
     buffer: Arc<Mutex<Vec<T>>>,
 }

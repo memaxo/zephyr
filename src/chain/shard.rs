@@ -85,6 +85,15 @@ impl Hash for ShardState {
             self.process_shard_block_proposal(block).await?;
         }
 
+        // Sort transactions by timestamp or any other ordering mechanism
+        ordered_transactions.sort_by_key(|tx| tx.timestamp());
+
+        // Process transactions in order
+        for transaction in ordered_transactions {
+            self.verify_transaction(&transaction)?;
+            self.transaction_queue.enqueue(transaction);
+        }
+
         Ok(())
     }
 
@@ -120,12 +129,14 @@ impl Shard {
     }
 
     pub async fn process_incoming_messages(&mut self, secure_vault: &SecureVault) -> Result<(), ShardError> {
+        let mut ordered_transactions = Vec::new();
         while let Some(message) = self.incoming_messages.recv().await {
             match message {
                 NetworkMessage::Transaction(compressed_transaction) => {
                     let transaction = self.decompress_and_decrypt_data(&compressed_transaction, secure_vault)?;
                     self.verify_transaction(&transaction)?;
                     self.transaction_queue.enqueue(transaction);
+                    ordered_transactions.push(transaction);
                 }
                 NetworkMessage::ShardMessage(shard_message) => {
                     self.handle_shard_message(shard_message).await?;

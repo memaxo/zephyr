@@ -143,6 +143,9 @@ impl NetworkManager {
             self.perform_classical_key_exchange().await?;
         }
 
+        // Synchronize state with other nodes
+        self.synchronize_state().await?;
+
         // Process transactions from the queue
         while let Some(transaction) = self.transaction_queue.dequeue() {
             self.process_transaction(transaction).await?;
@@ -294,6 +297,28 @@ impl NetworkManager {
         Ok(())
     }
 
+    async fn synchronize_state(&self) -> Result<(), NetworkError> {
+        // Implement state synchronization logic
+        // Example: Request state from other nodes and merge with local state
+        let state_request = Message::GetState(self.config.peer_id.clone());
+        self.broadcast_message(state_request).await?;
+
+        // Wait for state responses and merge them
+        let mut state_responses = Vec::new();
+        while let Ok(message) = self.message_receiver.try_recv() {
+            if let Message::State(state) = message {
+                state_responses.push(state);
+            }
+        }
+
+        // Merge state responses with local state
+        for state in state_responses {
+            self.merge_state(state)?;
+        }
+
+        Ok(())
+    }
+
     async fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
         while let Some(message) = self.message_receiver.recv().await {
             match message {
@@ -393,6 +418,17 @@ impl NetworkManager {
             }
             Ok(())
         }
+
+    fn merge_state(&self, state: Vec<u8>) -> Result<(), NetworkError> {
+        // Implement state merging logic
+        // Example: Deserialize state and merge with local state
+        let remote_state: HashMap<String, Value> = bincode::deserialize(&state)?;
+        let mut local_state = self.state.write().await;
+        for (key, value) in remote_state {
+            local_state.insert(key, value);
+        }
+        Ok(())
+    }
 
     fn handle_connection(
         &self,
