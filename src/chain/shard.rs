@@ -550,8 +550,18 @@ impl Shard {
         transaction: Transaction,
         source_shard_id: u64,
     ) -> Result<(), ShardError> {
-        // Validate and apply the cross-shard transaction to the shard state
-        // ...
+        // Validate the transaction's signature and origin
+        self.verify_transaction(&transaction)?;
+
+        // Apply the transaction to the local shard state
+        self.apply_transaction(transaction.clone())?;
+
+        // Forward the transaction to other relevant shards for processing
+        let target_shard_id = self.calculate_shard_for_transaction(&transaction);
+        if target_shard_id != self.shard_id {
+            let message = NetworkMessage::Transaction(transaction);
+            self.send_message_to_shard(target_shard_id, message).await?;
+        }
 
         Ok(())
     }
@@ -565,8 +575,23 @@ impl Shard {
 
     async fn commit_shard_block(&mut self, block_hash: String) -> Result<(), ShardError> {
         // Retrieve the block from the local storage
-        // Validate and commit the shard block
-        // ...
+        let block = self.retrieve_block(&block_hash)?;
+
+        // Validate the block's transactions and overall structure
+        for transaction in &block.transactions {
+            self.verify_transaction(transaction)?;
+        }
+
+        // Add the block to the shard's blockchain
+        self.add_block_to_chain(block.clone())?;
+
+        // Update the shard state based on the block's transactions
+        for transaction in block.transactions {
+            self.apply_transaction(transaction)?;
+        }
+
+        // Broadcast the committed block to other nodes in the network
+        self.broadcast_validated_block(block.header, block.transactions, block.useful_work, block.signature).await?;
 
         Ok(())
     }
