@@ -54,6 +54,9 @@ pub enum ShardMessage {
     FraudProof {
         fraud_proof: FraudProof,
     },
+    ShardFailure {
+        shard_id: u64,
+    },
     Snapshot {
         state: ShardState,
     },
