@@ -10,9 +10,27 @@ pub struct QUPCrypto {
 impl QUPCrypto {
     pub fn verify_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> Result<bool, CryptoError> {
         // Verify the useful work solution based on the problem
-        // Implement the verification logic for each type of useful work problem
         match problem {
-            // ...
+            UsefulWorkProblem::IntegerFactorization { number, factors } => {
+                // Verify that the product of the factors equals the number
+                let product: u64 = factors.iter().product();
+                Ok(product == *number)
+            }
+            UsefulWorkProblem::MolecularSimulation { molecule, simulation_result } => {
+                // Verify the molecular simulation result
+                // Placeholder: Implement the actual verification logic
+                Ok(true)
+            }
+            UsefulWorkProblem::Optimization { problem_data, solution } => {
+                // Verify the optimization solution
+                // Placeholder: Implement the actual verification logic
+                Ok(true)
+            }
+            UsefulWorkProblem::MachineLearning { model, dataset, accuracy } => {
+                // Verify the machine learning model accuracy
+                // Placeholder: Implement the actual verification logic
+                Ok(*accuracy >= 0.9) // Example threshold
+            }
         }
     }
 
