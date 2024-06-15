@@ -65,7 +65,7 @@ impl HDCModel {
         let regularization = 0.1;
 
         // Choose an online learning algorithm
-        let mut optimizer = FTRL::new(learning_rate, regularization);
+        let mut optimizer = FTRL::new(learning_rate, 0.1, 0.1); // FTRL with L1 and L2 regularization
 
         for (data, &label) in new_data.iter().zip(labels.iter()) {
             let prediction = self.predict(data);
@@ -165,7 +165,8 @@ impl HDCModel {
         // Optimization algorithms
         let optimizers = vec![
             ("SGD", SGD::new(learning_rate, 0.9)), // SGD with momentum
-            ("Adam", Adam::new(learning_rate)),
+            ("Adam", Adam::new(learning_rate, 0.9, 0.999)), // Adam with beta1 and beta2
+            ("FTRL", FTRL::new(learning_rate, 0.1, 0.1)), // FTRL with L1 and L2 regularization
         ];
 
         // Learning rate scheduling
