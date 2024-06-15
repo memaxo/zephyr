@@ -1,4 +1,6 @@
-pub fn cosine_similarity(vec1: &[f64], vec2: &[f64]) -> f64 {
+pub fn cosine_similarity(vec1: &[f64], vec2: &[f64], metric: SimilarityMetric) -> f64 {
+    match metric {
+        SimilarityMetric::CosineSimilarity => {
     let dot_product = vec1.iter().zip(vec2.iter()).map(|(x, y)| x * y).sum::<f64>();
     let magnitude1 = vec1.iter().map(|x| x.powi(2)).sum::<f64>().sqrt();
     let magnitude2 = vec2.iter().map(|x| x.powi(2)).sum::<f64>().sqrt();
@@ -39,9 +41,41 @@ pub fn calculate_pearson_correlation(vec1: &[f64], vec2: &[f64]) -> f64 {
     numerator / denominator
 }
 
-pub fn hamming_distance(vec1: &[f64], vec2: &[f64]) -> usize {
+        }
+        _ => panic!("Invalid similarity metric for cosine similarity"),
+    }
+}
+
+pub fn hamming_distance(vec1: &[f64], vec2: &[f64], metric: SimilarityMetric) -> usize {
+    match metric {
+        SimilarityMetric::HammingDistance => {
     vec1.iter()
         .zip(vec2)
         .filter(|(x, y)| (x.signum() - y.signum()).abs() > f64::EPSILON)
         .count()
+}
+        }
+        _ => panic!("Invalid similarity metric for Hamming distance"),
+    }
+}
+
+pub fn jaccard_similarity(vec1: &[f64], vec2: &[f64]) -> f64 {
+    let intersection = vec1.iter().zip(vec2).filter(|&(x, y)| (x - y).abs() < f64::EPSILON).count();
+    let union = vec1.len() + vec2.len() - intersection;
+    intersection as f64 / union as f64
+}
+
+pub fn euclidean_distance(vec1: &[f64], vec2: &[f64]) -> f64 {
+    vec1.iter()
+        .zip(vec2)
+        .map(|(x, y)| (x - y).powi(2))
+        .sum::<f64>()
+        .sqrt()
+}
+
+pub enum SimilarityMetric {
+    CosineSimilarity,
+    HammingDistance,
+    JaccardSimilarity,
+    EuclideanDistance,
 }

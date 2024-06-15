@@ -364,11 +364,17 @@ impl HDCModel {
         for (i, code_vector) in trained_model.iter().enumerate() {
             let similarity = match self.similarity_metric {
                 SimilarityMetric::CosineSimilarity => {
-                    cosine_similarity(&encoded_query, code_vector)
+                    cosine_similarity(&encoded_query, code_vector, SimilarityMetric::CosineSimilarity)
                 }
                 SimilarityMetric::HammingDistance => {
-                    1.0 - (hamming_distance(&encoded_query, code_vector) as f64
+                    1.0 - (hamming_distance(&encoded_query, code_vector, SimilarityMetric::HammingDistance) as f64
                         / self.dimension as f64)
+                }
+                SimilarityMetric::JaccardSimilarity => {
+                    jaccard_similarity(&encoded_query, code_vector)
+                }
+                SimilarityMetric::EuclideanDistance => {
+                    1.0 / (1.0 + euclidean_distance(&encoded_query, code_vector))
                 }
             };
 
