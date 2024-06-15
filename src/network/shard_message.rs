@@ -51,6 +51,9 @@ pub enum ShardMessage {
         anomaly_type: String,
         details: String,
     },
+    FraudProof {
+        fraud_proof: FraudProof,
+    },
     Snapshot {
         state: ShardState,
     },

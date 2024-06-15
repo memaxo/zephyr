@@ -18,6 +18,29 @@ impl ShardNetwork {
         }
     }
 
+    pub async fn send_message(
+        &self,
+        target_shard_id: u64,
+        message: ShardMessage,
+    ) -> Result<(), NetworkError> {
+        if let Some(committee_members) = self.routing_table.get(&target_shard_id) {
+            // Direct communication
+            let target_member = self.select_committee_member(target_shard_id, committee_members);
+            self.send_message_to_member(target_member, message).await
+        } else {
+            // Relay network
+            self.route_via_relay_nodes(target_shard_id, message).await
+        }
+    }
+
+    async fn handle_fraud_proof(&self, fraud_proof: FraudProof) -> Result<(), NetworkError> {
+        // Implement logic to handle fraud proof
+        // For example, verify the fraud proof and take necessary actions
+        // ...
+
+        Ok(())
+    }
+
     pub fn update_routing_table(&mut self, shard_id: u64, committee_members: Vec<String>) {
         self.routing_table.insert(shard_id, committee_members);
     }

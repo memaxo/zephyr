@@ -57,6 +57,34 @@ pub enum ShardError {
         Ok(state)
     }
 
+    pub fn penalize_node(&self, node_id: &str) -> Result<(), ShardError> {
+        if let Some(stake) = self.staking.get_mut(node_id) {
+            let penalty_amount = *stake / 2;
+            *stake -= penalty_amount;
+            self.state.token_manager.burn("QUP", penalty_amount, node_id);
+        }
+        Ok(())
+    }
+
+    pub async fn broadcast_fraud_proof(&self, fraud_proof: FraudProof) -> Result<(), ShardError> {
+        let message = NetworkMessage::ShardMessage(ShardMessage::FraudProof { fraud_proof });
+        for (_, sender) in &self.shard_channels {
+            sender.send(message.clone()).await.map_err(|e| ShardError::MessageSendError(format!("Failed to broadcast fraud proof: {}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub async fn sample_blocks_and_transactions(&self) -> Result<(), ShardError> {
+        let mut rng = rand::thread_rng();
+        let shard_ids: Vec<u64> = self.shard_channels.keys().cloned().collect();
+        let sample_shard_id = shard_ids[rng.gen_range(0..shard_ids.len())];
+
+        let request = ShardMessage::StateRequest { shard_id: sample_shard_id };
+        self.send_message_to_shard(sample_shard_id, NetworkMessage::ShardMessage(request)).await?;
+
+        Ok(())
+    }
+
     pub async fn broadcast_snapshot(&self) -> Result<(), ShardError> {
         let snapshot = self.create_snapshot().await?;
         let message = NetworkMessage::ShardMessage(ShardMessage::Snapshot { state: snapshot });
