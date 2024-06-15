@@ -43,7 +43,7 @@ pub enum ShardError {
     DecompressionError(#[from] DecompressionError),
     #[error("Failed to generate unique nonce")]
     NonceGenerationError,
-    pub async fn create_snapshot(&self) -> Result<ShardState, ShardError> {
+    pub async fn create_snapshot(&self) -> Result<CompressedShardState, ShardError> {
         let transactions = self.transactions.read().map_err(|_| ShardError::SerializationError("Failed to acquire read lock for transactions".to_string()))?;
         let state = ShardState {
             shard_id: self.shard_id,
@@ -54,7 +54,17 @@ pub enum ShardError {
                 })
             }).collect::<Result<_, _>>()?,
         };
-        Ok(state)
+        let compressed_state = self.compress_state(&state)?;
+        Ok(compressed_state)
+    }
+
+    fn compress_state(&self, state: &ShardState) -> Result<CompressedShardState, ShardError> {
+        let serialized_state = serde_json::to_vec(state).map_err(ShardError::SerializationError)?;
+        let compressed_data = compress_data(&serialized_state).map_err(ShardError::CompressionError)?;
+        Ok(CompressedShardState {
+            shard_id: state.shard_id,
+            compressed_data,
+        })
     }
 
     pub fn penalize_node(&self, node_id: &str) -> Result<(), ShardError> {
@@ -86,21 +96,28 @@ pub enum ShardError {
     }
 
     pub async fn broadcast_snapshot(&self) -> Result<(), ShardError> {
-        let snapshot = self.create_snapshot().await?;
-        let message = NetworkMessage::ShardMessage(ShardMessage::Snapshot { state: snapshot });
+        let compressed_snapshot = self.create_snapshot().await?;
+        let message = NetworkMessage::ShardMessage(ShardMessage::Snapshot { state: compressed_snapshot });
         for (_, sender) in &self.shard_channels {
             sender.send(message.clone()).await.map_err(|e| ShardError::MessageSendError(format!("Failed to broadcast snapshot: {}", e)))?;
         }
         Ok(())
     }
 
-    pub fn verify_snapshot(&self, snapshot: &ShardState, global_merkle_root: &str) -> Result<(), ShardError> {
+    pub fn verify_snapshot(&self, compressed_snapshot: &CompressedShardState, global_merkle_root: &str) -> Result<(), ShardError> {
+        let snapshot = self.decompress_state(compressed_snapshot)?;
         let merkle_tree = MerkleTree::new(snapshot.transactions.iter().map(|tx| tx.hash()).collect());
         if merkle_tree.root() == global_merkle_root {
             Ok(())
         } else {
             Err(ShardError::InvalidTransaction("Snapshot verification failed".to_string()))
         }
+    }
+
+    fn decompress_state(&self, compressed_state: &CompressedShardState) -> Result<ShardState, ShardError> {
+        let decompressed_data = decompress_data(&compressed_state.compressed_data).map_err(ShardError::DecompressionError)?;
+        let state = serde_json::from_slice(&decompressed_data).map_err(ShardError::SerializationError)?;
+        Ok(state)
     }
 
     pub async fn handle_discrepancy(&self, snapshot: &ShardState) -> Result<(), ShardError> {
@@ -211,6 +228,10 @@ pub struct Shard {
 pub struct ShardState {
     pub shard_id: u64,
     pub transactions: Vec<Transaction>,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CompressedShardState {
+    pub shard_id: u64,
+    pub compressed_data: Vec<u8>,
 }
 
 impl Hash for ShardState {
