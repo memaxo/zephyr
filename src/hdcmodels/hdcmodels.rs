@@ -4,6 +4,9 @@ use crate::hdcmodels::encoding::{
 use crate::hdcmodels::similarity::{cosine_similarity, hamming_distance};
 use crate::state::account::Account;
 use std::time::Instant;
+use quantum_resistant_crypto::encrypt;
+use quantum_resistant_crypto::decrypt;
+use quantum_resistant_crypto::KeyPair;
 
 pub struct HDCModel {
     dimension: usize,
@@ -12,7 +15,8 @@ pub struct HDCModel {
     efficiency: f64,
     generalizability: f64,
     robustness: f64,
-    encoded_data: Vec<Vec<f64>>,
+    encoded_data: Vec<Vec<u8>>,
+    encryption_key: KeyPair,
     epochs: usize,
 }
 
@@ -27,6 +31,7 @@ impl HDCModel {
         // Convert model parameters back to original precision
     }
     pub fn new(similarity_metric: SimilarityMetric) -> Self {
+        let encryption_key = KeyPair::generate();
         HDCModel {
             dimension: 5000,
             similarity_metric,
@@ -34,6 +39,8 @@ impl HDCModel {
             efficiency: 0.0,
             generalizability: 0.0,
             robustness: 0.0,
+            encoded_data: Vec::new(),
+            encryption_key,
         }
     }
 
@@ -117,6 +124,7 @@ impl HDCModel {
                     encode_smart_contract(contract, self.dimension, 3)
                 }
             })
+            .map(|encoded| encrypt(&encoded, &self.encryption_key))
             .collect();
 
         let num_samples = encoded_data.len();
@@ -419,3 +427,29 @@ impl Transaction {
         serde_json::to_string(self).unwrap_or_else(|_| "Invalid transaction".to_string())
     }
 }
+    fn decrypt_encoded_data(&self, encrypted_data: &[Vec<u8>]) -> Vec<Vec<f64>> {
+        encrypted_data
+            .iter()
+            .map(|encrypted| decrypt(encrypted, &self.encryption_key))
+            .collect()
+    }
+
+    fn explain_prediction(&self, input: &DataItem, trained_model: &[Vec<f64>]) -> String {
+        let encoded_input = match input {
+            DataItem::RustCode(code) => encode_rust_code(code, self.dimension),
+            DataItem::NaturalLanguage(text) => encode_natural_language(text, self.dimension),
+            DataItem::TransactionalData(data) => encode_transactional_data(data, self.dimension),
+            DataItem::SmartContract(contract) => {
+                encode_smart_contract(contract, self.dimension, 3)
+            }
+        };
+
+        let decrypted_data = self.decrypt_encoded_data(&self.encoded_data);
+
+        let mut explanation = String::new();
+
+        // Implement attention mechanism for transformer models
+        // or feature importance analysis for other model types
+
+        explanation
+    }
