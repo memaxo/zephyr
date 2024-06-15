@@ -1,13 +1,18 @@
 use pqcrypto_dilithium::dilithium5::{sign, verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, sign_detached, verify_detached};
 use pqcrypto_kyber::kyber1024::{encapsulate, decapsulate, PublicKey as KyberPublicKey, SecretKey as KyberSecretKey, Ciphertext as KyberCiphertext, SharedSecret as KyberSharedSecret};
 use crate::qup::crypto_common::{Decrypt, Encrypt, Sign, Verify};
-use crate::secure_core::secure_vault::SecureVault;
+use crate::qup::key_management::KeyManagement;
 use serde::{Serialize, Deserialize};
 use sha2::{Sha256, Digest};
 
 pub struct QUPCrypto {
-    secure_vault: SecureVault,
+    key_management: KeyManagement,
 impl QUPCrypto {
+    pub fn new() -> Self {
+        QUPCrypto {
+            key_management: KeyManagement::new(),
+        }
+    }
     pub fn verify_useful_work(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> Result<bool, CryptoError> {
         crate::qup::useful_work_verification::verify_useful_work(problem, solution)
     }
@@ -29,7 +34,7 @@ impl QUPCrypto {
 
 impl QUPCrypto {
     pub fn encrypt_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((public_key, _)) = self.secure_vault.get_kyber_keys(key_id) {
+        if let Some((public_key, _)) = self.key_management.get_kyber_keys(key_id) {
             let (ciphertext, shared_secret) = encapsulate(public_key);
             let encrypted_message = self.aes_encrypt(message, &shared_secret);
             Some([ciphertext.as_bytes(), &encrypted_message].concat())
@@ -39,7 +44,7 @@ impl QUPCrypto {
     }
 
     pub fn decrypt_message(&self, encrypted_message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((_, secret_key)) = self.secure_vault.get_kyber_keys(key_id) {
+        if let Some((_, secret_key)) = self.key_management.get_kyber_keys(key_id) {
             let (ciphertext, encrypted_message) = encrypted_message.split_at(KyberCiphertext::BYTES);
             let shared_secret = decapsulate(&KyberCiphertext::from_bytes(ciphertext), secret_key).ok()?;
             self.aes_decrypt(encrypted_message, &shared_secret)
@@ -61,7 +66,7 @@ impl QUPCrypto {
 
 impl QUPCrypto {
     pub fn sign_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((_, secret_key)) = self.secure_vault.get_dilithium_keys(key_id) {
+        if let Some((_, secret_key)) = self.key_management.get_dilithium_keys(key_id) {
             Some(sign_detached(message, secret_key).to_vec())
         } else {
             None
@@ -69,7 +74,7 @@ impl QUPCrypto {
     }
 
     pub fn verify_message(&self, message: &[u8], signature: &[u8], key_id: &str) -> Option<bool> {
-        if let Some((public_key, _)) = self.secure_vault.get_dilithium_keys(key_id) {
+        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
             Some(verify_detached(signature, message, public_key).is_ok())
         } else {
             None
@@ -78,7 +83,7 @@ impl QUPCrypto {
 
 impl QUPCrypto {
     pub fn validate_model_update(&self, model_update: &[u8], signature: &[u8], key_id: &str) -> bool {
-        if let Some((public_key, _)) = self.secure_vault.get_dilithium_keys(key_id) {
+        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
             verify(model_update, signature, public_key).is_ok()
         } else {
             false
@@ -130,7 +135,7 @@ impl QUPCrypto {
     }
 
     pub fn verify(&self, data: &[u8], signature: &[u8], key_id: &str) -> Option<bool> {
-        if let Some((public_key, _)) = self.secure_vault.get_dilithium_keys(key_id) {
+        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
             Some(verify(data, signature, public_key).is_ok())
         } else {
             None
