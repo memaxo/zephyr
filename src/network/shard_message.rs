@@ -101,16 +101,27 @@ impl ShardMessage {
         target_shard_id: u64,
         committee_members: &[String],
     ) {
-        // Validate and process the cross-shard transaction
-        // ...
+        // Validate the transaction's signature and origin
+        if !transaction.validate_signature() {
+            error!("Invalid transaction signature from shard {}", source_shard_id);
+            return;
+        }
 
-        // Forward the transaction to the target shard
-        let message = ShardMessage::CrossShardTransaction {
-            transaction,
-            source_shard_id,
-            target_shard_id,
-        };
-        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+        // Apply the transaction to the local shard
+        if let Err(e) = self.apply_transaction(transaction.clone()).await {
+            error!("Failed to apply transaction from shard {}: {}", source_shard_id, e);
+            return;
+        }
+
+        // Forward the transaction to the target shard if necessary
+        if target_shard_id != self.shard_id {
+            let message = ShardMessage::CrossShardTransaction {
+                transaction,
+                source_shard_id,
+                target_shard_id,
+            };
+            self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+        }
     }
 
     async fn handle_cross_shard_state_update(
@@ -120,16 +131,27 @@ impl ShardMessage {
         target_shard_id: u64,
         committee_members: &[String],
     ) {
-        // Validate and process the cross-shard state update
-        // ...
+        // Validate the state update's signature and origin
+        if !state_update.validate_signature() {
+            error!("Invalid state update signature from shard {}", source_shard_id);
+            return;
+        }
 
-        // Forward the state update to the target shard
-        let message = ShardMessage::CrossShardStateUpdate {
-            state_update,
-            source_shard_id,
-            target_shard_id,
-        };
-        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+        // Apply the state update to the local shard
+        if let Err(e) = self.apply_state_update(state_update.clone()).await {
+            error!("Failed to apply state update from shard {}: {}", source_shard_id, e);
+            return;
+        }
+
+        // Forward the state update to the target shard if necessary
+        if target_shard_id != self.shard_id {
+            let message = ShardMessage::CrossShardStateUpdate {
+                state_update,
+                source_shard_id,
+                target_shard_id,
+            };
+            self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+        }
     }
 
     async fn route_cross_shard_message(
