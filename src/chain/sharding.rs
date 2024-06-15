@@ -11,6 +11,9 @@ use crate::secure_core::secure_vault::SecureVault;
 use crate::utils::hashing::{hash_transaction, ShardingHash};
 use crate::utils::versioning::Versioned;
 use log::{debug, error, info, trace, warn};
+use std::collections::BTreeMap;
+use std::hash::{Hash, Hasher};
+use std::sync::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
@@ -25,6 +28,7 @@ pub struct Sharding {
     connection_manager: Arc<QuantumResistantConnectionManager>,
     qup_crypto: Arc<QUPCrypto>,
     qup_state: Arc<QUPState>,
+    hash_ring: Arc<Mutex<BTreeMap<u64, u64>>>,
 }
 
 #[derive(Error, Debug)]
@@ -53,7 +57,8 @@ impl Sharding {
         qup_state: Arc<QUPState>,
     ) -> Self {
         let shards = Arc::new(RwLock::new(HashMap::new()));
-        Sharding {
+        let hash_ring = Arc::new(Mutex::new(BTreeMap::new()));
+        let sharding = Sharding {
             shards,
             total_shards,
             validator_manager,
@@ -62,7 +67,31 @@ impl Sharding {
             connection_manager,
             qup_crypto,
             qup_state,
+            hash_ring,
+        };
+
+        sharding.initialize_hash_ring().await;
+        sharding
+    }
+
+    async fn initialize_hash_ring(&self) {
+        let mut hash_ring = self.hash_ring.lock().unwrap();
+        for shard_id in 0..self.total_shards {
+            let hash = self.hash_shard_id(shard_id);
+            hash_ring.insert(hash, shard_id);
         }
+    }
+
+    fn hash_shard_id(&self, shard_id: u64) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        shard_id.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn hash_transaction_id(&self, transaction_id: &str) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        transaction_id.hash(&mut hasher);
+        hasher.finish()
     }
 
     pub async fn init_shards(&self) {
@@ -169,17 +198,15 @@ impl Sharding {
 
 
     fn calculate_shard_for_transaction(&self, transaction: &Transaction) -> Result<u64, ShardingError> {
-        let committee = self.qup_state.validator_committee.as_ref().ok_or(ShardingError::ShardNotFound(0))?;
-        let transaction_hash = hash_transaction(transaction);
-        let shard_id = self.assign_transaction_to_shard(transaction_hash, &committee.members)?;
-        Ok(shard_id)
-    }
+        let transaction_id = transaction.id.clone();
+        let transaction_hash = self.hash_transaction_id(&transaction_id);
 
-    fn assign_transaction_to_shard(&self, transaction_hash: u64, committee_members: &[String]) -> Result<u64, ShardingError> {
-        // Implement a round-robin or load-balancing algorithm
-        // For simplicity, we'll use a round-robin approach here
-        let num_shards = committee_members.len() as u64;
-        let shard_id = transaction_hash % num_shards;
+        let hash_ring = self.hash_ring.lock().unwrap();
+        let shard_id = match hash_ring.range(transaction_hash..).next() {
+            Some((_, &shard_id)) => shard_id,
+            None => *hash_ring.values().next().unwrap(),
+        };
+
         Ok(shard_id)
     }
 
