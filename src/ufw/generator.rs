@@ -66,15 +66,87 @@ impl UsefulWorkGenerator {
     }
 
     fn identify_decomposition_opportunities(&self, problem_data: &UsefulWorkProblem) -> Option<Vec<Subtask>> {
-        // Placeholder implementation for identifying decomposition opportunities
-        // Replace with actual logic to identify potential subtasks
-        None
+        let mut subtasks = Vec::new();
+
+        // Example logic for decomposition based on problem type
+        match problem_data {
+            UsefulWorkProblem::Knapsack(problem) => {
+                if problem.weights.len() > 10 {
+                    let chunk_size = problem.weights.len() / 2;
+                    for i in 0..2 {
+                        let subtask_data = KnapsackProblem {
+                            capacity: problem.capacity / 2,
+                            weights: problem.weights[i * chunk_size..(i + 1) * chunk_size].to_vec(),
+                            values: problem.values[i * chunk_size..(i + 1) * chunk_size].to_vec(),
+                        };
+                        subtasks.push(Subtask {
+                            id: Uuid::new_v4(),
+                            data: UsefulWorkProblem::Knapsack(subtask_data),
+                            dependencies: Vec::new(),
+                        });
+                    }
+                }
+            }
+            UsefulWorkProblem::VertexCover(problem) => {
+                if problem.graph.len() > 10 {
+                    let chunk_size = problem.graph.len() / 2;
+                    for i in 0..2 {
+                        let subtask_data = VertexCoverProblem {
+                            graph: problem.graph[i * chunk_size..(i + 1) * chunk_size].to_vec(),
+                        };
+                        subtasks.push(Subtask {
+                            id: Uuid::new_v4(),
+                            data: UsefulWorkProblem::VertexCover(subtask_data),
+                            dependencies: Vec::new(),
+                        });
+                    }
+                }
+            }
+            UsefulWorkProblem::TravelingSalesman(problem) => {
+                if problem.distances.len() > 5 {
+                    let chunk_size = problem.distances.len() / 2;
+                    for i in 0..2 {
+                        let subtask_data = TravelingSalesmanProblem {
+                            distances: problem.distances[i * chunk_size..(i + 1) * chunk_size].to_vec(),
+                        };
+                        subtasks.push(Subtask {
+                            id: Uuid::new_v4(),
+                            data: UsefulWorkProblem::TravelingSalesman(subtask_data),
+                            dependencies: Vec::new(),
+                        });
+                    }
+                }
+            }
+            // Add more problem types and decomposition logic as needed
+            _ => return None,
+        }
+
+        if subtasks.is_empty() {
+            None
+        } else {
+            Some(subtasks)
+        }
     }
 
     fn create_subtasks(&self, subtask_data: &Vec<Subtask>) -> Vec<Subtask> {
-        // Placeholder implementation for creating subtasks
-        // Replace with actual logic to create subtasks from subtask data
-        subtask_data.clone()
+        let mut subtasks = Vec::new();
+
+        for subtask in subtask_data {
+            let dependencies = self.identify_dependencies(subtask);
+            subtasks.push(Subtask {
+                id: Uuid::new_v4(),
+                data: subtask.data.clone(),
+                dependencies,
+            });
+        }
+
+        subtasks
+    }
+
+    fn identify_dependencies(&self, subtask: &Subtask) -> Vec<Uuid> {
+        // Placeholder implementation for identifying dependencies
+        // Replace with actual logic to identify dependencies between subtasks
+        Vec::new()
     }
     pub fn generate(&self, problem_type: &str, difficulty: u32) -> UsefulWorkProblem {
         match problem_type {
