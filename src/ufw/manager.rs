@@ -13,9 +13,60 @@ pub struct UsefulWorkManager {
     consensus: Consensus,
     metrics: Metrics,
 fn decompose_problem(problem: &Problem) -> Option<Vec<Problem>> {
-    // Placeholder implementation for problem decomposition
-    // Replace with actual logic to decompose the problem into subtasks
-    None
+    let mut subtasks = Vec::new();
+
+    // Example: Decompose based on problem type
+    match problem.domain.as_str() {
+        "data_processing" => {
+            // Decompose large datasets into smaller chunks
+            let chunks = problem.data.split_into_chunks();
+            for chunk in chunks {
+                subtasks.push(Problem {
+                    id: Uuid::new_v4(),
+                    domain: problem.domain.clone(),
+                    difficulty: problem.difficulty,
+                    data: chunk,
+                    subtasks: None,
+                    dependency_graph: None,
+                });
+            }
+        }
+        "simulation" => {
+            // Decompose simulation scenarios
+            let scenarios = problem.data.generate_scenarios();
+            for scenario in scenarios {
+                subtasks.push(Problem {
+                    id: Uuid::new_v4(),
+                    domain: problem.domain.clone(),
+                    difficulty: problem.difficulty,
+                    data: scenario,
+                    subtasks: None,
+                    dependency_graph: None,
+                });
+            }
+        }
+        "optimization" => {
+            // Decompose optimization search space
+            let search_spaces = problem.data.split_search_space();
+            for space in search_spaces {
+                subtasks.push(Problem {
+                    id: Uuid::new_v4(),
+                    domain: problem.domain.clone(),
+                    difficulty: problem.difficulty,
+                    data: space,
+                    subtasks: None,
+                    dependency_graph: None,
+                });
+            }
+        }
+        _ => return None,
+    }
+
+    if subtasks.is_empty() {
+        None
+    } else {
+        Some(subtasks)
+    }
 }
 
 fn select_node_for_subtask(subtask: &Problem, nodes: &Vec<Node>) -> Node {
