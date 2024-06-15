@@ -321,7 +321,7 @@ impl QUPConsensus {
         // Check if the block has reached supermajority
         if self.state.has_supermajority(&vote.block_hash)? {
             let block = self.state.get_proposed_block(&vote.block_hash)?;
-            
+        
             // Calculate the total utility points for the block
             let total_utility_points: u64 = block.transactions.iter().map(|tx| tx.utility_points).sum();
             block.utility_points = total_utility_points;
@@ -344,28 +344,25 @@ impl QUPConsensus {
     fn process_commit(&mut self, shard_id: u64, block_hash: Hash) -> Result<(), ConsensusError> {
         // Retrieve the block from the block storage
         let block = self.block_storage.load_block(&block_hash)?;
-    
+
         // Validate the block
         if !self.validate_block_within_shard(shard_id, &block)? {
             return Err(ConsensusError::InvalidBlock);
         }
-    
+
         // Apply the block to the state
         self.state.apply_block(&block)?;
-    
+
         // Distribute rewards based on utility points
         self.distribute_rewards_up(&block)?;
-    
-        // Optimize the block using the HDC model
-        let optimized_block = self.hdc_model.optimize_block(&block);
-    
-        // Save the optimized block to storage
-        self.block_storage.save_block(&optimized_block)?;
-    
-        // Broadcast the optimized block to other nodes
-        let message = NetworkMessage::BlockCommit(optimized_block);
+
+        // Save the block to storage
+        self.block_storage.save_block(&block)?;
+
+        // Broadcast the block to other nodes
+        let message = NetworkMessage::BlockCommit(block);
         self.network.broadcast(message)?;
-    
+
         Ok(())
     }
     
