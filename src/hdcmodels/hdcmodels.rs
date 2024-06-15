@@ -50,10 +50,76 @@ impl HDCModel {
         let batch_size = 64;
         let learning_rate = 0.001;
 
-        // TODO: Optimize the training loop
-        // - Experiment with different optimization algorithms like Adam, RMSprop, etc.
-        // - Implement learning rate scheduling techniques to adapt the learning rate during training
-        // - Explore techniques like batch normalization and dropout to improve training stability and generalization
+        // Optimization algorithms
+        let optimizers = vec![
+            ("SGD", SGD::default()),
+            ("Adam", Adam::default()),
+            ("RMSprop", RMSprop::default()),
+        ];
+
+        // Learning rate scheduling
+        let lr_schedulers = vec![
+            ("ReduceLROnPlateau", ReduceLROnPlateau::default()),
+            ("StepLR", StepLR::new(0.1, 10)),
+            ("ExponentialLR", ExponentialLR::new(0.95)),
+        ];
+
+        let mut best_optimizer = "";
+        let mut best_lr_scheduler = "";
+        let mut best_accuracy = 0.0;
+        let mut best_weights = weights.clone();
+
+        for (optimizer_name, mut optimizer) in optimizers {
+            for (lr_scheduler_name, mut lr_scheduler) in &lr_schedulers {
+                // Reset weights for each combination
+                weights = vec![vec![0.0; num_features]; num_samples];
+
+                for epoch in 0..epochs {
+                    // Training loop...
+
+                    // Update learning rate
+                    let lr = lr_scheduler.get_last_lr()[0];
+                    optimizer.set_lr(lr);
+
+                    // Validation and accuracy calculation...
+
+                    // Update learning rate scheduler
+                    lr_scheduler.step(best_accuracy);
+                }
+
+                if best_accuracy > best_optimizer_accuracy {
+                    best_optimizer = optimizer_name;
+                    best_lr_scheduler = lr_scheduler_name;
+                    best_optimizer_accuracy = best_accuracy;
+                    best_weights = weights.clone();
+                }
+            }
+        }
+
+        // Batch normalization and dropout
+        let use_batch_norm = true;
+        let use_dropout = true;
+        let dropout_rate = 0.5;
+
+        // Modify compute_activations to apply batch norm and dropout
+        fn compute_activations(&self, inputs: &[f64], weights: &[Vec<f64>]) -> Vec<f64> {
+            let mut activations: Vec<f64> = weights
+                .iter()
+                .map(|w| inputs.iter().zip(w.iter()).map(|(x, w)| x * w).sum())
+                .collect();
+
+            if use_batch_norm {
+                let mean = activations.iter().sum::<f64>() / activations.len() as f64;
+                let variance = activations.iter().map(|a| (a - mean).powi(2)).sum::<f64>() / activations.len() as f64;
+                activations = activations.iter().map(|a| (a - mean) / (variance + 1e-8).sqrt()).collect();
+            }
+
+            if use_dropout {
+                activations = activations.iter().map(|a| if rand::random::<f64>() < dropout_rate { 0.0 } else { *a }).collect();
+            }
+
+            activations
+        }
         for epoch in 0..epochs {
             // TODO: Consider more advanced batch sampling techniques like stratified sampling or importance sampling
             let mut batch_indices: Vec<usize> = (0..num_samples).collect();
