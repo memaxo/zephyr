@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, Utc};
+use tokio::time::interval;
 use log::{debug, error, info, trace, warn};
 use parking_lot::{Mutex, RwLock};
 use crossbeam_utils::thread;
@@ -45,7 +46,51 @@ pub enum BlockchainError {
     StateUpdateError(String),
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-}
+    pub async fn create_checkpoint(&self) -> Result<(), BlockchainError> {
+        let state_data;
+        let state_trie_data;
+
+        {
+            let _state_lock = self.state_mutex.lock().unwrap();
+            let state = self.state.read();
+            state_data = serde_json::to_vec(&*state)?;
+            state_trie_data = state.trie.serialize();
+        }
+
+        fs::write("checkpoint_state.json", state_data).await.map_err(BlockchainError::IoError)?;
+        fs::write("checkpoint_state_trie.dat", state_trie_data).await.map_err(BlockchainError::IoError)?;
+
+        debug!("Checkpoint created successfully");
+        self.create_checkpoint().await?;
+        Ok(())
+    }
+
+    pub async fn restore_from_checkpoint(&self) -> Result<(), BlockchainError> {
+        let state_data = fs::read("checkpoint_state.json").await.map_err(BlockchainError::IoError)?;
+        let state_trie_data = fs::read("checkpoint_state_trie.dat").await.map_err(BlockchainError::IoError)?;
+
+        let state: ChainState = serde_json::from_slice(&state_data)?;
+        let trie = ChainState::deserialize_trie(&state_trie_data)?;
+
+        {
+            let mut state_lock = self.state.write();
+            *state_lock = state;
+            state_lock.trie = trie;
+        }
+
+        debug!("State restored from checkpoint successfully");
+        Ok(())
+    }
+
+    pub async fn start_checkpointing(&self, interval_secs: u64) {
+        let mut interval = interval(Duration::from_secs(interval_secs));
+        loop {
+            interval.tick().await;
+            if let Err(e) = self.create_checkpoint().await {
+                error!("Failed to create checkpoint: {:?}", e);
+            }
+        }
+    }
 
 pub struct Blockchain {
     chain: Arc<RwLock<Vec<Arc<Block>>>>,
