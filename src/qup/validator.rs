@@ -16,6 +16,7 @@ pub struct QUPValidator {
     stakes: HashMap<String, u64>, // Validator stakes
     weights: HashMap<String, f64>, // Validator weights
     reputation: Reputation,
+    reputation: Reputation,
 }
 
 impl QUPValidator {
@@ -47,6 +48,19 @@ impl QUPValidator {
         block
     }
 
+    pub fn validate_block(&mut self, block: &QUPBlock) -> Result<(), Error> {
+        // Verify the block
+        if self.verify_block(block) {
+            // Update reputation for successful block validation
+            self.update_reputation(ReputationAction::SuccessfulBlockValidation);
+            Ok(())
+        } else {
+            // Handle invalid block
+            self.update_reputation(ReputationAction::FailedBlockValidation);
+            Err(Error::InvalidBlock)
+        }
+    }
+
     pub fn vote_on_block(&self, block: &QUPBlock) -> Vote {
         // Verify the block proposal
         if self.verify_block_proposal(block) {
@@ -60,6 +74,10 @@ impl QUPValidator {
             // Handle invalid block proposal
             panic!("Invalid block proposal");
         }
+    }
+
+    fn update_reputation(&mut self, action: ReputationAction) {
+        self.reputation.update(self.config.node_id.clone(), action);
     }
 
     pub fn commit_block(&mut self, block: &QUPBlock) -> Result<(), Error> {
