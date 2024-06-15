@@ -23,6 +23,7 @@ use tokio::sync::{mpsc, RwLock};
 pub struct Sharding {
     shards: Arc<RwLock<HashMap<u64, Arc<Shard>>>>,
     total_shards: u64,
+    total_virtual_shards: u64,
     validator_manager: Arc<ValidatorManager>,
     secure_vault: Arc<SecureVault>,
     message_sender: Option<mpsc::Sender<(u64, ShardMessage)>>,
@@ -30,6 +31,7 @@ pub struct Sharding {
     qup_crypto: Arc<QUPCrypto>,
     qup_state: Arc<QUPState>,
     hash_ring: Arc<Mutex<BTreeMap<u64, u64>>>,
+    virtual_to_physical: Arc<RwLock<HashMap<u64, u64>>>,
     pub async fn monitor_shard_loads(&self) {
         loop {
             let shard_loads = self.collect_shard_load_statistics().await;
@@ -38,10 +40,28 @@ pub struct Sharding {
         }
     }
 
+    async fn get_physical_shard_id(&self, virtual_shard_id: u64) -> Result<u64, ShardingError> {
+        let virtual_to_physical = self.virtual_to_physical.read().await;
+        virtual_to_physical.get(&virtual_shard_id).cloned().ok_or(ShardingError::ShardNotFound(virtual_shard_id))
+    }
+
+    async fn initialize_virtual_shards(&self) {
+        let mut virtual_to_physical = self.virtual_to_physical.write().await;
+        for virtual_shard_id in 0..self.total_virtual_shards {
+            let physical_shard_id = virtual_shard_id % self.total_shards;
+            virtual_to_physical.insert(virtual_shard_id, physical_shard_id);
+        }
+    }
+
     async fn collect_shard_load_statistics(&self) -> HashMap<u64, usize> {
         let shards = self.shards.read().await;
         let mut shard_loads = HashMap::new();
-        for (shard_id, shard) in shards.iter() {
+        let virtual_to_physical = self.virtual_to_physical.read().await;
+        let mut shard_loads = HashMap::new();
+        for (virtual_shard_id, physical_shard_id) in virtual_to_physical.iter() {
+            let load = shard_loads.entry(*physical_shard_id).or_insert(0);
+            *load += shards.get(physical_shard_id).unwrap().get_load().await;
+        }
             let load = shard.get_load().await;
             shard_loads.insert(*shard_id, load);
         }
@@ -103,13 +123,17 @@ impl Sharding {
         connection_manager: Arc<QuantumResistantConnectionManager>,
         qup_crypto: Arc<QUPCrypto>,
         qup_state: Arc<QUPState>,
+        total_virtual_shards: u64,
     ) -> Self {
         let shards = Arc::new(RwLock::new(HashMap::new()));
         let hash_ring = Arc::new(Mutex::new(BTreeMap::new()));
-        let sharding = Sharding {
+        let virtual_to_physical = Arc::new(RwLock::new(HashMap::new()));
+        let mut sharding = Sharding {
             shards,
             total_shards,
+            total_virtual_shards,
             validator_manager,
+            virtual_to_physical,
             secure_vault,
             message_sender: None,
             connection_manager,
@@ -119,6 +143,7 @@ impl Sharding {
         };
 
         sharding.initialize_hash_ring().await;
+        sharding.initialize_virtual_shards().await;
         sharding
     }
 
@@ -158,7 +183,8 @@ impl Sharding {
     }
 
     pub async fn add_transaction(&self, transaction: Transaction) -> Result<(), ShardingError> {
-        let shard_id = self.calculate_shard_for_transaction(&transaction)?;
+        let virtual_shard_id = self.calculate_virtual_shard_for_transaction(&transaction)?;
+        let shard_id = self.get_physical_shard_id(virtual_shard_id).await?;
         let shards = self.shards.read().await;
         if let Some(shard) = shards.get(&shard_id) {
             let encrypted_transaction = self
@@ -181,7 +207,8 @@ impl Sharding {
 
 
     pub async fn distribute_transaction(&self, transaction: Transaction) {
-        let shard_id = self.calculate_shard_for_transaction(&transaction)?;
+        let virtual_shard_id = self.calculate_virtual_shard_for_transaction(&transaction)?;
+        let shard_id = self.get_physical_shard_id(virtual_shard_id).await?;
         let validator_shard_id = self.validator_manager.get_validator_shard_id().await;
 
         if shard_id == validator_shard_id {
@@ -251,7 +278,7 @@ impl Sharding {
     }
 
 
-    fn calculate_shard_for_transaction(&self, transaction: &Transaction) -> Result<u64, ShardingError> {
+    fn calculate_virtual_shard_for_transaction(&self, transaction: &Transaction) -> Result<u64, ShardingError> {
         let transaction_id = &transaction.id;
         let mut max_weight = 0;
         let mut selected_shard = 0;
