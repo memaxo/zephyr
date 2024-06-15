@@ -63,8 +63,12 @@ pub struct HDCBenchmarkResult {
     pub model_id: String,
     pub dataset_id: String,
     pub accuracy: f64,
+    pub precision: f64,
+    pub recall: f64,
+    pub f1_score: f64,
     pub execution_time: std::time::Duration,
     pub efficiency: f64,
+    pub confusion_matrix: HashMap<String, HashMap<String, usize>>,
 }
 
 pub struct Dataset {
