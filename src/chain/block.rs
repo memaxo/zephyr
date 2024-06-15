@@ -113,6 +113,7 @@ pub struct Block {
     pub state_root: String,
     pub qup_block_header: QUPBlockHeader,
     pub qup_specific_data: QUPSpecificData,
+    pub utility_proofs: Vec<UtilityProof>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,11 +214,22 @@ impl Block {
     pub fn validate(&self, qup_consensus: &QUPConsensus, qup_state: &QUPState) -> Result<(), BlockError> {
         self.verify_transactions(qup_consensus.secure_vault())?;
         self.verify_signature(qup_consensus.qup_crypto(), qup_state)?;
-        if let Some(useful_work) = &self.useful_work {
-            qup_consensus.verify_useful_work(useful_work).map_err(|e| {
-                BlockError::InvalidUsefulWork(format!("Failed to verify useful work: {}", e))
-            })?;
+        
+        for proof in &self.utility_proofs {
+            match proof {
+                UtilityProof::PoUW(pouw) => {
+                    qup_consensus.verify_useful_work(pouw).map_err(|e| {
+                        BlockError::InvalidUsefulWork(format!("Failed to verify useful work: {}", e))
+                    })?;
+                }
+                UtilityProof::QDPoS(qdpos) => {
+                    qup_consensus.verify_model_training(qdpos).map_err(|e| {
+                        BlockError::InvalidModelTraining(format!("Failed to verify model training: {}", e))  
+                    })?;
+                }
+            }
         }
+        
         Ok(())
     }
 
@@ -254,8 +266,18 @@ impl Block {
         Ok(())
     }
 
-    pub fn mine(&mut self) -> Result<(), BlockError> {
+    pub fn mine(&mut self, qup_consensus: &QUPConsensus) -> Result<(), BlockError> {
         self.validate_smart_contracts()?;
+        
+        // Choose PoUW or QDPoS based on network conditions and miner capabilities
+        if qup_consensus.should_do_useful_work() {
+            let pouw = qup_consensus.perform_useful_work()?;
+            self.utility_proofs.push(UtilityProof::PoUW(pouw));
+        } else {
+            let qdpos = qup_consensus.perform_model_training()?;
+            self.utility_proofs.push(UtilityProof::QDPoS(qdpos));
+        }
+        
         self.mine_block()?;
         Ok(())
     }
