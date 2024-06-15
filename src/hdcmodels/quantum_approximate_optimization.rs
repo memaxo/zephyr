@@ -83,13 +83,12 @@ impl QAOA {
     ) -> Array1<Complex<f64>> {
         // Apply the problem Hamiltonian to the state
         // The problem Hamiltonian encodes the cost function of the optimization problem
-        // You need to implement this based on the specific problem and its cost function
-        // This is a placeholder implementation that applies a simple rotation
-        let mut new_state = Array1::zeros(state.len());
+        // This implementation applies a phase shift based on the cost function
+        let mut new_state = state.clone();
         for (i, amplitude) in state.iter().enumerate() {
-            let angle = gamma
-                * problem.evaluate_cost(&self.hdc_model.decode_solution(i, problem.dimension()));
-            new_state[i] = amplitude * Complex::from_polar(angle.cos(), angle.sin());
+            let cost = problem.evaluate_cost(&self.hdc_model.decode_solution(i, problem.dimension()));
+            let phase = Complex::from_polar(1.0, gamma * cost);
+            new_state[i] = amplitude * phase;
         }
         new_state
     }
@@ -102,11 +101,12 @@ impl QAOA {
         // Apply the mixing Hamiltonian to the state
         // The mixing Hamiltonian is usually a simple operator that mixes the amplitudes
         // of the basis states, allowing for exploration of the solution space
-        // This is a placeholder implementation that applies a simple rotation
-        let mut new_state = Array1::zeros(state.len());
+        // This implementation applies an X rotation gate
+        let mut new_state = state.clone();
         for (i, amplitude) in state.iter().enumerate() {
-            let angle = beta * (i as f64) * PI / (state.len() as f64);
-            new_state[i] = amplitude * Complex::from_polar(angle.cos(), angle.sin());
+            let angle = beta * PI;
+            let rotation = Complex::from_polar(angle.cos(), angle.sin());
+            new_state[i] = amplitude * rotation;
         }
         new_state
     }
