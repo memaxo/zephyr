@@ -52,6 +52,7 @@ pub struct Shard {
     pub shard_channels: HashMap<u64, Sender<NetworkMessage>>,
     pub shard_id: u64,
     pub total_shards: u64,
+    replica_nodes: Vec<String>,
     last_prune_time: Instant,
     consensus_config: ConsensusConfig,
     nonce_counter: Arc<RwLock<u64>>,
@@ -94,6 +95,8 @@ impl Hash for ShardState {
         for (_, sender) in &self.shard_channels {
             sender.send(message.clone()).await.map_err(|e| ShardError::MessageSendError(format!("Failed to broadcast validated block: {}", e)))?;
         }
+        let block_data = serde_json::to_vec(&block).map_err(ShardError::SerializationError)?;
+        self.distribute_to_replicas(block_data).await?;
         Ok(())
     }
 
@@ -160,7 +163,19 @@ impl Shard {
         }
     }
 
-    pub async fn process_incoming_messages(&mut self, secure_vault: &SecureVault) -> Result<(), ShardError> {
+    pub async fn distribute_to_replicas(&self, data: Vec<u8>) -> Result<(), ShardError> {
+        for replica in &self.replica_nodes {
+            let message = NetworkMessage::ReplicaData { data: data.clone() };
+            self.send_message_to_replica(replica, message).await?;
+        }
+        Ok(())
+    }
+
+    async fn send_message_to_replica(&self, replica: &String, message: NetworkMessage) -> Result<(), ShardError> {
+        // Placeholder for actual network send logic
+        // Example: Send the message to the replica node
+        Ok(())
+    }
         let mut ordered_transactions = Vec::new();
         while let Some(message) = self.incoming_messages.recv().await {
             match message {
@@ -169,6 +184,9 @@ impl Shard {
                     self.verify_transaction(&transaction)?;
                     self.transaction_queue.enqueue(transaction);
                     ordered_transactions.push(transaction);
+                }
+                NetworkMessage::ReplicaDataAck { replica_id } => {
+                    debug!("Received acknowledgment from replica: {}", replica_id);
                 }
                 NetworkMessage::ShardMessage(shard_message) => {
                     self.handle_shard_message(shard_message).await?;
@@ -283,6 +301,7 @@ impl Shard {
         let shard_id = self.calculate_shard_for_transaction(&transaction);
         if shard_id == self.shard_id {
             self.compress_and_store_transaction(transaction)?;
+            self.distribute_to_replicas(compressed_transaction.clone()).await?;
             Ok(())
         } else {
             let compressed_transaction = self.compress_data(&transaction)?;
