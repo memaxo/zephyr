@@ -22,6 +22,16 @@ pub struct NodeConfig {
     pub certificate_validity_period: Validity,
     hardware_capabilities: Option<HardwareCapabilities>,
     benchmark_results: Option<BenchmarkResults>,
+impl Node {
+    pub fn prioritize_nodes(nodes: Vec<Node>) -> Vec<Node> {
+        let mut nodes = nodes;
+        nodes.sort_by(|a, b| {
+            let a_score = a.benchmark_results.as_ref().map_or(0.0, |r| r.cpu_score + r.memory_score + r.storage_score);
+            let b_score = b.benchmark_results.as_ref().map_or(0.0, |r| r.cpu_score + r.memory_score + r.storage_score);
+            b_score.partial_cmp(&a_score).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        nodes
+    }
 }
 
 pub struct HardwareCapabilities {
@@ -67,7 +77,7 @@ impl Node {
         let hardware_capabilities = Self::retrieve_hardware_capabilities();
         let benchmark_results = None; // Default value, will be set after assessment
 
-        Ok(Self {
+        let mut node = Self {
             id: config.node_id,
             quantum_entropy_source,
             post_quantum_keypair,
@@ -84,7 +94,10 @@ impl Node {
             message_handler,
             certificate_authority,
             connection_manager,
-        })
+        };
+
+        node.assess_hardware().await?;
+        Ok(node)
     }
 
     fn retrieve_hardware_capabilities() -> Option<HardwareCapabilities> {
