@@ -20,6 +20,7 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, Sender, Receiver};
+use raft::{Config, Raft, RaftState, Storage, StateMachine};
 
 const PRUNE_INTERVAL: Duration = Duration::from_secs(86400); // 24 hours
 const TRANSACTION_RETENTION_PERIOD: Duration = Duration::from_secs(604800); // 1 week
@@ -226,6 +227,9 @@ pub struct Shard {
             ShardMessage::CrossShardStateUpdate { state_update, source_shard_id, target_shard_id } => {
                 self.handle_cross_shard_state_update(state_update, source_shard_id, target_shard_id, committee_members).await;
             }
+            ShardMessage::RaftMessage { message } => {
+                self.raft.handle_message(message).await?;
+            }
         }
         Ok(())
     }
@@ -323,6 +327,10 @@ impl Shard {
         let (tx, rx) = mpsc::channel(1024);
         let encryption_key = Arc::new(RwLock::new(encryption_key));
         let nonce_counter = Arc::new(RwLock::new(0));
+        let raft_config = Config::default();
+        let raft_state = RaftState::new(raft_config.clone());
+        let raft = Raft::new(raft_config, raft_state, Storage::new());
+
         Shard {
             transactions: Arc::new(RwLock::new(VecDeque::new())),
             incoming_messages: rx,
@@ -336,6 +344,7 @@ impl Shard {
             last_prune_time: Instant::now(),
             consensus_config,
             nonce_counter,
+            raft,
         }
     }
 
@@ -481,6 +490,7 @@ impl Shard {
         if shard_id == self.shard_id {
             self.compress_and_store_transaction(transaction)?;
             self.distribute_to_replicas(compressed_transaction.clone()).await?;
+            self.raft.propose(transaction).await?;
             Ok(())
         } else {
             let compressed_transaction = self.compress_data(&transaction)?;
