@@ -62,6 +62,10 @@ impl Transaction {
             shard_key: format!("{}:{}", sender, receiver),
         }
 
+    pub fn is_cross_shard(&self, other: &Transaction) -> bool {
+        self.shard_key != other.shard_key
+    }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Transaction {

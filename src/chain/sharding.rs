@@ -36,8 +36,18 @@ pub struct Sharding {
         loop {
             let shard_loads = self.collect_shard_load_statistics().await;
             self.balance_shard_loads(shard_loads).await;
+            self.rebalance_shards().await;
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
         }
+    }
+
+    async fn rebalance_shards(&self) {
+        // Implement shard rebalancing logic here
+        // This could involve moving data between shards, updating shard assignments, etc.
+        info!("Rebalancing shards...");
+        // Example: Move data from overloaded shards to underloaded shards
+        let shard_loads = self.collect_shard_load_statistics().await;
+        self.balance_shard_loads(shard_loads).await;
     }
 
     async fn get_physical_shard_id(&self, virtual_shard_id: u64) -> Result<u64, ShardingError> {
@@ -97,6 +107,13 @@ pub struct Sharding {
         } else {
             error!("Failed to move data between shards: {} -> {}", from_shard_id, to_shard_id);
         }
+    }
+
+    async fn migrate_data_between_shards(&self, from_shard_id: u64, to_shard_id: u64) {
+        // Implement data migration logic here
+        // This could involve moving data between shards, updating shard assignments, etc.
+        info!("Migrating data from shard {} to shard {}", from_shard_id, to_shard_id);
+        self.move_data_between_shards(from_shard_id, to_shard_id).await;
     }
 
 #[derive(Error, Debug)]
@@ -183,6 +200,31 @@ impl Sharding {
     }
 
     pub async fn add_transaction(&self, transaction: Transaction) -> Result<(), ShardingError> {
+        let virtual_shard_id = self.calculate_virtual_shard_for_transaction(&transaction)?;
+        let shard_id = self.get_physical_shard_id(virtual_shard_id).await?;
+        let shards = self.shards.read().await;
+        if let Some(shard) = shards.get(&shard_id) {
+            let encrypted_transaction = self
+                .qup_crypto
+                .encrypt_transaction(&transaction)
+                .map_err(|e| ShardingError::TransactionEncryptionError(e.to_string()))?;
+            shard
+                .add_transaction(encrypted_transaction)
+                .await
+                .map_err(|e| {
+                    error!("Failed to add transaction to shard {}: {}", shard_id, e);
+                    ShardingError::AddTransactionError(shard_id, e.to_string())
+                })?;
+            Ok(())
+        } else {
+            Err(ShardingError::ShardNotFound(shard_id))
+        }
+    }
+
+    pub async fn handle_cross_shard_transaction(&self, transaction: Transaction) -> Result<(), ShardingError> {
+        // Implement cross-shard transaction handling logic here
+        // This could involve coordinating between multiple shards, updating shard assignments, etc.
+        info!("Handling cross-shard transaction...");
         let virtual_shard_id = self.calculate_virtual_shard_for_transaction(&transaction)?;
         let shard_id = self.get_physical_shard_id(virtual_shard_id).await?;
         let shards = self.shards.read().await;
