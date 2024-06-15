@@ -35,6 +35,19 @@ pub enum ShardMessage {
         source_shard_id: u64,
         target_shard_id: u64,
     },
+    ShardReassignment {
+        old_shard_id: u64,
+        new_shard_id: u64,
+    },
+    ShardLoadUpdate {
+        shard_id: u64,
+        load: usize,
+    },
+    ShardAnomalyAlert {
+        shard_id: u64,
+        anomaly_type: String,
+        details: String,
+    },
 }
 
 impl ShardMessage {
@@ -45,6 +58,40 @@ impl ShardMessage {
             .map_err(|e| NetworkError::CompressionFailed(e.to_string()))?;
         let encrypted_data = crypto.encrypt(&compressed_data)?;
         Ok(encrypted_data)
+    }
+
+    async fn handle_shard_reassignment(
+        &mut self,
+        old_shard_id: u64,
+        new_shard_id: u64,
+    ) {
+        // Update local shard assignments
+        info!("Reassigning shard from {} to {}", old_shard_id, new_shard_id);
+        // Implement the logic to update local shard assignments
+        // ...
+    }
+
+    async fn handle_shard_load_update(
+        &mut self,
+        shard_id: u64,
+        load: usize,
+    ) {
+        // Adjust resource allocation based on load
+        info!("Updating load for shard {}: {}", shard_id, load);
+        // Implement the logic to adjust resource allocation
+        // ...
+    }
+
+    async fn handle_shard_anomaly_alert(
+        &mut self,
+        shard_id: u64,
+        anomaly_type: String,
+        details: String,
+    ) {
+        // Handle anomaly detection alerts
+        warn!("Anomaly detected in shard {}: {} - {}", shard_id, anomaly_type, details);
+        // Implement the logic to handle anomaly detection alerts
+        // ...
     }
 
     async fn handle_cross_shard_transaction(
@@ -181,6 +228,15 @@ impl ShardMessageHandler {
                 return Err(NetworkError::MessageSendingFailed(
                     "TLS connection not established".to_string(),
                 ));
+            }
+            ShardMessage::ShardReassignment { old_shard_id, new_shard_id } => {
+                self.handle_shard_reassignment(old_shard_id, new_shard_id).await;
+            }
+            ShardMessage::ShardLoadUpdate { shard_id, load } => {
+                self.handle_shard_load_update(shard_id, load).await;
+            }
+            ShardMessage::ShardAnomalyAlert { shard_id, anomaly_type, details } => {
+                self.handle_shard_anomaly_alert(shard_id, anomaly_type, details).await;
             }
             Ok(())
         } else {
