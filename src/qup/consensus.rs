@@ -815,3 +815,8 @@ pub trait ConsensusInterface {
 
         weight
     }
+    fn check_compliance(&self, transaction: &Transaction) -> Option<bool> {
+        // Implement logic to check if a transaction result is compliant
+        // Return Some(true) if compliant, Some(false) if non-compliant, or None if compliance cannot be determined
+        todo!()
+    }
