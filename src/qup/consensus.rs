@@ -196,12 +196,12 @@ impl QUPConsensus {
             }
         }
 
-        // Validate the proof/result using the appropriate method from QUPCrypto
+        // Validate the proof/result using the centralized useful work verification
         for transaction in &block.transactions {
             match &transaction.contribution_type {
                 ContributionType::UsefulWork(problem) => {
                     if let Some(solution) = &transaction.contribution_solution {
-                        if !self.qup_crypto.verify_useful_work(problem, solution)? {
+                        if !crate::qup::useful_work_verification::verify_useful_work(problem, solution)? {
                             return Err(ConsensusError::InvalidProof);
                         }
                     }
