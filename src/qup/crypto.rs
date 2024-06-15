@@ -178,9 +178,6 @@ impl QUPCrypto {
         self.verify(vote_data, signature, key_id)
     }
 }
-pub fn verify_signature(data: &[u8], signature: &[u8], public_key: &DilithiumPublicKey) -> bool {
-    verify(data, signature, public_key).is_ok()
-}
     decrypt_quantum_data(data, key)
 }
 

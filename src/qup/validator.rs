@@ -199,7 +199,7 @@ impl QUPValidator {
         let block_bytes = block.to_bytes();
 
         // Verify the block's signature using the proposer's public key
-        proposer_public_key.verify(&block_bytes, &signature)
+        verify_signature(&block_bytes, &signature, &proposer_public_key)
     }
 
     fn verify_block_commit(&self, block: &QUPBlock) -> bool {
@@ -213,7 +213,7 @@ impl QUPValidator {
         let block_bytes = block.to_bytes();
 
         // Verify the block's signature using the committer's public key
-        committer_public_key.verify(&block_bytes, &signature)
+        verify_signature(&block_bytes, &signature, &committer_public_key)
     }
 
     pub fn perform_cryptographic_operations(&mut self, data: &[u8]) -> Result<Vec<u8>, Error> {
