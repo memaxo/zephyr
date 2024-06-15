@@ -371,7 +371,78 @@ impl Sharding {
                 debug!("Synchronized shard {}", shard_id);
             }
         }
+
+        // Implement conflict resolution strategy
+        self.resolve_conflicts().await;
+
         info!("All shards synchronized");
+    }
+
+    async fn resolve_conflicts(&self) {
+        let shard_states = self.get_all_shard_states().await;
+        let mut resolved_states = HashMap::new();
+
+        // Last-Write-Wins (LWW) strategy
+        for state in &shard_states {
+            let entry = resolved_states.entry(state.shard_id).or_insert(state);
+            if state.version > entry.version {
+                *entry = state;
+            }
+        }
+
+        // Voting strategy
+        let mut votes = HashMap::new();
+        for state in &shard_states {
+            let count = votes.entry(state.shard_id).or_insert(HashMap::new());
+            let state_count = count.entry(state).or_insert(0);
+            *state_count += 1;
+        }
+
+        for (shard_id, state_votes) in votes {
+            let (resolved_state, _) = state_votes.into_iter().max_by_key(|&(_, count)| count).unwrap();
+            resolved_states.insert(shard_id, resolved_state);
+        }
+
+        // Merkle Proof Reconciliation strategy
+        for state in &shard_states {
+            let entry = resolved_states.entry(state.shard_id).or_insert(state);
+            if state.version != entry.version {
+                let proof = self.generate_merkle_proof(state);
+                let entry_proof = self.generate_merkle_proof(entry);
+                let discrepancies = self.compare_merkle_proofs(&proof, &entry_proof);
+                self.resolve_discrepancies(state, entry, discrepancies);
+            }
+        }
+
+        // Apply resolved states
+        for (shard_id, resolved_state) in resolved_states {
+            let encrypted_state = self
+                .qup_crypto
+                .encrypt_shard_state(&resolved_state.data)
+                .map_err(|e| {
+                    ShardingError::ShardStateEncryptionError(format!(
+                        "Failed to encrypt shard state for shard {}: {}",
+                        shard_id, e
+                    ))
+                })?;
+            let shard = self.shards.read().await.get(&shard_id).unwrap();
+            shard.synchronize_state(resolved_state.version, encrypted_state).await;
+        }
+    }
+
+    fn generate_merkle_proof(&self, state: &ShardState) -> MerkleProof {
+        // Implement Merkle proof generation logic
+        // ...
+    }
+
+    fn compare_merkle_proofs(&self, proof1: &MerkleProof, proof2: &MerkleProof) -> Vec<Discrepancy> {
+        // Implement Merkle proof comparison logic
+        // ...
+    }
+
+    fn resolve_discrepancies(&self, state1: &ShardState, state2: &ShardState, discrepancies: Vec<Discrepancy>) {
+        // Implement discrepancy resolution logic
+        // ...
     }
 
 
