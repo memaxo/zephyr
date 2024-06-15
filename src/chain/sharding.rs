@@ -470,6 +470,7 @@ impl Sharding {
         let versioned_shard_states = self.qup_state.get_versioned_shard_states().await;
         let shards = self.shards.read().await;
         let mut shard_sync_tasks = Vec::new();
+        let mut shard_sync_tasks = Vec::new();
         for (shard_id, shard) in shards.iter() {
             if let Some(versioned_state) = versioned_shard_states.get(shard_id) {
                 let encrypted_state = self
@@ -485,6 +486,13 @@ impl Sharding {
                 shard_sync_tasks.push(sync_task);
             }
         }
+        let results = futures::future::join_all(shard_sync_tasks).await;
+        for (shard_id, result) in shards.keys().zip(results) {
+            if let Err(e) = result {
+                error!("Failed to synchronize shard {}: {}", shard_id, e);
+            }
+        }
+        debug!("All shards synchronized");
         futures::future::join_all(shard_sync_tasks).await;
         debug!("All shards synchronized");
 
