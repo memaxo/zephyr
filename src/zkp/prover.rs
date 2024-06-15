@@ -3,6 +3,8 @@ use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
 use crate::zkp::math::{FieldElement, PolynomialCommitment};
 use crate::zkp::constraint_system::{ConstraintSystem, ConstraintSystemImpl, PlonkConstraint};
 use crate::zkp::transcript::Transcript;
+use crate::qup::types::{UsefulWorkProblem, UsefulWorkSolution};
+use crate::qup::crypto::QUPCrypto;
 
 pub struct Prover {
     pub constraint_system: ConstraintSystemImpl,
@@ -33,19 +35,12 @@ impl Prover {
             })
             .collect();
 
-        // Generate range proof for confidential value
-        let confidential_value = FieldElement::from(42); // Replace with your confidential value
-        let (range_proof, commitment) = RangeProof::prove_single(
-            &BulletproofGens::new(64, 1), // Adjust parameters as needed
-            &PedersenGens::default(),
-            &mut transcript,
-            confidential_value.clone(), 
-            &mut rand::thread_rng(),
-        ).expect("Range proof creation failed");
+        // Generate ZKP for useful work solution
+        let (useful_work_proof, useful_work_commitment) = self.generate_useful_work_zkp(&self.constraint_system.useful_work_problem, &self.constraint_system.useful_work_solution)?;
         
-        // Enforce range proof in constraint system
-        let value_var = self.constraint_system.alloc_variable(confidential_value);
-        self.constraint_system.enforce_range_proof(value_var, range_proof, &PedersenGens::default(), &BulletproofGens::new(64, 1));
+        // Enforce useful work proof in constraint system
+        let useful_work_var = self.constraint_system.alloc_variable(self.constraint_system.useful_work_solution.clone());
+        self.constraint_system.enforce_useful_work_proof(useful_work_var, useful_work_proof, useful_work_commitment);
 
         // Create the proof
         Proof {
@@ -63,3 +58,24 @@ pub struct Proof {
     pub range_proof_commitment: RangeProof,
     pub transcript: Transcript,
 }
+
+    fn generate_useful_work_zkp(&self, problem: &UsefulWorkProblem, solution: &UsefulWorkSolution) -> Result<(Vec<u8>, Vec<u8>), ProverError> {
+        // Generate ZKP for the useful work solution based on the problem type
+        match problem {
+            UsefulWorkProblem::Knapsack(_) => {
+                // Generate ZKP for knapsack solution
+                // ...
+            }
+            UsefulWorkProblem::VertexCover(_) => {
+                // Generate ZKP for vertex cover solution
+                // ...
+            }
+            // Add more cases for other useful work problem types
+            // ...
+        }
+        
+        // Placeholder implementation
+        let proof = vec![];
+        let commitment = vec![];
+        Ok((proof, commitment))
+    }
