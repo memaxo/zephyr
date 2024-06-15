@@ -137,16 +137,40 @@ impl UsefulWorkManager {
     }
 
     pub fn collect_solutions(&self, assignments: Vec<(Node, Problem)>) -> Vec<(Problem, Solution)> {
-        // 1. Network Communication:
-        // Use the `Network` module to request solutions from nodes.
-        // Implement timeout and retry mechanisms for reliability.
+        let mut solutions = Vec::new();
+        let mut unreliable_nodes = Vec::new();
 
-        // 2. Solution Aggregation:
-        // Collect solutions from nodes and verify their validity.
-        // Aggregate results for problems with multiple solutions (e.g., averaging, voting).
+        for (node, problem) in assignments {
+            let mut retries = 0;
+            let max_retries = 3;
+            let timeout = std::time::Duration::from_secs(30);
 
-        // Placeholder implementation:
-        vec![] // Replace with actual solution collection logic
+            loop {
+                match self.network.request_solution(&node, &problem, timeout) {
+                    Ok(solution) => {
+                        if self.validator.validate(&problem, &solution) {
+                            solutions.push((problem, solution));
+                        }
+                        break;
+                    }
+                    Err(_) => {
+                        retries += 1;
+                        if retries >= max_retries {
+                            unreliable_nodes.push(node.clone());
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_secs(2u64.pow(retries)));
+                    }
+                }
+            }
+        }
+
+        // Mark unreliable nodes
+        for node in unreliable_nodes {
+            self.network.mark_unreliable(&node);
+        }
+
+        solutions
     }
 
     pub fn monitor_progress(&self, assignments: Vec<(Node, Problem)>) -> Vec<(Problem, ProgressStatus)> {
