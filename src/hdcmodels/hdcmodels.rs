@@ -7,7 +7,7 @@ use std::time::Instant;
 use quantum_resistant_crypto::{encrypt, decrypt, KeyPair};
 use pqcrypto_dilithium::dilithium;
 use pqcrypto_kyber::kyber;
-use qiskit::algorithms::{QSVM, VQE};
+use qiskit::algorithms::{QSVM, VQE, KernelType, FeatureMap, Ansatz};
 use qiskit::error_correction::{ShorCode, SurfaceCode};
 use crate::optimizers::{Adam, SGD, FTRL};
 use crate::consensus::raft::Raft;
@@ -25,6 +25,9 @@ pub struct HDCModel {
     encoded_data: Vec<Vec<u8>>,
     encryption_key: KeyPair,
     epochs: usize,
+    qsvm_kernel: KernelType,
+    qsvm_feature_map: FeatureMap,
+    vqe_ansatz: Ansatz,
 }
 
 impl HDCModel {
@@ -124,7 +127,14 @@ impl HDCModel {
     }
     pub fn new(similarity_metric: SimilarityMetric) -> Self {
         let encryption_key = dilithium::keypair();
+        let qsvm_kernel = KernelType::RBF; // Default to RBF Kernel
+        let qsvm_feature_map = FeatureMap::ZZFeatureMap; // Default to ZZFeatureMap
+        let vqe_ansatz = Ansatz::HardwareEfficient; // Default to Hardware-Efficient Ansatz
+
         HDCModel {
+            qsvm_kernel,
+            qsvm_feature_map,
+            vqe_ansatz,
             dimension: 5000,
             similarity_metric,
             accuracy: 0.0,
@@ -564,8 +574,8 @@ impl HDCModel {
         trained_model: &[Vec<f64>],
     ) -> String {
         let encoded_query = encode_natural_language(natural_language_query, self.dimension);
-        let qsvm = QSVM::new();
-        let vqe = VQE::new();
+        let qsvm = QSVM::new(self.qsvm_kernel.clone(), self.qsvm_feature_map.clone());
+        let vqe = VQE::new(self.vqe_ansatz.clone());
         let shor_code = ShorCode::new();
         let surface_code = SurfaceCode::new();
 
