@@ -1,19 +1,14 @@
 pub fn cosine_similarity(vec1: &[f64], vec2: &[f64], metric: SimilarityMetric) -> f64 {
     match metric {
         SimilarityMetric::CosineSimilarity => {
-    let dot_product = vec1.iter().zip(vec2.iter()).map(|(x, y)| x * y).sum::<f64>();
-    let magnitude1 = vec1.iter().map(|x| x.powi(2)).sum::<f64>().sqrt();
-    let magnitude2 = vec2.iter().map(|x| x.powi(2)).sum::<f64>().sqrt();
+            let dot_product = vec1.iter().zip(vec2.iter()).map(|(x, y)| x * y).sum::<f64>();
+            let magnitude1 = vec1.iter().map(|x| x.powi(2)).sum::<f64>().sqrt();
+            let magnitude2 = vec2.iter().map(|x| x.powi(2)).sum::<f64>().sqrt();
 
-    dot_product / (magnitude1 * magnitude2)
-}
-
-pub fn calculate_euclidean_distance(vec1: &[f64], vec2: &[f64]) -> f64 {
-    vec1.iter()
-        .zip(vec2)
-        .map(|(x1, x2)| (x1 - x2).powi(2))
-        .sum::<f64>()
-        .sqrt()
+            dot_product / (magnitude1 * magnitude2)
+        }
+        _ => panic!("Invalid similarity metric for cosine similarity"),
+    }
 }
 
 pub fn calculate_manhattan_distance(vec1: &[f64], vec2: &[f64]) -> f64 {
