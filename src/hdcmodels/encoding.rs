@@ -1,12 +1,25 @@
-pub use crate::hdcmodels::encoding::centralized::*;
+use crate::hdcmodels::encoding::centralized::*;
+use codebert::CodeBERT;
+use gnn::GraphNeuralNetwork;
+use bert::BERT;
+use roberta::RoBERTa;
+use gpt3::GPT3;
+use domain_specific_tokenizer::Tokenizer;
+use control_flow_graph::ControlFlowGraph;
+use lstm::LSTM;
+use transformer::Transformer;
+use quantum_encoding::QuantumEncoder;
+use classical_encoding::ClassicalEncoder;
 
 // Rust Code Encoding
 pub fn encode_rust_code(code: &str, dimension: usize) -> Vec<f64> {
-    // 1. Parse code into Abstract Syntax Tree (AST) using syn
-    // 2. Extract AST features (node types, function calls, control flow, etc.)
-    // 3. Combine AST features with pre-trained code token embeddings (e.g., CodeBERT)
-    // 4. Perform dimensionality reduction to get final encoding vector
-    vec![0.0; dimension] // Placeholder
+    let ast = syn::parse_file(code).expect("Failed to parse code");
+    let ast_features = extract_ast_features(&ast);
+    let codebert_embeddings = CodeBERT::encode(&ast_features);
+    let gnn_embeddings = GraphNeuralNetwork::encode(&ast);
+    let combined_embeddings = combine_embeddings(&codebert_embeddings, &gnn_embeddings);
+    let final_encoding = dimensionality_reduction(&combined_embeddings, dimension);
+    final_encoding
 }
 
 // Natural Language Encoding 
