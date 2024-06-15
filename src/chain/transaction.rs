@@ -486,7 +486,7 @@ impl TransactionInterface for Transaction {
     }
 
     /// Validates the transaction against the current QUP state.
-    pub fn validate_for_qup(&self, qup_state: &QUPState) -> Result<()> {
+    pub fn validate_for_qup(&self, qup_state: &QUPState, qup_crypto: &QUPCrypto) -> Result<()> {
         // Check if the sender account exists in the QUP state
         if !qup_state.account_exists(&self.sender) {
             anyhow::bail!(format!("Sender account not found: {}", self.sender));
@@ -511,22 +511,16 @@ impl TransactionInterface for Transaction {
         // Verify the post-quantum signature
         self.verify_post_quantum_signature(&self.sender_post_quantum_public_key()?)?;
 
-        // Verify the zero-knowledge proof
-        let proof_data = [
-            self.sender.as_bytes(),
-            self.receiver.as_bytes(),
-            &self.amount.to_be_bytes(),
-            self.sp_key.expose_secret(),
-        ]
-        .concat();
-        verify_proof(&self.proof.proof_hash, &proof_data)
-            .context("Failed to verify zero-knowledge proof")?;
-
-        // Verify the useful work solution if present
-        if let Some(solution) = &self.useful_work_solution {
-            qup_state
-                .verify_useful_work(solution)
-                .context("Failed to verify useful work solution")?;
+        // Verify the contribution proof based on the contribution type
+        match self.contribution_type {
+            ContributionType::UsefulWork(problem) => {
+                qup_crypto.verify_useful_work(&problem, &self.proof)
+                    .context("Failed to verify useful work proof")?;
+            }
+            ContributionType::ModelTraining(solution) => {
+                qup_crypto.verify_model_training(&solution)
+                    .context("Failed to verify model training proof")?;
+            }
         }
 
         Ok(())
