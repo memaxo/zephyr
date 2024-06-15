@@ -85,6 +85,34 @@ impl QUPConsensus {
             communication_protocol: CommunicationProtocol::new(node_type, network.clone()),
             staking: HashMap::new(),
         }
+        NetworkMessage::ContractExecuted(transaction, updated_state) => {
+            self.handle_contract_executed(transaction, updated_state)?;
+        }
+    }
+
+    fn handle_uwp_solved(&mut self, solved_transaction: Transaction) -> Result<(), ConsensusError> {
+        // Validate and commit the block if necessary
+        if let Some(block) = self.state.get_block_by_transaction(&solved_transaction) {
+            if self.validate_block(&block)? {
+                self.commit_block(block)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn handle_contract_executed(&mut self, transaction: Transaction, updated_state: HashMap<String, Value>) -> Result<(), ConsensusError> {
+        // Apply the received state changes to the local state
+        self.state.apply_state_changes(updated_state)?;
+
+        // Validate and commit the block if necessary
+        if let Some(block) = self.state.get_block_by_transaction(&transaction) {
+            if self.validate_block(&block)? {
+                self.commit_block(block)?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn process_message(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
@@ -563,18 +591,25 @@ impl QUPConsensus {
         let transaction: Transaction = bincode::deserialize(transaction_bytes)
             .map_err(|_| ConsensusError::InvalidTransaction)?;
 
-        // Listen for TransactionValidated messages
-        if let Message::TransactionValidated(validated_transaction) = message {
-            // If the transaction contains a UWP, attempt to solve it
-            if let Some(uwp) = &validated_transaction.uwp {
-                let solution = self.solve_useful_work_problem(uwp);
-                let solved_message = NetworkMessage::UWPSolved(validated_transaction.clone());
-                self.network.broadcast(solved_message)?;
-            } else {
-                // If there's no UWP, send the UWPSolved message directly
-                let solved_message = NetworkMessage::UWPSolved(validated_transaction.clone());
-                self.network.broadcast(solved_message)?;
+        // Listen for TransactionValidated and UWPSolved messages
+        match message {
+            Message::TransactionValidated(validated_transaction) => {
+                // If the transaction contains a UWP, attempt to solve it
+                if let Some(uwp) = &validated_transaction.uwp {
+                    let solution = self.solve_useful_work_problem(uwp);
+                    let solved_message = NetworkMessage::UWPSolved(validated_transaction.clone());
+                    self.network.broadcast(solved_message)?;
+                } else {
+                    // If there's no UWP, send the UWPSolved message directly
+                    let solved_message = NetworkMessage::UWPSolved(validated_transaction.clone());
+                    self.network.broadcast(solved_message)?;
+                }
             }
+            Message::UWPSolved(solved_transaction) => {
+                // Handle the solved UWP
+                self.handle_uwp_solved(solved_transaction)?;
+            }
+            _ => {}
         }
 
         // Add the transaction to the transaction pool
