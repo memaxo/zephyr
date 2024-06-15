@@ -83,8 +83,21 @@ pub struct Sharding {
         let mut overloaded_shards = Vec::new();
         let mut underloaded_shards = Vec::new();
 
+        // Define specific thresholds
+        let transaction_threshold = 1000; // Example threshold for transaction count
+        let pending_block_size_threshold = 5000; // Example threshold for pending block size
+        let resource_utilization_threshold = 80; // Example threshold for CPU/memory usage in percentage
+
         for (shard_id, load) in shard_loads.iter() {
-            if *load > average_load {
+            let shard = self.shards.read().await.get(shard_id).unwrap();
+            let transaction_count = shard.get_transaction_count().await;
+            let pending_block_size = shard.get_pending_block_size().await;
+            let resource_utilization = shard.get_resource_utilization().await;
+
+            if transaction_count > transaction_threshold
+                || pending_block_size > pending_block_size_threshold
+                || resource_utilization > resource_utilization_threshold
+            {
                 overloaded_shards.push(*shard_id);
             } else if *load < average_load {
                 underloaded_shards.push(*shard_id);
@@ -94,7 +107,27 @@ pub struct Sharding {
         for overloaded_shard in overloaded_shards {
             if let Some(underloaded_shard) = underloaded_shards.pop() {
                 self.move_data_between_shards(overloaded_shard, underloaded_shard).await;
+                self.update_shard_assignments(overloaded_shard, underloaded_shard).await;
             }
+        }
+    }
+
+    async fn update_shard_assignments(&self, from_shard_id: u64, to_shard_id: u64) {
+        let mut virtual_to_physical = self.virtual_to_physical.write().await;
+        for (virtual_shard_id, physical_shard_id) in virtual_to_physical.iter_mut() {
+            if *physical_shard_id == from_shard_id {
+                *physical_shard_id = to_shard_id;
+            }
+        }
+        self.update_hash_ring().await;
+    }
+
+    async fn update_hash_ring(&self) {
+        let mut hash_ring = self.hash_ring.lock().unwrap();
+        hash_ring.clear();
+        for shard_id in 0..self.total_shards {
+            let hash = self.hash_shard_id(shard_id);
+            hash_ring.insert(hash, shard_id);
         }
     }
 
