@@ -8,6 +8,9 @@ use quantum_resistant_crypto::encrypt;
 use quantum_resistant_crypto::decrypt;
 use quantum_resistant_crypto::KeyPair;
 use crate::optimizers::{Adam, SGD, FTRL};
+use crate::consensus::raft::Raft;
+use std::fs::File;
+use std::io::{self, Write, Read};
 use crate::lr_schedulers::ReduceLROnPlateau;
 
 pub struct HDCModel {
@@ -21,6 +24,32 @@ pub struct HDCModel {
     encryption_key: KeyPair,
     epochs: usize,
 }
+
+impl HDCModel {
+    pub fn checkpoint(&self, path: &str) -> io::Result<()> {
+        let mut file = File::create(path)?;
+        let encoded_data = bincode::serialize(&self)?;
+        file.write_all(&encoded_data)?;
+        Ok(())
+    }
+
+    pub fn load_checkpoint(path: &str) -> io::Result<Self> {
+        let mut file = File::open(path)?;
+        let mut encoded_data = Vec::new();
+        file.read_to_end(&mut encoded_data)?;
+        let model: HDCModel = bincode::deserialize(&encoded_data)?;
+        Ok(model)
+    }
+
+    pub fn elect_leader(&self, nodes: Vec<String>) -> String {
+        let raft = Raft::new(nodes);
+        raft.elect_leader()
+    }
+
+    pub fn dynamic_load_balancing(&self, nodes: Vec<String>, data: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
+        // Placeholder for dynamic load balancing logic
+        data
+    }
 
 impl HDCModel {
     pub fn update_model(&mut self, new_data: &[Vec<f64>], labels: &[f64]) {
@@ -232,6 +261,19 @@ impl HDCModel {
 
     pub fn train(&mut self, dataset: &Dataset) -> Vec<Vec<f64>> {
         let start_time = Instant::now();
+        let checkpoint_path = "model_checkpoint.bin";
+        let nodes = vec!["node1".to_string(), "node2".to_string(), "node3".to_string()];
+
+        // Elect a leader for distributed training
+        let leader = self.elect_leader(nodes.clone());
+
+        // Perform dynamic load balancing
+        let balanced_data = self.dynamic_load_balancing(nodes, dataset.data.clone());
+
+        // Checkpoint the model periodically
+        if epoch % 10 == 0 {
+            self.checkpoint(checkpoint_path).expect("Failed to checkpoint model");
+        }
 
         let encoded_data: Vec<Vec<f64>> = dataset
             .iter()
