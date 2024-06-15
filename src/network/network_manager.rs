@@ -12,6 +12,7 @@ use crate::qup::crypto::QUPCrypto;
 use crate::qup::validator::QUPValidator;
 use crate::qup::qup_interface::QUPInterface;
 use crate::utils::error::{NetworkError, Result};
+use crate::pipeline::data_structures::{TransactionQueue, Buffer};
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
 use parking_lot::RwLock;
@@ -26,7 +27,8 @@ pub struct NetworkManager {
     crypto: QUPCrypto,
     qkd: Option<QuantumKeyDistribution>,
     pq_tls_connection: Option<PostQuantumTLSConnection>,
-}
+    transaction_queue: TransactionQueue,
+    block_buffer: Buffer<Block>,
 
 impl NetworkInterface for NetworkManager {
     fn broadcast_message(&self, message: Message) -> Result<()> {
@@ -80,6 +82,8 @@ impl NetworkManager {
             Some(QuantumKeyDistribution::new())
         } else {
             None
+            transaction_queue: TransactionQueue::new(),
+            block_buffer: Buffer::new(),
         };
 
         let mut network_manager = NetworkManager {
@@ -139,7 +143,15 @@ impl NetworkManager {
             self.perform_classical_key_exchange().await?;
         }
 
-        // Handle incoming messages
+        // Process transactions from the queue
+        while let Some(transaction) = self.transaction_queue.dequeue() {
+            self.process_transaction(transaction).await?;
+        }
+
+        // Process blocks from the buffer
+        for block in self.block_buffer.get_all() {
+            self.process_block(block).await?;
+        }
         self.handle_messages().await?;
 
         self.handle_incoming_messages().await?;

@@ -3,6 +3,7 @@ use crate::secure_core::secure_vault::SecureVault;
 use crate::consensus::consensus_config::ConsensusConfig;
 use crate::consensus::qup::{QUPBlock, QUPBlockHeader, QUPUsefulWork, QUPVote};
 use crate::network::network_message::{NetworkMessage, ShardMessage};
+use crate::pipeline::data_structures::{TransactionQueue, Buffer};
 use crate::utils::compression::{compress_data, decompress_data, CompressionError, DecompressionError};
 use crate::utils::encryption::{EncryptionKey, EncryptionError, DecryptionError};
 use aes_gcm::{Aes256Gcm, aead::{Aead, NewAead}, Nonce};
@@ -44,6 +45,8 @@ pub struct Shard {
     pub transactions: Arc<RwLock<VecDeque<Vec<u8>>>>,
     pub incoming_messages: Receiver<NetworkMessage>,
     encryption_key: Arc<RwLock<EncryptionKey>>,
+    pub transaction_queue: TransactionQueue,
+    pub block_buffer: Buffer<Block>,
     pub outgoing_messages: Sender<NetworkMessage>,
     pub shard_channels: HashMap<u64, Sender<NetworkMessage>>,
     pub shard_id: u64,
@@ -72,6 +75,16 @@ impl Hash for ShardState {
         for (key, value) in updated_state {
             state.insert(key, value);
         }
+        // Process transactions from the queue
+        while let Some(transaction) = self.transaction_queue.dequeue() {
+            self.encrypt_and_compress_transaction(transaction, secure_vault)?;
+        }
+
+        // Process blocks from the buffer
+        for block in self.block_buffer.get_all() {
+            self.process_shard_block_proposal(block).await?;
+        }
+
         Ok(())
     }
 
@@ -94,6 +107,8 @@ impl Shard {
             transactions: Arc::new(RwLock::new(VecDeque::new())),
             incoming_messages: rx,
             encryption_key,
+            transaction_queue: TransactionQueue::new(),
+            block_buffer: Buffer::new(),
             outgoing_messages: tx,
             shard_channels: HashMap::new(),
             shard_id,
@@ -110,7 +125,7 @@ impl Shard {
                 NetworkMessage::Transaction(compressed_transaction) => {
                     let transaction = self.decompress_and_decrypt_data(&compressed_transaction, secure_vault)?;
                     self.verify_transaction(&transaction)?;
-                    self.encrypt_and_compress_transaction(transaction, secure_vault)?;
+                    self.transaction_queue.enqueue(transaction);
                 }
                 NetworkMessage::ShardMessage(shard_message) => {
                     self.handle_shard_message(shard_message).await?;
