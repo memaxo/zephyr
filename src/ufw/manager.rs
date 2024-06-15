@@ -261,10 +261,32 @@ impl UsefulWorkManager {
     }
 
     pub fn integrate_with_consensus(&self, solutions: Vec<(Problem, Solution)>) {
-        // 1. Share Results:
-        // Use the `Consensus` module to share verified solutions with validators.
+        // Share Results with Validators
+        for (problem, solution) in solutions {
+            self.consensus.share_solution(&problem, &solution);
+        }
 
-        // 2. Consensus Integration:
-        // Implement hooks or methods in the consensus module to use PoUW results for block validation, reward distribution, or other aspects of the consensus protocol.
+        // Notify Consensus Module of Completed Tasks
+        for (problem, solution) in solutions {
+            if self.validator.validate(&problem, &solution) {
+                self.consensus.notify_task_completed(&problem, &solution);
+            }
+        }
+    }
+
+    // Hook for Consensus Module to Query Status of PoUW Tasks
+    pub fn query_task_status(&self, task_id: Uuid) -> Option<ProgressStatus> {
+        self.metrics.get_task_status(task_id)
+    }
+
+    // Method for Consensus Module to Submit New PoUW Tasks
+    pub fn submit_new_task(&self, problem: Problem) -> bool {
+        let solution = self.solve_problem(&problem);
+        if self.validate_solution(&problem, &solution) {
+            self.integrate_with_consensus(vec![(problem, solution)]);
+            true
+        } else {
+            false
+        }
     }
 }
