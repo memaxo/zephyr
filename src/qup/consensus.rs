@@ -35,7 +35,14 @@ pub enum ConsensusAlgorithm {
     Standard,
     Efficient,
     Secure,
-}
+    pub committee_members: Arc<RwLock<HashSet<u64>>>, // set of active committee members
+    pub fn register_committee_member(&self, shard_id: u64) {
+        self.committee_members.write().unwrap().insert(shard_id);
+    }
+
+    pub fn unregister_committee_member(&self, shard_id: u64) {
+        self.committee_members.write().unwrap().remove(&shard_id);
+    }
 
 pub struct QUPConsensus {
     pub shard_recovery_manager: Arc<ShardRecoveryManager>,
@@ -87,6 +94,7 @@ impl QUPConsensus {
             communication_protocol: CommunicationProtocol::new(node_type, network.clone()),
             staking: HashMap::new(),
             shard_recovery_manager,
+            committee_members: Arc::new(RwLock::new(HashSet::new())),
         }
         NetworkMessage::ContractExecuted(transaction, updated_state) => {
             self.handle_contract_executed(transaction, updated_state)?;
@@ -132,24 +140,37 @@ impl QUPConsensus {
         }
     }
 
-    fn process_propose(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
+    fn process_propose(&mut self, shard_id: u64, block: QUPBlock, committee_members: &[u64]) -> Result<(), ConsensusError> {
         // Validate the block within the shard
         if !self.validate_block_within_shard(shard_id, &block)? {
             return Err(ConsensusError::InvalidBlock);
         }
 
-        // Participate in the global consensus process
-        let consensus_algorithm = self.security_manager.determine_consensus_algorithm(&self.state)?;
+        // Validate the block within the shard
+        if !self.validate_block_within_shard(shard_id, &block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
 
-        match consensus_algorithm {
-            ConsensusAlgorithm::Efficient => self.process_propose_efficient(block),
-            ConsensusAlgorithm::Secure => self.process_propose_secure(block),
-            ConsensusAlgorithm::Standard => self.process_propose_standard(block),
+        // Add the block to the local pool of proposed blocks
+        self.state.add_proposed_block(block.clone())?;
+
+        // Check if the block has reached quorum within the shard
+        if self.state.has_quorum_within_shard(shard_id, &block.hash())? {
+            // Participate in the global consensus process
+            let consensus_algorithm = self.security_manager.determine_consensus_algorithm(&self.state)?;
+
+            match consensus_algorithm {
+                ConsensusAlgorithm::Efficient => self.process_propose_efficient(shard_id, block),
+                ConsensusAlgorithm::Secure => self.process_propose_secure(shard_id, block),
+                ConsensusAlgorithm::Standard => self.process_propose_standard(shard_id, block),
+            }
+        } else {
+            Ok(())
         }
     }
 
     fn process_propose_standard(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
-        self.process_propose_common(&block)?;
+        self.process_propose_common(shard_id, &block)?;
 
         // Continue with the standard block processing logic
         // ...
@@ -191,7 +212,7 @@ impl QUPConsensus {
     }
 
     fn process_propose_efficient(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
-        self.process_propose_common(&block)?;
+        self.process_propose_common(shard_id, &block)?;
 
         // Use a more efficient consensus algorithm under high load
         // For example, we can use a simplified voting mechanism
@@ -207,7 +228,7 @@ impl QUPConsensus {
     }
 
     fn process_propose_secure(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
-        self.process_propose_common(&block)?;
+        self.process_propose_common(shard_id, &block)?;
 
         // Generate history proof
         let history_proof = self.generate_history_proof();
