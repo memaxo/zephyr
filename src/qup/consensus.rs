@@ -38,6 +38,7 @@ pub enum ConsensusAlgorithm {
 }
 
 pub struct QUPConsensus {
+    pub shard_recovery_manager: Arc<ShardRecoveryManager>,
     pub blockchain: Arc<Blockchain>,
     pub config: Arc<QUPConfig>,
     pub state_manager: Arc<StateManager>,
@@ -67,6 +68,7 @@ impl QUPConsensus {
         transaction_storage: Arc<TransactionStorage>,
         network: Arc<Network<dyn QuantumComputationProvider + QuantumKeyManagement>>,
         qup_crypto: Arc<dyn QuantumKeyManagement>,
+        shard_recovery_manager: Arc<ShardRecoveryManager>,
     ) -> Self {
         QUPConsensus {
             config,
@@ -84,6 +86,7 @@ impl QUPConsensus {
             vdf: VDF::new(),
             communication_protocol: CommunicationProtocol::new(node_type, network.clone()),
             staking: HashMap::new(),
+            shard_recovery_manager,
         }
         NetworkMessage::ContractExecuted(transaction, updated_state) => {
             self.handle_contract_executed(transaction, updated_state)?;
@@ -94,7 +97,7 @@ impl QUPConsensus {
         // Validate and commit the block if necessary
         if let Some(block) = self.state.get_block_by_transaction(&solved_transaction) {
             if self.validate_block(&block)? {
-                self.commit_block(block)?;
+                self.commit_block(shard_id, block)?;
             }
         }
 
@@ -108,7 +111,7 @@ impl QUPConsensus {
         // Validate and commit the block if necessary
         if let Some(block) = self.state.get_block_by_transaction(&transaction) {
             if self.validate_block(&block)? {
-                self.commit_block(block)?;
+                self.commit_block(shard_id, block)?;
             }
         }
 
@@ -129,8 +132,13 @@ impl QUPConsensus {
         }
     }
 
-    fn process_propose(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
-        // Determine the appropriate consensus algorithm based on the network load and security threats
+    fn process_propose(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
+        // Validate the block within the shard
+        if !self.validate_block_within_shard(shard_id, &block)? {
+            return Err(ConsensusError::InvalidBlock);
+        }
+
+        // Participate in the global consensus process
         let consensus_algorithm = self.security_manager.determine_consensus_algorithm(&self.state)?;
 
         match consensus_algorithm {
@@ -140,7 +148,7 @@ impl QUPConsensus {
         }
     }
 
-    fn process_propose_standard(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+    fn process_propose_standard(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
         self.process_propose_common(&block)?;
 
         // Continue with the standard block processing logic
@@ -149,7 +157,7 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn trigger_hyperparameter_tuning(&mut self, evaluation_score: f64) -> Result<(), ConsensusError> {
+    fn trigger_hyperparameter_tuning(&mut self, shard_id: u64, evaluation_score: f64) -> Result<(), ConsensusError> {
         use optuna::prelude::*;
         use optuna::study::Study;
         use optuna::trial::Trial;
@@ -182,7 +190,7 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn process_propose_efficient(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+    fn process_propose_efficient(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
         self.process_propose_common(&block)?;
 
         // Use a more efficient consensus algorithm under high load
@@ -198,7 +206,7 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn process_propose_secure(&mut self, block: QUPBlock) -> Result<(), ConsensusError> {
+    fn process_propose_secure(&mut self, shard_id: u64, block: QUPBlock) -> Result<(), ConsensusError> {
         self.process_propose_common(&block)?;
 
         // Generate history proof
@@ -239,7 +247,7 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn process_propose_common(&self, block: &QUPBlock) -> Result<(), ConsensusError> {
+    fn process_propose_common(&self, shard_id: u64, block: &QUPBlock) -> Result<(), ConsensusError> {
         // Validate the block
         if !self.validate_block(block)? {
             return Err(ConsensusError::InvalidBlock);
@@ -257,7 +265,7 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn process_vote(&mut self, vote: QUPVote) -> Result<(), ConsensusError> {
+    fn process_vote(&mut self, shard_id: u64, vote: QUPVote) -> Result<(), ConsensusError> {
         // Verify the vote signature
         if !self.verify_vote_signature(&vote)? {
             return Err(ConsensusError::InvalidSignature);
@@ -290,12 +298,12 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn process_commit(&mut self, block_hash: Hash) -> Result<(), ConsensusError> {
+    fn process_commit(&mut self, shard_id: u64, block_hash: Hash) -> Result<(), ConsensusError> {
         // Retrieve the block from the block storage
         let block = self.block_storage.load_block(&block_hash)?;
 
         // Validate the block
-        if !self.validate_block(&block)? {
+        if !self.validate_block_within_shard(shard_id, &block)? {
             return Err(ConsensusError::InvalidBlock);
         }
 
@@ -337,6 +345,16 @@ impl QUPConsensus {
         }
 
         Ok(())
+    }
+
+    fn validate_block_within_shard(&self, shard_id: u64, block: &QUPBlock) -> Result<bool, ConsensusError> {
+        // Validate the block within the shard using existing validation logic
+        let is_valid = self.validate_block_common(block)?;
+
+        // Additional shard-specific validation checks
+        // ...
+
+        Ok(is_valid)
     }
 
     fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
@@ -619,7 +637,7 @@ impl QUPConsensus {
         // ...
     }
 
-    fn process_transaction(&mut self, transaction_bytes: &[u8]) -> Result<(), ConsensusError> {
+    fn process_transaction(&mut self, shard_id: u64, transaction_bytes: &[u8]) -> Result<(), ConsensusError> {
         // Deserialize the transaction
         let transaction: Transaction = bincode::deserialize(transaction_bytes)
             .map_err(|_| ConsensusError::InvalidTransaction)?;
@@ -656,10 +674,10 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn reach_consensus(&mut self) -> Result<(), ConsensusError> {
+    fn reach_consensus(&mut self, shard_id: u64) -> Result<(), ConsensusError> {
         // Step 1: Block Proposal
         let proposer = self.select_proposer()?;
-        let block = proposer.propose_block(&self.transaction_storage)?;
+        let block = proposer.propose_block(shard_id, &self.transaction_storage)?;
 
         // Step 2: Verification
         if !self.validate_block(&block)? {
@@ -692,15 +710,15 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn fetch_new_data(&mut self) -> Result<(), ConsensusError> {
+    fn fetch_new_data(&mut self, shard_id: u64) -> Result<(), ConsensusError> {
         // Step 1: Fetch data from external APIs
-        let external_data = self.fetch_external_data()?;
+        let external_data = self.fetch_external_data(shard_id)?;
 
         // Step 2: Fetch data from partnered data providers
-        let partnered_data = self.fetch_partnered_data()?;
+        let partnered_data = self.fetch_partnered_data(shard_id)?;
 
         // Step 3: Optionally fetch user submissions
-        let user_data = self.fetch_user_data()?;
+        let user_data = self.fetch_user_data(shard_id)?;
 
         // Step 4: Combine all data
         let mut combined_data = Vec::new();
@@ -726,20 +744,20 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn fetch_external_data(&self) -> Result<Vec<DataPoint>, ConsensusError> {
+    fn fetch_external_data(&self, shard_id: u64) -> Result<Vec<DataPoint>, ConsensusError> {
         // Implement logic to fetch data from external APIs
         // Example: Fetching real-time stock market data from Alpha Vantage or Tiingo
         // Handle authentication, rate limits, data formats, and error handling
         Ok(vec![]) // Placeholder
     }
 
-    fn fetch_partnered_data(&self) -> Result<Vec<DataPoint>, ConsensusError> {
+    fn fetch_partnered_data(&self, shard_id: u64) -> Result<Vec<DataPoint>, ConsensusError> {
         // Implement logic to fetch data from partnered data providers
         // Handle different data formats and access methods (e.g., API keys, secure file transfers)
         Ok(vec![]) // Placeholder
     }
 
-    fn fetch_user_data(&self) -> Result<Vec<DataPoint>, ConsensusError> {
+    fn fetch_user_data(&self, shard_id: u64) -> Result<Vec<DataPoint>, ConsensusError> {
         // Implement logic to fetch user submissions
         // Implement a robust validation process to ensure data quality and prevent malicious submissions
         Ok(vec![]) // Placeholder
@@ -774,12 +792,12 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn evaluate_model(&mut self) -> Result<(), ConsensusError> {
+    fn evaluate_model(&mut self, shard_id: u64) -> Result<(), ConsensusError> {
         // Evaluate the model on each node's local data shard
-        let evaluation_score = self.evaluate_model_on_shard();
+        let evaluation_score = self.evaluate_model_on_shard(shard_id);
 
         // Collect evaluation scores from all nodes
-        let evaluation_scores = self.collect_evaluation_scores()?;
+        let evaluation_scores = self.collect_evaluation_scores(shard_id)?;
 
         // Aggregate the evaluation scores
         let aggregated_score = self.aggregate_evaluation_scores(&evaluation_scores);
@@ -793,9 +811,9 @@ impl QUPConsensus {
         Ok(())
     }
 
-    fn evaluate_model_on_shard(&self) -> HashMap<String, f64> {
+    fn evaluate_model_on_shard(&self, shard_id: u64) -> HashMap<String, f64> {
         // Evaluate the model on the node's local data shard
-        let data_shard = self.get_local_data_shard();
+        let data_shard = self.get_local_data_shard(shard_id);
         let predictions = self.hdc_model.predict(&data_shard.features);
 
         // Initialize metrics
@@ -828,10 +846,10 @@ impl QUPConsensus {
         metrics
     }
 
-    fn collect_evaluation_scores(&self) -> Result<Vec<f64>, ConsensusError> {
+    fn collect_evaluation_scores(&self, shard_id: u64) -> Result<Vec<f64>, ConsensusError> {
         // Collect evaluation scores from all nodes
         let mut scores = Vec::new();
-        for node in self.network.get_nodes() {
+        for node in self.network.get_nodes_in_shard(shard_id) {
             let score = node.evaluate_model_on_shard();
             scores.push(score);
         }
@@ -852,7 +870,7 @@ impl QUPConsensus {
         // Trigger hyperparameter tuning if the evaluation score is below a certain threshold
         let threshold = self.config.hyperparameter_tuning_threshold;
         if evaluation_score < threshold {
-            self.perform_hyperparameter_tuning()?;
+            self.perform_hyperparameter_tuning(shard_id)?;
         }
         Ok(())
     }
