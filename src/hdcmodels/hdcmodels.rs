@@ -7,7 +7,7 @@ use std::time::Instant;
 use quantum_resistant_crypto::encrypt;
 use quantum_resistant_crypto::decrypt;
 use quantum_resistant_crypto::KeyPair;
-use crate::optimizers::{Adam, SGD};
+use crate::optimizers::{Adam, SGD, FTRL};
 use crate::lr_schedulers::ReduceLROnPlateau;
 
 pub struct HDCModel {
@@ -21,6 +21,40 @@ pub struct HDCModel {
     encryption_key: KeyPair,
     epochs: usize,
 }
+
+impl HDCModel {
+    pub fn update_model(&mut self, new_data: &[Vec<f64>], labels: &[f64]) {
+        let learning_rate = 0.01;
+        let regularization = 0.1;
+
+        // Choose an online learning algorithm
+        let mut optimizer = FTRL::new(learning_rate, regularization);
+
+        for (data, &label) in new_data.iter().zip(labels.iter()) {
+            let prediction = self.predict(data);
+            let error = label - prediction;
+
+            // Update model weights using the optimizer
+            optimizer.update(&mut self.weights, data, error);
+        }
+    }
+
+    pub fn adjust_learning_rate(&mut self, new_rate: f64) {
+        for optimizer in &mut self.optimizers {
+            optimizer.set_lr(new_rate);
+        }
+    }
+
+    pub fn adjust_regularization(&mut self, new_regularization: f64) {
+        for optimizer in &mut self.optimizers {
+            optimizer.set_regularization(new_regularization);
+        }
+    }
+
+    fn predict(&self, data: &[f64]) -> f64 {
+        // Placeholder for prediction logic
+        0.0
+    }
 
 pub enum SimilarityMetric {
     CosineSimilarity,
