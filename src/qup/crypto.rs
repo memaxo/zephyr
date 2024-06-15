@@ -1,4 +1,4 @@
-use pqcrypto_dilithium::dilithium2::{sign, verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey};
+use pqcrypto_dilithium::dilithium2::{sign, verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, sign_detached, verify_detached};
 use crate::qup::crypto_common::{Decrypt, Encrypt, Sign, Verify};
 use crate::secure_core::secure_vault::SecureVault;
 use serde::{Serialize, Deserialize};
@@ -7,6 +7,23 @@ use sha2::{Sha256, Digest};
 pub struct QUPCrypto {
     secure_vault: SecureVault,
 }
+
+impl QUPCrypto {
+    pub fn sign_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
+        if let Some((_, secret_key)) = self.secure_vault.get_dilithium_keys(key_id) {
+            Some(sign_detached(message, secret_key).to_vec())
+        } else {
+            None
+        }
+    }
+
+    pub fn verify_message(&self, message: &[u8], signature: &[u8], key_id: &str) -> Option<bool> {
+        if let Some((public_key, _)) = self.secure_vault.get_dilithium_keys(key_id) {
+            Some(verify_detached(signature, message, public_key).is_ok())
+        } else {
+            None
+        }
+    }
 
 impl QUPCrypto {
     pub fn validate_model_update(&self, model_update: &[u8], signature: &[u8], key_id: &str) -> bool {

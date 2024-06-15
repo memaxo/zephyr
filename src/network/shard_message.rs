@@ -19,11 +19,13 @@ pub enum ShardMessage {
         transaction: Transaction,
         source_shard_id: u64,
         target_shard_id: u64,
+        signature: Vec<u8>,
     },
     CrossShardStateUpdate {
         state_update: ShardState,
         source_shard_id: u64,
         target_shard_id: u64,
+        signature: Vec<u8>,
     },
     CrossShardTransaction {
         transaction: Transaction,
@@ -107,6 +109,17 @@ impl ShardMessage {
             return;
         }
 
+        // Verify the transaction's signature
+        if let Some(signature) = transaction.signature.clone() {
+            if !self.crypto.verify_message(&transaction.to_bytes(), &signature, &source_shard_id.to_string()).unwrap_or(false) {
+                error!("Invalid transaction signature from shard {}", source_shard_id);
+                return;
+            }
+        } else {
+            error!("Missing transaction signature from shard {}", source_shard_id);
+            return;
+        }
+
         // Apply the transaction to the local shard
         if let Err(e) = self.apply_transaction(transaction.clone()).await {
             error!("Failed to apply transaction from shard {}: {}", source_shard_id, e);
@@ -115,10 +128,12 @@ impl ShardMessage {
 
         // Forward the transaction to the target shard if necessary
         if target_shard_id != self.shard_id {
+            let signature = self.crypto.sign_message(&transaction.to_bytes(), &self.shard_id.to_string()).unwrap();
             let message = ShardMessage::CrossShardTransaction {
                 transaction,
                 source_shard_id,
                 target_shard_id,
+                signature,
             };
             self.route_cross_shard_message(target_shard_id, message, committee_members).await;
         }
@@ -137,6 +152,17 @@ impl ShardMessage {
             return;
         }
 
+        // Verify the state update's signature
+        if let Some(signature) = state_update.signature.clone() {
+            if !self.crypto.verify_message(&state_update.to_bytes(), &signature, &source_shard_id.to_string()).unwrap_or(false) {
+                error!("Invalid state update signature from shard {}", source_shard_id);
+                return;
+            }
+        } else {
+            error!("Missing state update signature from shard {}", source_shard_id);
+            return;
+        }
+
         // Apply the state update to the local shard
         if let Err(e) = self.apply_state_update(state_update.clone()).await {
             error!("Failed to apply state update from shard {}: {}", source_shard_id, e);
@@ -145,10 +171,12 @@ impl ShardMessage {
 
         // Forward the state update to the target shard if necessary
         if target_shard_id != self.shard_id {
+            let signature = self.crypto.sign_message(&state_update.to_bytes(), &self.shard_id.to_string()).unwrap();
             let message = ShardMessage::CrossShardStateUpdate {
                 state_update,
                 source_shard_id,
                 target_shard_id,
+                signature,
             };
             self.route_cross_shard_message(target_shard_id, message, committee_members).await;
         }
