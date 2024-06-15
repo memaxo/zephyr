@@ -72,7 +72,11 @@ pub enum ShardError {
             let penalty_amount = *stake / 2;
             *stake -= penalty_amount;
             self.state.token_manager.burn("QUP", penalty_amount, node_id);
-        }
+            }
+            ShardMessage::ShardFailure { shard_id } => {
+                if shard_id == self.shard_id {
+                    initiate_recovery(shard_id, &self.committee_members).await?;
+                }
         Ok(())
     }
 
@@ -181,6 +185,7 @@ pub struct Shard {
     pub total_shards: u64,
     replica_nodes: Vec<String>,
     last_prune_time: Instant,
+    committee_members: Vec<NodeId>,
     consensus_config: ConsensusConfig,
     nonce_counter: Arc<RwLock<u64>>,
     async fn handle_shard_message(&mut self, message: ShardMessage) -> Result<(), ShardError> {
