@@ -417,9 +417,40 @@ impl NetworkManager {
             return Err(NetworkError::NoAvailablePeers);
         }
 
-        // Simple round-robin load balancing
-        let peer = available_peers.iter().cycle().next().unwrap();
+        // Calculate load scores for available peers
+        let mut peer_scores: Vec<(&Peer, f64)> = available_peers.iter()
+            .map(|peer| (*peer, self.calculate_load_score(peer)))
+            .collect();
+
+        // Sort peers by load score in ascending order (lower score means less load)
+        peer_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        // Select the peer with the lowest load score
+        let peer = peer_scores.first().unwrap().0;
         peer.send(message).await.map_err(|e| NetworkError::MessageSendError(e.to_string()))
+    }
+
+    fn calculate_load_score(&self, peer: &Peer) -> f64 {
+        // Placeholder for actual load score calculation logic
+        // Example factors: node capacity, current load, network latency, shard size
+        let node_capacity = peer.capacity as f64;
+        let current_load = peer.current_load as f64;
+        let network_latency = peer.network_latency as f64;
+        let shard_size = peer.shard_size as f64;
+
+        // Combine factors to calculate load score
+        // Adjust weights as needed based on the importance of each factor
+        let capacity_weight = 0.4;
+        let load_weight = 0.3;
+        let latency_weight = 0.2;
+        let shard_size_weight = 0.1;
+
+        let load_score = (capacity_weight / node_capacity) +
+                         (load_weight * current_load) +
+                         (latency_weight * network_latency) +
+                         (shard_size_weight * shard_size);
+
+        load_score
     }
 
     async fn handle_node_failures(&self) -> Result<(), NetworkError> {
