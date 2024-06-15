@@ -84,11 +84,28 @@ pub struct Sharding {
         let mut underloaded_shards = Vec::new();
 
         // Define specific thresholds
-        let transaction_threshold = 1000; // Example threshold for transaction count
-        let pending_block_size_threshold = 5000; // Example threshold for pending block size
-        let resource_utilization_threshold = 80; // Example threshold for CPU/memory usage in percentage
+        let transaction_threshold = 1000; // Threshold for transaction count
+        let pending_block_size_threshold = 5000; // Threshold for pending block size
+        let resource_utilization_threshold = 80; // Threshold for CPU/memory usage in percentage
+        let network_latency_threshold = 100; // Threshold for network latency in milliseconds
 
         for (shard_id, load) in shard_loads.iter() {
+            let shard = self.shards.read().await.get(shard_id).unwrap();
+            let transaction_count = shard.get_transaction_count().await;
+            let pending_block_size = shard.get_pending_block_size().await;
+            let resource_utilization = shard.get_resource_utilization().await;
+            let network_latency = shard.get_network_latency().await;
+
+            if transaction_count > transaction_threshold
+                || pending_block_size > pending_block_size_threshold
+                || resource_utilization > resource_utilization_threshold
+                || network_latency > network_latency_threshold
+            {
+                overloaded_shards.push(*shard_id);
+            } else if *load < average_load {
+                underloaded_shards.push(*shard_id);
+            }
+        }
             let shard = self.shards.read().await.get(shard_id).unwrap();
             let transaction_count = shard.get_transaction_count().await;
             let pending_block_size = shard.get_pending_block_size().await;
@@ -105,6 +122,13 @@ pub struct Sharding {
         }
 
         for overloaded_shard in overloaded_shards {
+            if let Some(underloaded_shard) = underloaded_shards.pop() {
+                self.reassign_transactions(overloaded_shard, underloaded_shard).await;
+                self.update_shard_assignments(overloaded_shard, underloaded_shard).await;
+                self.migrate_smart_contracts(overloaded_shard, underloaded_shard).await;
+                self.migrate_state_data(overloaded_shard, underloaded_shard).await;
+            }
+        }
             if let Some(underloaded_shard) = underloaded_shards.pop() {
                 self.move_data_between_shards(overloaded_shard, underloaded_shard).await;
                 self.update_shard_assignments(overloaded_shard, underloaded_shard).await;
@@ -128,6 +152,39 @@ pub struct Sharding {
         for shard_id in 0..self.total_shards {
             let hash = self.hash_shard_id(shard_id);
             hash_ring.insert(hash, shard_id);
+        }
+    }
+
+    async fn reassign_transactions(&self, from_shard_id: u64, to_shard_id: u64) {
+        let shards = self.shards.read().await;
+        if let (Some(from_shard), Some(to_shard)) = (shards.get(&from_shard_id), shards.get(&to_shard_id)) {
+            let transactions_to_move = from_shard.extract_transactions().await;
+            to_shard.add_transactions(transactions_to_move).await;
+            info!("Reassigned transactions from shard {} to shard {}", from_shard_id, to_shard_id);
+        } else {
+            error!("Failed to reassign transactions between shards: {} -> {}", from_shard_id, to_shard_id);
+        }
+    }
+
+    async fn migrate_smart_contracts(&self, from_shard_id: u64, to_shard_id: u64) {
+        let shards = self.shards.read().await;
+        if let (Some(from_shard), Some(to_shard)) = (shards.get(&from_shard_id), shards.get(&to_shard_id)) {
+            let contracts_to_move = from_shard.extract_smart_contracts().await;
+            to_shard.add_smart_contracts(contracts_to_move).await;
+            info!("Migrated smart contracts from shard {} to shard {}", from_shard_id, to_shard_id);
+        } else {
+            error!("Failed to migrate smart contracts between shards: {} -> {}", from_shard_id, to_shard_id);
+        }
+    }
+
+    async fn migrate_state_data(&self, from_shard_id: u64, to_shard_id: u64) {
+        let shards = self.shards.read().await;
+        if let (Some(from_shard), Some(to_shard)) = (shards.get(&from_shard_id), shards.get(&to_shard_id)) {
+            let state_data_to_move = from_shard.extract_state_data().await;
+            to_shard.add_state_data(state_data_to_move).await;
+            info!("Migrated state data from shard {} to shard {}", from_shard_id, to_shard_id);
+        } else {
+            error!("Failed to migrate state data between shards: {} -> {}", from_shard_id, to_shard_id);
         }
     }
 
