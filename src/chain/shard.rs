@@ -66,6 +66,23 @@ impl Hash for ShardState {
             transaction.hash(state);
         }
     }
+
+    fn apply_state_changes(&self, updated_state: HashMap<String, Value>) -> Result<(), ShardError> {
+        let mut state = self.state.write().map_err(|_| ShardError::SerializationError("Failed to acquire write lock for state".to_string()))?;
+        for (key, value) in updated_state {
+            state.insert(key, value);
+        }
+        Ok(())
+    }
+
+    async fn broadcast_updated_state(&self) -> Result<(), ShardError> {
+        let state = self.state.read().map_err(|_| ShardError::SerializationError("Failed to acquire read lock for state".to_string()))?;
+        let state_message = NetworkMessage::State(state.clone());
+        for (_, sender) in &self.shard_channels {
+            sender.send(state_message.clone()).await.map_err(|e| ShardError::MessageSendError(format!("Failed to send state message: {}", e)))?;
+        }
+        Ok(())
+    }
 }
 
 impl Shard {
@@ -100,6 +117,10 @@ impl Shard {
                 }
                 NetworkMessage::QUPMessage(qup_message) => {
                     self.handle_qup_message(qup_message).await?;
+                }
+                NetworkMessage::ContractExecuted(transaction, updated_state) => {
+                    self.apply_state_changes(updated_state)?;
+                    self.broadcast_updated_state().await?;
                 }
                 _ => {
                     debug!("Received unsupported network message type");
