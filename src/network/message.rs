@@ -1,0 +1,17 @@
+pub enum Message {
+    Transaction(Transaction),
+    Block(Block),
+    GetBlocks(GetBlocks),
+    Blocks(Blocks),
+    GetMemoryPool(GetMemoryPool),
+    MemoryPool(MemoryPool),
+    GetPeers(GetPeers),
+    Peers(Peers),
+    Ping(Ping),
+    Pong(Pong),
+    RequestUsefulWorkTask(RequestUsefulWorkTask),
+    UsefulWorkTask(UsefulWorkTask),
+    ModelTrainingData(ModelTrainingData),
+    ModelTrainingResult(ModelTrainingResult),
+    ModelUpdate(ModelUpdate),
+}
