@@ -21,6 +21,7 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, Sender, Receiver};
 use raft::{Config, Raft, RaftState, Storage, StateMachine};
+use sysinfo::{System, SystemExt, ProcessorExt};
 
 const PRUNE_INTERVAL: Duration = Duration::from_secs(86400); // 24 hours
 const TRANSACTION_RETENTION_PERIOD: Duration = Duration::from_secs(604800); // 1 week
@@ -57,6 +58,26 @@ pub enum ShardError {
         };
         let compressed_state = self.compress_state(&state)?;
         Ok(compressed_state)
+    }
+
+    pub fn get_load_metrics(&self) -> LoadMetrics {
+        let system = System::new_all();
+        let cpu_usage = system.get_global_processor_info().get_cpu_usage();
+        let memory_usage = system.get_used_memory() as f64 / system.get_total_memory() as f64;
+        let transaction_volume = self.transactions.read().unwrap().len();
+        let network_bandwidth = self.calculate_network_bandwidth();
+
+        LoadMetrics {
+            cpu_usage,
+            memory_usage,
+            transaction_volume,
+            network_bandwidth,
+        }
+    }
+
+    fn calculate_network_bandwidth(&self) -> f64 {
+        // Placeholder for actual network bandwidth calculation logic
+        0.5 // Example value
     }
 
     fn compress_state(&self, state: &ShardState) -> Result<CompressedShardState, ShardError> {
