@@ -12,6 +12,10 @@ use crate::utils::events::emit_event;
 
 lazy_static! {
     static ref REENTRANCY_GUARD: Mutex<()> = Mutex::new(());
+    fn create_subtask(&self, problem_id: String, subtask_data: String) -> Result<()>;
+    fn assign_subtask(&self, subtask_id: String, node_address: String) -> Result<()>;
+    fn submit_subtask_solution(&self, subtask_id: String, solution: String) -> Result<()>;
+    fn verify_subtask_solution(&self, subtask_id: String, solution: String) -> Result<bool>;
 }
 
 pub trait SmartContractInterface {
@@ -42,32 +46,33 @@ pub trait SmartContractInterface {
         arguments: &[u8],
         caller_address: &str,
     ) -> Result<Vec<u8>, String> {
-        // Reentrancy protection
-        let _guard = REENTRANCY_GUARD.lock().unwrap();
-
-        // Timeout mechanism
-        let start_time = Instant::now();
-        let timeout = Duration::from_secs(30); // 30 seconds timeout
-
-        // Validate the contract bytecode
-        validate_bytecode(&contract.bytecode).map_err(|e| format!("Bytecode validation failed: {}", e))?;
-
-        // Estimate gas for deployment
-        let gas_estimate = estimate_gas(&contract.bytecode, gas_price)
-            .map_err(|e| format!("Gas estimation failed: {}", e))?;
-
-        // Placeholder for actual contract execution logic
-        while start_time.elapsed() < timeout {
-            // Simulate contract execution
-            if function_selector == "cross_contract_call" {
-                // Placeholder for cross-contract call logic
-            }
-
-            // Return dummy result
-            return Ok(vec![1, 2, 3, 4]);
+        match function_selector {
+            "create_subtask" => {
+                let problem_id = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid problem_id: {}", e))?;
+                let subtask_data = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid subtask_data: {}", e))?;
+                self.create_subtask(problem_id, subtask_data).map_err(|e| format!("Failed to create subtask: {}", e))?;
+                Ok(vec![])
+            },
+            "assign_subtask" => {
+                let subtask_id = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid subtask_id: {}", e))?;
+                let node_address = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid node_address: {}", e))?;
+                self.assign_subtask(subtask_id, node_address).map_err(|e| format!("Failed to assign subtask: {}", e))?;
+                Ok(vec![])
+            },
+            "submit_subtask_solution" => {
+                let subtask_id = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid subtask_id: {}", e))?;
+                let solution = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid solution: {}", e))?;
+                self.submit_subtask_solution(subtask_id, solution).map_err(|e| format!("Failed to submit subtask solution: {}", e))?;
+                Ok(vec![])
+            },
+            "verify_subtask_solution" => {
+                let subtask_id = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid subtask_id: {}", e))?;
+                let solution = String::from_utf8(arguments.to_vec()).map_err(|e| format!("Invalid solution: {}", e))?;
+                let result = self.verify_subtask_solution(subtask_id, solution).map_err(|e| format!("Failed to verify subtask solution: {}", e))?;
+                Ok(vec![result as u8])
+            },
+            _ => Err("Unknown function selector".into())
         }
-
-        Err("Contract execution timed out".into())
     }
 
     fn get_contract_state(&self, contract_id: &str, keys: Option<Vec<String>>) -> Result<ContractState> {
