@@ -69,21 +69,50 @@ impl BlockInterface for Block {
                     e
                 ))
             })?;
-            
-            // Verify history proof if present
-            if let Some(proof) = &self.qup_block_header.history_proof {
-                qup_state.verify_history_proof(proof).map_err(|e| {
-                    BlockError::HistoryProofVerificationError(format!(
-                        "Failed to verify history proof: {}",
-                        e
-                    ))
-                })?;
-            }
         } else {
-            Err(BlockError::PostQuantumSignatureError(
+            return Err(BlockError::PostQuantumSignatureError(
                 "Block signature not found".to_string(),
-            ))
+            ));
         }
+
+        // Verify history proof if present
+        if let Some(proof) = &self.qup_block_header.history_proof {
+            self.verify_history_proof(proof, qup_crypto, qup_state)?;
+        }
+
+        Ok(())
+    }
+
+    fn verify_history_proof(&self, proof: &MerkleProof, qup_crypto: &QUPCrypto, qup_state: &QUPState) -> Result<(), BlockError> {
+        // Verify the Merkle root
+        let mut current_hash = self.calculate_hash();
+        for (parent_hash, sibling_hash) in proof.nodes.iter() {
+            current_hash = qup_state.merkle_tree.calculate_parent_hash(current_hash, *sibling_hash);
+        }
+        if current_hash != qup_state.get_genesis_block().hash() {
+            return Err(BlockError::HistoryProofVerificationError(
+                "Merkle root does not match genesis block hash".to_string(),
+            ));
+        }
+
+        // Verify the digital signatures of the blocks in the history proof
+        for block in &proof.blocks {
+            let block_hash = block.calculate_hash();
+            if !qup_crypto.verify_block_signature(&block_hash, &block.common.validator_signature.unwrap())? {
+                return Err(BlockError::HistoryProofVerificationError(
+                    "Invalid block signature in history proof".to_string(),
+                ));
+            }
+        }
+
+        // Check the consistency of the history proof with the current state of the blockchain
+        if !qup_state.is_consistent_with_history(proof) {
+            return Err(BlockError::HistoryProofVerificationError(
+                "History proof is not consistent with the current state of the blockchain".to_string(),
+            ));
+        }
+
+        Ok(())
     }
 
     fn validate(&self, qup_provider: &dyn QuantumComputationProvider, qup_state: &QUPState) -> Result<(), BlockError> {
