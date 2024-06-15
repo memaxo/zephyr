@@ -35,7 +35,8 @@ impl RewardManager {
     pub fn calculate_rewards(&self, block: &QUPBlock) -> HashMap<NodeId, RewardAmount> {
         let mut rewards = HashMap::new();
 
-        for (node_id, stake) in block.stakes.iter() {
+        // Use parallel iterator for performance optimization
+        block.stakes.par_iter().for_each(|(node_id, stake)| {
             let performance = block.performance.get(node_id).unwrap_or(&0.0);
             let reward = self.calculate_individual_reward(*stake, *performance, self.reward_rate);
             rewards.insert(node_id.clone(), reward);
