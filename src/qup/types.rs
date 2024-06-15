@@ -517,6 +517,51 @@ pub struct QuantumBlock {
 pub struct SecurityThreats {
     pub network_attack_rate: f64,
     pub spam_transaction_rate: f64,
+    pub quantum_attack_risk: f64,
+    pub sybil_attack_risk: f64,
+    pub double_spending_risk: f64,
+    pub dos_attack_risk: f64,
+}
+
+impl SecurityThreats {
+    pub fn new() -> Self {
+        SecurityThreats {
+            network_attack_rate: 0.0,
+            spam_transaction_rate: 0.0,
+            quantum_attack_risk: 0.0,
+            sybil_attack_risk: 0.0,
+            double_spending_risk: 0.0,
+            dos_attack_risk: 0.0,
+        }
+    }
+
+    pub fn measure_threats(&mut self, network_state: &NetworkState) {
+        self.network_attack_rate = network_state.get_network_attack_rate();
+        self.spam_transaction_rate = network_state.get_spam_transaction_rate();
+        // Placeholder: Implement logic to measure quantum attack risk
+        self.quantum_attack_risk = 0.1;
+        // Placeholder: Implement logic to measure sybil attack risk
+        self.sybil_attack_risk = 0.2;
+        // Placeholder: Implement logic to measure double-spending risk
+        self.double_spending_risk = 0.05;
+        // Placeholder: Implement logic to measure DoS attack risk
+        self.dos_attack_risk = 0.3;
+    }
+
+    pub fn mitigate_threats(&self, qup_crypto: &QUPCrypto, state: &mut QUPState) {
+        if self.quantum_attack_risk > 0.1 {
+            qup_crypto.enable_quantum_resistant_cryptography();
+        }
+        if self.sybil_attack_risk > 0.1 {
+            state.enable_reputation_system();
+        }
+        if self.dos_attack_risk > 0.1 {
+            state.enable_rate_limiting();
+        }
+        if self.double_spending_risk > 0.1 {
+            state.enable_distributed_validation();
+        }
+    }
 }
 pub struct SupplyChainProblem {
     pub num_nodes: usize,
