@@ -101,14 +101,46 @@ impl ShardRecoveryManager {
 
 
     pub fn restore_shard_state(&self, shard_id: u64, state_snapshot: Vec<u8>) -> bool {
-        // Implement the logic to restore the shard state from a snapshot or backup
+        // Restore the shard state from a snapshot or backup
         self.shard_states.write().unwrap().insert(shard_id, state_snapshot);
+
+        // Notify other components of the restored shard state
+        self.broadcast_shard_state_restored(shard_id);
+
+        // Restart any shard-specific services or processes
+        self.restart_shard_services(shard_id);
+
         true
     }
 
+    fn broadcast_shard_state_restored(&self, shard_id: u64) {
+        // Implement the logic to broadcast a ShardStateRestored message to other nodes
+        // ...
+    }
+
+    fn restart_shard_services(&self, shard_id: u64) {
+        // Implement the logic to restart any shard-specific services or processes
+        // ...
+    }
+
     pub fn resync_shard(&self, shard_id: u64) -> bool {
-        // Implement the logic to synchronize the recovered shard with other shards
-        // For now, we'll just return true to indicate successful resynchronization
+        // Request the latest state from committee members
+        let latest_states = self.request_latest_state_from_committee(shard_id);
+
+        // Reconcile discrepancies and update the shard state
+        self.reconcile_and_update_state(shard_id, latest_states);
+
         true
+    }
+
+    fn request_latest_state_from_committee(&self, shard_id: u64) -> Vec<Vec<u8>> {
+        // Implement the logic to request the latest state from committee members
+        // ...
+        vec![]
+    }
+
+    fn reconcile_and_update_state(&self, shard_id: u64, latest_states: Vec<Vec<u8>>) {
+        // Implement the logic to reconcile discrepancies and update the shard state
+        // ...
     }
 }
