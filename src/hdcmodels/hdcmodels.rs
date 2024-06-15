@@ -54,21 +54,62 @@ impl HDCModel {
     }
 
     fn evaluate_subtask_solution(&self, subtask: &Subtask, solution: &Solution) -> f64 {
-        // Placeholder implementation for evaluating subtask solution
-        // Replace with actual logic to evaluate the solution of a subtask
-        10.0 // Example subtask score
+        // Utilize the HDC model to assess the quality, relevance, and correctness of each subtask solution
+        match subtask.data {
+            UsefulWorkProblem::Knapsack(ref problem) => {
+                // Example: Evaluate based on accuracy for Knapsack problem
+                let predicted_value = self.predict_knapsack_solution(problem, solution);
+                let actual_value = self.calculate_actual_knapsack_value(problem);
+                self.calculate_accuracy(predicted_value, actual_value)
+            }
+            UsefulWorkProblem::VertexCover(ref problem) => {
+                // Example: Evaluate based on efficiency for Vertex Cover problem
+                let predicted_cover = self.predict_vertex_cover_solution(problem, solution);
+                let actual_cover = self.calculate_actual_vertex_cover(problem);
+                self.calculate_efficiency(predicted_cover, actual_cover)
+            }
+            // Add more domain-specific metrics or heuristics for other problem types
+            _ => 0.0, // Default to 0 if not implemented
+        }
     }
 
     fn aggregate_subtask_scores(&self, subtask_scores: &Vec<f64>, dependency_graph: &Option<HashMap<Uuid, Vec<Uuid>>>) -> f64 {
-        // Placeholder implementation for aggregating subtask scores
-        // Replace with actual logic to aggregate scores based on dependencies
-        subtask_scores.iter().sum() // Example aggregation by summing scores
+        // Aggregate subtask scores using weighted averages or other appropriate methods
+        if let Some(graph) = dependency_graph {
+            let mut total_score = 0.0;
+            let mut total_weight = 0.0;
+
+            for (subtask_id, dependencies) in graph {
+                let subtask_score = subtask_scores.iter().find(|&&(id, _)| id == *subtask_id).map(|&(_, score)| score).unwrap_or(0.0);
+                let weight = 1.0 / (dependencies.len() as f64 + 1.0); // Example weight calculation
+                total_score += subtask_score * weight;
+                total_weight += weight;
+            }
+
+            total_score / total_weight
+        } else {
+            subtask_scores.iter().sum::<f64>() / subtask_scores.len() as f64 // Average if no dependency graph
+        }
     }
 
     fn evaluate_problem_solution(&self, problem: &Problem, solution: &Solution) -> f64 {
-        // Placeholder implementation for evaluating problem solution
-        // Replace with actual logic to evaluate the solution of a problem
-        100.0 // Example problem score
+        // Utilize the HDC model to assess the quality, relevance, and correctness of the problem solution
+        match problem.data {
+            UsefulWorkProblem::Knapsack(ref problem) => {
+                // Example: Evaluate based on accuracy for Knapsack problem
+                let predicted_value = self.predict_knapsack_solution(problem, solution);
+                let actual_value = self.calculate_actual_knapsack_value(problem);
+                self.calculate_accuracy(predicted_value, actual_value)
+            }
+            UsefulWorkProblem::VertexCover(ref problem) => {
+                // Example: Evaluate based on efficiency for Vertex Cover problem
+                let predicted_cover = self.predict_vertex_cover_solution(problem, solution);
+                let actual_cover = self.calculate_actual_vertex_cover(problem);
+                self.calculate_efficiency(predicted_cover, actual_cover)
+            }
+            // Add more domain-specific metrics or heuristics for other problem types
+            _ => 0.0, // Default to 0 if not implemented
+        }
     }
     pub fn checkpoint(&self, path: &str) -> io::Result<()> {
         let mut file = File::create(path)?;
