@@ -32,9 +32,12 @@ pub fn encode_transactional_data(data: &[Transaction], dimension: usize, method:
             let data_str: Vec<String> = data.iter().map(|transaction| transaction.to_string()).collect();
             let data_array: Array1<f64> = Array1::from(data_str.iter().flat_map(|s| s.bytes().map(|b| b as f64)).collect::<Vec<f64>>());
             let circuit = QuantumEncoder::amplitude_encoding(&data_array);
-            // Convert the quantum state back to classical data if needed
-            // Placeholder: return an empty vector for now
-            vec![]
+            // Perform measurement to convert quantum state back to classical data
+            let classical_data = QuantumEncoder::measure(&circuit);
+            
+            // Perform dimensionality reduction to get final encoding vector
+            let final_encoding = dimensionality_reduction(&vec![classical_data], dimension);
+            final_encoding[0].clone()
         },
     }
 }
@@ -283,8 +286,40 @@ impl StateEncoder {
     }
 
     pub fn encode_state_data(state: &State, dimension: usize) -> Result<Vec<f64>, Box<dyn Error>> {
-        let encoded_data = encode_state_data(state, dimension);
-        Ok(encoded_data)
+        let mut encoded_data = Vec::new();
+
+        // Example encoding: One-hot encoding for account addresses, normalization for balances
+        let mut unique_addresses = HashSet::new();
+        for account in &state.accounts {
+            unique_addresses.insert(&account.address);
+        }
+
+        for account in &state.accounts {
+            let mut account_encoding = Vec::new();
+
+            // One-hot encoding for address
+            for address in &unique_addresses {
+                if address == &&account.address {
+                    account_encoding.push(1.0);
+                } else {
+                    account_encoding.push(0.0);
+                }
+            }
+
+            // Normalization for balance
+            let normalized_balance = (account.balance - state.accounts.iter().map(|a| a.balance).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap())
+                / (state.accounts.iter().map(|a| a.balance).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() - state.accounts.iter().map(|a| a.balance).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap());
+            account_encoding.push(normalized_balance);
+
+            encoded_data.push(account_encoding);
+        }
+
+        // Flatten the encoded data
+        let flattened_data: Vec<f64> = encoded_data.into_iter().flatten().collect();
+
+        // Perform dimensionality reduction to get final encoding vector
+        let final_encoding = dimensionality_reduction(&vec![flattened_data], dimension);
+        Ok(final_encoding[0].clone())
     }
 }
 
