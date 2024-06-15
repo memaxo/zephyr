@@ -15,6 +15,29 @@ struct Node {
     id: usize,
     last_heartbeat: Instant,
     shard: Vec<u8>,
+        let mut nodes = self.nodes.lock().unwrap();
+        let mut results = HashMap::new();
+        let mut tasks_assigned = HashSet::new();
+
+        for (id, node) in nodes.iter() {
+            if tasks_assigned.contains(id) {
+                continue;
+            }
+            tasks_assigned.insert(*id);
+            let result = self.execute_task_on_node(*id, task.clone()).await;
+            results.entry(result).or_insert_with(Vec::new).push(*id);
+        }
+
+        // Voting mechanism to determine the correct output
+        let (correct_result, _) = results.into_iter().max_by_key(|(_, v)| v.len()).unwrap();
+        correct_result
+    }
+
+    fn select_node_for_task(&self) -> usize {
+        // Placeholder for node selection logic
+        // Example: Select a random node
+        let nodes = self.nodes.lock().unwrap();
+        *nodes.keys().next().unwrap()
     }
 
     pub async fn fault_tolerant_model_aggregation(&self, models: Vec<Vec<u8>>) -> Vec<u8> {
@@ -30,7 +53,15 @@ struct Node {
         correct_model
     }
 
-    pub async fn run_speculative_execution(&self, task: Vec<u8>) -> Vec<u8> {
+    pub async fn run_speculative_execution(&self, task: Vec<u8>, critical: bool) -> Vec<u8> {
+        if critical {
+            self.replicate_and_vote(task).await
+        } else {
+            self.execute_task_on_node(self.select_node_for_task(), task).await
+        }
+    }
+
+    async fn replicate_and_vote(&self, task: Vec<u8>) -> Vec<u8> {
         let mut nodes = self.nodes.lock().unwrap();
         let mut results = HashMap::new();
         let mut tasks_assigned = HashSet::new();
