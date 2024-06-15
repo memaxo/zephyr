@@ -506,3 +506,35 @@ pub fn apply_quantum_error_correction(
     // Return the corrected data and the hash
     corrected_data
 }
+
+pub fn correct_errors(encoded_data: &mut [bool], stabilizers: &[Vec<usize>], find_qubit_to_flip: &dyn Fn(&[bool], &[usize]) -> usize) {
+    let num_qubits = encoded_data.len();
+    let mut syndrome = vec![false; stabilizers.len()];
+
+    // Compute syndrome measurements
+    stabilizers.par_iter().enumerate().for_each(|(i, stabilizer)| {
+        let mut parity = false;
+        for &qubit in stabilizer {
+            parity ^= encoded_data[qubit];
+        }
+        syndrome[i] = parity;
+    });
+
+    // Perform error correction based on syndrome
+    while !syndrome.iter().all(|&s| !s) {
+        stabilizers.par_iter().enumerate().for_each(|(i, stabilizer)| {
+            if syndrome[i] {
+                // Find the qubit to flip based on the syndrome pattern
+                let qubit_to_flip = find_qubit_to_flip(&syndrome, stabilizer);
+                encoded_data[qubit_to_flip] = !encoded_data[qubit_to_flip];
+
+                // Update the syndrome based on the flipped qubit
+                stabilizers.par_iter().enumerate().for_each(|(j, stabilizer)| {
+                    if stabilizer.contains(&qubit_to_flip) {
+                        syndrome[j] = !syndrome[j];
+                    }
+                });
+            }
+        });
+    }
+}
