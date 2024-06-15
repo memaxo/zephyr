@@ -49,16 +49,7 @@ impl QUPValidator {
     }
 
     pub fn validate_block(&mut self, block: &QUPBlock) -> Result<(), Error> {
-        // Verify the block
-        if self.verify_block(block) {
-            // Update reputation for successful block validation
-            self.update_reputation(ReputationAction::SuccessfulBlockValidation);
-            Ok(())
-        } else {
-            // Handle invalid block
-            self.update_reputation(ReputationAction::FailedBlockValidation);
-            Err(Error::InvalidBlock)
-        }
+        crate::qup::block_validation::validate_block(block, self)
     }
 
     pub fn vote_on_block(&self, block: &QUPBlock) -> Vote {

@@ -56,48 +56,6 @@ impl BlockCommon for QUPBlock {
         }
     }
 
-    fn validate(&self, qup_consensus: &QUPConsensus, qup_state: &QUPState) -> Result<(), BlockError> {
-        // Validate transactions
-        for tx in &self.common.transactions {
-            tx.validate(qup_state)?;
-        }
-
-        // Validate block height
-        if self.height != qup_state.get_block_height() + 1 {
-            return Err(BlockError::InvalidBlockHeight);
-        }
-
-        // Validate previous block hash
-        if self.prev_block_hash != qup_state.get_block_hash() {
-            return Err(BlockError::InvalidPrevBlockHash);
-        }
-
-        // Validate useful work problem and solution
-        if let Some(problem) = &self.useful_work_problem {
-            if !qup_consensus.is_valid_useful_work_problem(problem) {
-                return Err(BlockError::InvalidUsefulWorkProblem);
-            }
-        }
-        if let Some(solution) = &self.useful_work_solution {
-            if !qup_consensus.is_valid_useful_work_solution(solution) {
-                return Err(BlockError::InvalidUsefulWorkSolution);
-            }
-        }
-
-        // Validate history proof
-        if let Some(proof) = &self.history_proof {
-            if !qup_state.verify_history_proof(proof)? {
-                return Err(BlockError::InvalidHistoryProof);
-            }
-        }
-
-        // Additional consensus-specific validations
-        if !qup_consensus.is_valid_block(self, qup_state) {
-            return Err(BlockError::InvalidBlock);
-        }
-
-        Ok(())
-    }
 
     fn apply(&self, state: &mut QUPState) -> Result<(), Error> {
         self.update_state(state)?;
