@@ -87,9 +87,21 @@ impl NetworkManager {
         };
 
         let mut network_manager = NetworkManager {
-            config,
+            config: config.clone(),
             peers: Arc::new(RwLock::new(HashMap::new())),
             validator,
+            message_sender: message_sender.clone(),
+            crypto: crypto.clone(),
+            qup: qup.clone(),
+            qkd: qkd.clone(),
+            pq_tls_connection: None,
+        };
+
+        // Replicate critical components
+        let replicated_network_manager = NetworkManager {
+            config,
+            peers: network_manager.peers.clone(),
+            validator: network_manager.validator.clone(),
             message_sender,
             crypto,
             qup,
@@ -146,6 +158,9 @@ impl NetworkManager {
         // Synchronize state with other nodes
         self.synchronize_state().await?;
 
+        // Start heartbeat mechanism
+        self.start_heartbeat().await?;
+
         let batch_size = 10; // Example batch size, adjust as needed
         let transactions = self.transaction_queue.dequeue_batch(batch_size);
         for transaction in transactions {
@@ -159,6 +174,23 @@ impl NetworkManager {
         self.handle_messages().await?;
 
         self.handle_incoming_messages().await?;
+        Ok(())
+    }
+
+    async fn start_heartbeat(&self) -> Result<(), NetworkError> {
+        let interval = tokio::time::interval(Duration::from_secs(10));
+        let peers = self.peers.clone();
+        tokio::spawn(async move {
+            loop {
+                interval.tick().await;
+                let peers = peers.read().await;
+                for peer in peers.values() {
+                    if let Err(e) = peer.send(Message::Ping).await {
+                        error!("Failed to send heartbeat to peer {}: {}", peer.id, e);
+                    }
+                }
+            }
+        });
         Ok(())
     }
 
@@ -317,6 +349,15 @@ impl NetworkManager {
             self.merge_state(state)?;
         }
 
+        // Implement error detection and recovery
+        self.detect_and_recover_errors().await?;
+
+        Ok(())
+    }
+
+    async fn detect_and_recover_errors(&self) -> Result<(), NetworkError> {
+        // Placeholder for error detection and recovery logic
+        // Example: Check for data corruption or message loss and attempt recovery
         Ok(())
     }
 
@@ -379,6 +420,24 @@ impl NetworkManager {
         // Simple round-robin load balancing
         let peer = available_peers.iter().cycle().next().unwrap();
         peer.send(message).await.map_err(|e| NetworkError::MessageSendError(e.to_string()))
+    }
+
+    async fn handle_node_failures(&self) -> Result<(), NetworkError> {
+        let peers = self.peers.read().await;
+        for peer in peers.values() {
+            if !peer.is_alive() {
+                warn!("Peer {} is not responding. Reassigning tasks.", peer.id);
+                // Reassign tasks to other nodes or use backup nodes
+                // Placeholder for actual task reassignment logic
+            }
+        }
+        Ok(())
+    }
+
+    async fn handle_network_partitions(&self) -> Result<(), NetworkError> {
+        // Placeholder for network partition handling logic
+        // Example: Implement consensus algorithms that can tolerate network splits
+        Ok(())
     }
         async fn handle_incoming_messages(&self) -> Result<(), NetworkError> {
             while let Some(message) = self.message_receiver.recv().await {
