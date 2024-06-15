@@ -556,9 +556,35 @@ impl QUPConsensus {
         weighted_algorithms[0].0
     }
     
-    fn adjust_difficulty(&mut self) {
-        // Adjust the difficulty based on the average block time over a set number of previous blocks
+    fn adjust_difficulty(&mut self, total_utility_points: u64) {
+        // Adjust the useful work and model training difficulties based on the total utility points
+        if total_utility_points > self.config.target_utility_points {
+            self.config.useful_work_difficulty += 1;
+            self.config.model_training_difficulty += 1;
+        } else if total_utility_points < self.config.target_utility_points {
+            self.config.useful_work_difficulty = self.config.useful_work_difficulty.saturating_sub(1);
+            self.config.model_training_difficulty = self.config.model_training_difficulty.saturating_sub(1);
+        }
+    }
+
+    fn meets_difficulty_target(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
+        let total_utility_points: u64 = block.transactions.iter()
+            .map(|tx| self.state.get_utility_points(&tx.sender).0)
+            .sum();
+        
+        Ok(total_utility_points >= self.config.target_utility_points)
+    }
+
+    fn calculate_useful_work_points(&self, solution: &UsefulWorkSolution) -> UtilityPoints {
+        // Calculate utility points based on the useful work solution
         // ...
+        UtilityPoints(0)
+    }
+
+    fn calculate_model_training_points(&self, solution: &ModelTrainingSolution) -> UtilityPoints {
+        // Calculate utility points based on the model training solution 
+        // ...
+        UtilityPoints(0)
     }
     
     fn generate_history_proof(&self) -> MerkleProof {
@@ -707,19 +733,33 @@ impl QUPConsensus {
     
         // Step 3: Voting/Agreement
         match self.consensus_mechanism {
-            ConsensusAlgorithm::PoUW => {
-                // In PoUW, the fastest valid solution wins
-                let solution = self.solve_useful_work_problem(&self.generate_useful_work_problem());
-                if !self.validate_useful_work_proof(&self.generate_useful_work_proof(&solution))? {
-                    return Err(ConsensusError::InvalidProof);
+            ConsensusAlgorithm::QUP => {
+                // In QUP, nodes earn utility points for useful work and model training
+                let mut total_utility_points = 0;
+                for transaction in &block.transactions {
+                    match &transaction.contribution_type {
+                        ContributionType::UsefulWork(problem) => {
+                            let solution = self.solve_useful_work_problem(problem);
+                            if !self.validate_useful_work_proof(&self.generate_useful_work_proof(&solution))? {
+                                return Err(ConsensusError::InvalidProof);
+                            }
+                            let points = self.calculate_useful_work_points(&solution);
+                            self.state.update_utility_points(&transaction.sender, points);
+                            total_utility_points += points.0;
+                        }
+                        ContributionType::ModelTraining(solution) => {
+                            let points = self.calculate_model_training_points(solution);
+                            self.state.update_utility_points(&transaction.sender, points);
+                            total_utility_points += points.0;
+                        }
+                    }
                 }
-                self.commit_block(block)?;
-            }
-            ConsensusAlgorithm::QDPoS => {
-                // In QDPoS, nodes cast votes based on their stake
-                let vote = self.cast_vote(block.hash())?;
-                self.state.add_vote(vote.clone())?;
-                if self.state.has_quorum(&block.hash())? {
+                
+                // Adjust difficulty based on total utility points
+                self.adjust_difficulty(total_utility_points);
+
+                // Commit the block if it meets the difficulty target
+                if self.meets_difficulty_target(&block)? {
                     self.commit_block(block)?;
                 }
             }

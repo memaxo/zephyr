@@ -590,3 +590,9 @@ pub struct QuantumSimulationSolution {
     pub final_state: Vec<f64>,
     pub measurement_probabilities: Vec<f64>,
 }
+pub struct UtilityPoints(pub u64);
+
+pub enum ContributionType {
+    UsefulWork(UsefulWorkProblem),
+    ModelTraining(ModelTrainingProblem),
+}
