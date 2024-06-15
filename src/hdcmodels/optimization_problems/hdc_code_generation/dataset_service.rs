@@ -1,5 +1,5 @@
 use actix_web::{web, App, HttpServer, Responder};
-use crate::optimization_problems::hdc_code_generation::dataset::CodeDataset;
+use crate::hdcmodels::optimization_problems::hdc_code_generation::dataset::CodeDataset;
 
 async fn get_dataset() -> impl Responder {
     let dataset = CodeDataset::new();

@@ -1,5 +1,5 @@
 use actix_web::{web, App, HttpServer, Responder};
-use crate::optimization_problems::hdc_code_generation::preprocessor::Preprocessor;
+use crate::hdcmodels::optimization_problems::hdc_code_generation::preprocessor::Preprocessor;
 
 async fn preprocess(data: web::Json<Vec<String>>) -> impl Responder {
     let preprocessor = Preprocessor::new(512, 10);

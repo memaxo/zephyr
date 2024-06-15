@@ -1,6 +1,6 @@
 use actix_web::{web, App, HttpServer, Responder};
-use crate::optimization_problems::hdc_code_generation::model::CodeGenerationModel;
-use crate::optimization_problems::hdc_code_generation::trainer::Trainer;
+use crate::hdcmodels::optimization_problems::hdc_code_generation::model::CodeGenerationModel;
+use crate::hdcmodels::optimization_problems::hdc_code_generation::trainer::Trainer;
 use crate::hdcmodels::Dataset;
 
 async fn train_model() -> impl Responder {
