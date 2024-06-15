@@ -20,6 +20,20 @@ pub struct NodeConfig {
     pub node_id: NodeId,
     pub has_local_entropy_source: bool,
     pub certificate_validity_period: Validity,
+    hardware_capabilities: Option<HardwareCapabilities>,
+    benchmark_results: Option<BenchmarkResults>,
+}
+
+pub struct HardwareCapabilities {
+    cpu_cores: usize,
+    memory_gb: usize,
+    storage_gb: usize,
+}
+
+pub struct BenchmarkResults {
+    cpu_score: f64,
+    memory_score: f64,
+    storage_score: f64,
 }
 
 pub struct Node {
@@ -50,6 +64,9 @@ impl Node {
             Arc::new(RwLock::new(None))
         };
 
+        let hardware_capabilities = Self::retrieve_hardware_capabilities();
+        let benchmark_results = None; // Default value, will be set after assessment
+
         Ok(Self {
             id: config.node_id,
             quantum_entropy_source,
@@ -58,7 +75,35 @@ impl Node {
             message_handler,
             certificate_authority,
             connection_manager,
+            hardware_capabilities,
+            benchmark_results,
+            id: config.node_id,
+            quantum_entropy_source,
+            post_quantum_keypair,
+            post_quantum_certificate: Arc::new(RwLock::new(None)),
+            message_handler,
+            certificate_authority,
+            connection_manager,
         })
+    }
+
+    fn retrieve_hardware_capabilities() -> Option<HardwareCapabilities> {
+        // Placeholder for actual hardware capability retrieval logic
+        Some(HardwareCapabilities {
+            cpu_cores: 4,
+            memory_gb: 16,
+            storage_gb: 256,
+        })
+    }
+
+    pub async fn assess_hardware(&mut self) -> Result<(), NodeError> {
+        // Placeholder for actual hardware assessment logic
+        self.benchmark_results = Some(BenchmarkResults {
+            cpu_score: 100.0,
+            memory_score: 100.0,
+            storage_score: 100.0,
+        });
+        Ok(())
     }
 
     pub async fn generate_post_quantum_keypair(&self) -> Result<(), NodeError> {
