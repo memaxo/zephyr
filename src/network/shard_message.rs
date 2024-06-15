@@ -25,6 +25,16 @@ pub enum ShardMessage {
         source_shard_id: u64,
         target_shard_id: u64,
     },
+    CrossShardTransaction {
+        transaction: Transaction,
+        source_shard_id: u64,
+        target_shard_id: u64,
+    },
+    CrossShardStateUpdate {
+        state_update: ShardState,
+        source_shard_id: u64,
+        target_shard_id: u64,
+    },
 }
 
 impl ShardMessage {
@@ -35,6 +45,81 @@ impl ShardMessage {
             .map_err(|e| NetworkError::CompressionFailed(e.to_string()))?;
         let encrypted_data = crypto.encrypt(&compressed_data)?;
         Ok(encrypted_data)
+    }
+
+    async fn handle_cross_shard_transaction(
+        &mut self,
+        transaction: Transaction,
+        source_shard_id: u64,
+        target_shard_id: u64,
+        committee_members: &[String],
+    ) {
+        // Validate and process the cross-shard transaction
+        // ...
+
+        // Forward the transaction to the target shard
+        let message = ShardMessage::CrossShardTransaction {
+            transaction,
+            source_shard_id,
+            target_shard_id,
+        };
+        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+    }
+
+    async fn handle_cross_shard_state_update(
+        &mut self,
+        state_update: ShardState,
+        source_shard_id: u64,
+        target_shard_id: u64,
+        committee_members: &[String],
+    ) {
+        // Validate and process the cross-shard state update
+        // ...
+
+        // Forward the state update to the target shard
+        let message = ShardMessage::CrossShardStateUpdate {
+            state_update,
+            source_shard_id,
+            target_shard_id,
+        };
+        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+    }
+
+    async fn route_cross_shard_message(
+        &self,
+        target_shard_id: u64,
+        message: ShardMessage,
+        committee_members: &[String],
+    ) {
+        // Implement the routing mechanism to direct cross-shard messages to the appropriate committee members
+        let target_member = self.select_committee_member(target_shard_id, committee_members);
+        if let Err(e) = self.send_message_to_member(target_member, message).await {
+            error!("Failed to route cross-shard message: {}", e);
+        }
+    }
+
+    fn select_committee_member(&self, shard_id: u64, committee_members: &[String]) -> String {
+        // Implement a round-robin or load-balancing algorithm to select the committee member
+        let index = (shard_id as usize) % committee_members.len();
+        committee_members[index].clone()
+    }
+
+    async fn send_message_to_member(&self, member: String, message: ShardMessage) -> Result<(), NetworkError> {
+        // Ensure secure communication using quantum-resistant encryption and authentication
+        let serialized_message = message.serialize(&self.crypto)?;
+        if let Some(pq_tls_connection) = &self.pq_tls_connection {
+            pq_tls_connection.send(&serialized_message).await.map_err(|e| {
+                NetworkError::MessageSendingFailed(format!(
+                    "Failed to send shard message over TLS: {}",
+                    e
+                ))
+            })?;
+        } else {
+            return Err(NetworkError::MessageSendingFailed(
+                "TLS connection not established".to_string(),
+            ));
+        }
+        Ok(())
     }
 
     pub fn deserialize(data: &[u8], crypto: &QUPCrypto) -> Result<Self, NetworkError> {
@@ -58,6 +143,13 @@ impl ShardMessageHandler {
             message_sender: None,
             crypto,
         }
+
+        // Configure and establish the TLS connection using rustls
+        let config = PostQuantumTLSConfig::new();
+        let stream = TcpStream::connect("localhost:12345").await.expect("Failed to connect to server");
+        let pq_tls_connection = PostQuantumTLSConnection::new(stream, config).await.expect("Failed to establish TLS connection");
+
+        handler.pq_tls_connection = Some(pq_tls_connection);
 
         // Configure and establish the TLS connection using rustls
         let config = PostQuantumTLSConfig::new();
