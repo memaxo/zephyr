@@ -300,23 +300,36 @@ impl UsefulWorkGenerator {
     }
 
 impl UsefulWorkGenerator {
-    pub async fn fetch_problems_from_platform(api_url: &str) -> Result<Vec<UsefulWorkProblem>, reqwest::Error> {
+    pub async fn fetch_problems_from_platform(api_url: &str, domain: &str, difficulty: u8, num_problems: usize, api_key: &str) -> Result<Vec<UsefulWorkProblem>, reqwest::Error> {
         let client = Client::new();
-        let response = client.get(api_url).send().await?;
+        let response = client.get(api_url)
+            .query(&[("domain", domain), ("difficulty", &difficulty.to_string()), ("num_problems", &num_problems.to_string())])
+            .header("Authorization", format!("Bearer {}", api_key))
+            .send().await?;
         let problems: Vec<UsefulWorkProblem> = response.json().await?;
         Ok(problems)
     }
 
-    pub async fn submit_solution_to_platform(api_url: &str, solution: &UsefulWorkProblem) -> Result<Value, reqwest::Error> {
+    pub async fn submit_solution_to_platform(api_url: &str, problem_id: Uuid, node_id: Uuid, solution: &UsefulWorkProblem, api_key: &str) -> Result<Value, reqwest::Error> {
         let client = Client::new();
-        let response = client.post(api_url).json(solution).send().await?;
+        let response = client.post(api_url)
+            .json(&json!({
+                "problem_id": problem_id,
+                "node_id": node_id,
+                "solution": solution
+            }))
+            .header("Authorization", format!("Bearer {}", api_key))
+            .send().await?;
         let result: Value = response.json().await?;
         Ok(result)
     }
 
-    pub async fn receive_validation_result(api_url: &str) -> Result<Value, reqwest::Error> {
+    pub async fn receive_validation_result(api_url: &str, problem_id: Uuid, solution_id: Uuid, api_key: &str) -> Result<Value, reqwest::Error> {
         let client = Client::new();
-        let response = client.get(api_url).send().await?;
+        let response = client.get(api_url)
+            .query(&[("problem_id", problem_id.to_string()), ("solution_id", solution_id.to_string())])
+            .header("Authorization", format!("Bearer {}", api_key))
+            .send().await?;
         let result: Value = response.json().await?;
         Ok(result)
     }
