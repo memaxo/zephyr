@@ -250,11 +250,14 @@ pub struct Shard {
             ShardMessage::MerkleProofResponse { shard_id, merkle_proof } => {
                 self.handle_merkle_proof_response(merkle_proof).await?;
             }
-            ShardMessage::CrossShardTransaction { transaction, source_shard_id, target_shard_id } => {
-                self.handle_cross_shard_transaction(transaction, source_shard_id, target_shard_id, committee_members).await;
+            ShardMessage::CrossShardTransactionPrepare { transaction, source_shard_id, target_shard_id, transaction_id } => {
+                self.handle_cross_shard_transaction_prepare(transaction, source_shard_id, target_shard_id, transaction_id).await?;
             }
-            ShardMessage::CrossShardStateUpdate { state_update, source_shard_id, target_shard_id } => {
-                self.handle_cross_shard_state_update(state_update, source_shard_id, target_shard_id, committee_members).await;
+            ShardMessage::CrossShardTransactionCommit { transaction_id } => {
+                self.handle_cross_shard_transaction_commit(transaction_id).await?;
+            }
+            ShardMessage::CrossShardTransactionAbort { transaction_id } => {
+                self.handle_cross_shard_transaction_abort(transaction_id).await?;
             }
             ShardMessage::RaftMessage { message } => {
                 self.raft.handle_message(message).await?;

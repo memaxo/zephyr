@@ -16,17 +16,17 @@ pub enum ShardMessage {
         shard_id: u64,
     },
     StateResponse(ShardState),
-    CrossShardTransaction {
+    CrossShardTransactionPrepare {
         transaction: Transaction,
         source_shard_id: u64,
         target_shard_id: u64,
-        signature: Vec<u8>,
+        transaction_id: String,
     },
-    CrossShardStateUpdate {
-        state_update: ShardState,
-        source_shard_id: u64,
-        target_shard_id: u64,
-        signature: Vec<u8>,
+    CrossShardTransactionCommit {
+        transaction_id: String,
+    },
+    CrossShardTransactionAbort {
+        transaction_id: String,
     },
     StateUpdate {
         state: CompressedShardState,
@@ -391,42 +391,65 @@ impl ShardMessageHandler {
             }
         }
 
-    async fn handle_cross_shard_transaction(
+    async fn handle_cross_shard_transaction_prepare(
         &mut self,
         transaction: Transaction,
         source_shard_id: u64,
         target_shard_id: u64,
-        committee_members: &[String],
-    ) {
-        // Validate and process the cross-shard transaction
-        // ...
+        transaction_id: String,
+    ) -> Result<(), ShardError> {
+        // Validate the transaction
+        self.verify_transaction(&transaction)?;
 
-        // Forward the transaction to the target shard
-        let message = ShardMessage::CrossShardTransaction {
-            transaction,
-            source_shard_id,
-            target_shard_id,
-        };
-        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+        // Prepare the transaction (e.g., lock resources)
+        self.prepare_transaction(transaction_id.clone(), transaction.clone())?;
+
+        // Send a commit message to the source shard
+        let message = ShardMessage::CrossShardTransactionCommit { transaction_id };
+        self.send_message_to_shard(source_shard_id, NetworkMessage::ShardMessage(message)).await?;
+
+        Ok(())
     }
 
-    async fn handle_cross_shard_state_update(
+    async fn handle_cross_shard_transaction_commit(
         &mut self,
-        state_update: ShardState,
-        source_shard_id: u64,
-        target_shard_id: u64,
-        committee_members: &[String],
-    ) {
-        // Validate and process the cross-shard state update
+        transaction_id: String,
+    ) -> Result<(), ShardError> {
+        // Commit the transaction (e.g., apply changes)
+        self.commit_transaction(transaction_id)?;
+
+        Ok(())
+    }
+
+    async fn handle_cross_shard_transaction_abort(
+        &mut self,
+        transaction_id: String,
+    ) -> Result<(), ShardError> {
+        // Abort the transaction (e.g., rollback changes)
+        self.abort_transaction(transaction_id)?;
+
+        Ok(())
+    }
+
+    fn prepare_transaction(&self, transaction_id: String, transaction: Transaction) -> Result<(), ShardError> {
+        // Implement logic to prepare the transaction (e.g., lock resources)
         // ...
 
-        // Forward the state update to the target shard
-        let message = ShardMessage::CrossShardStateUpdate {
-            state_update,
-            source_shard_id,
-            target_shard_id,
-        };
-        self.route_cross_shard_message(target_shard_id, message, committee_members).await;
+        Ok(())
+    }
+
+    fn commit_transaction(&self, transaction_id: String) -> Result<(), ShardError> {
+        // Implement logic to commit the transaction (e.g., apply changes)
+        // ...
+
+        Ok(())
+    }
+
+    fn abort_transaction(&self, transaction_id: String) -> Result<(), ShardError> {
+        // Implement logic to abort the transaction (e.g., rollback changes)
+        // ...
+
+        Ok(())
     }
 
     async fn route_cross_shard_message(
