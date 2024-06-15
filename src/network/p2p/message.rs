@@ -22,7 +22,8 @@ pub enum Message {
     RequestModelOutputs(Vec<Vec<f64>>),
     ResponseModelOutputs(Vec<(Vec<f64>, Vec<f64>)>),
     TransactionValidated(Transaction),
-    UWPSolved(Transaction)
+    UWPSolved(Transaction),
+    ContractExecuted(Transaction, HashMap<String, Value>)
 }
 
 impl Message {

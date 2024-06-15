@@ -134,6 +134,22 @@ impl Interpreter {
                 Ok(None)
             },
             Operation::FunctionCall { name, args } => {
+                // Listen for UWPSolved messages
+                if let Message::UWPSolved(solved_transaction) = message {
+                    // Execute any smart contracts associated with the transaction
+                    if let Some(contract) = self.state.get_contract(&solved_transaction.contract_address) {
+                        let mut context = ExecutionContext::new(self.gas_limit);
+                        context.state = self.state.clone();
+                        self.execute_operations(&contract.operations, &mut context)?;
+
+                        // Update the state based on the contract's logic
+                        self.state = context.state.clone();
+
+                        // Send ContractExecuted message with the updated state to the State Replication Node
+                        let executed_message = NetworkMessage::ContractExecuted(solved_transaction.clone(), self.state.clone());
+                        self.network.broadcast(executed_message)?;
+                    }
+                }
                 // Check function permissions
                 context.check_function_permission(user, name)?;
 
