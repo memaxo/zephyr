@@ -1,4 +1,4 @@
-use crate::ufw::types::Problem;
+use crate::ufw::types::{Problem, Subtask};
 
 // --- Quantifiable Outcomes ---
 fn calculate_quantifiable_outcomes(problem: &Problem) -> f64 {
@@ -32,6 +32,35 @@ fn calculate_quantifiable_outcomes(problem: &Problem) -> f64 {
     }
 
     impact_score 
+}
+
+pub fn calculate_impact(problem: &Problem) -> (f64, Vec<(Subtask, f64)>) {
+    let mut total_impact = 0.0;
+    let mut impact_breakdown = Vec::new();
+
+    if let Some(subtasks) = &problem.subtasks {
+        for subtask in subtasks {
+            let subtask_impact = evaluate_subtask_impact(subtask, problem);
+            total_impact += subtask_impact;
+            impact_breakdown.push((subtask.clone(), subtask_impact));
+        }
+    } else {
+        total_impact = evaluate_problem_impact(problem);
+    }
+
+    (total_impact, impact_breakdown)
+}
+
+fn evaluate_subtask_impact(subtask: &Subtask, problem: &Problem) -> f64 {
+    // Placeholder implementation for evaluating subtask impact
+    // Replace with actual logic to evaluate the impact of a subtask
+    10.0 // Example impact score
+}
+
+fn evaluate_problem_impact(problem: &Problem) -> f64 {
+    // Placeholder implementation for evaluating problem impact
+    // Replace with actual logic to evaluate the impact of a problem
+    100.0 // Example impact score
 }
 
 // --- Scientific Advancement ---
