@@ -267,6 +267,7 @@ pub struct QUPTransaction {
     pub amount: u64,
     pub signature: QUPSignature,
     pub contribution_type: ContributionType,
+    pub proof: Vec<u8>,
     // Add more transaction-specific fields as needed
 }
 
