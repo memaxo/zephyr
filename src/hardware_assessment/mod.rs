@@ -1,4 +1,5 @@
 use sysinfo::{System, SystemExt, ProcessorExt};
+use crate::hardware_assessment::requirements::MinimumHardwareRequirements;
 use crate::utils::node_id::NodeId;
 
 pub struct HardwareCapabilities {
@@ -31,14 +32,11 @@ pub fn verify_hardware(node_id: &NodeId) -> bool {
         network_bandwidth_mbps: None, // Placeholder for actual network bandwidth retrieval
     };
 
-    // Define minimum requirements
-    let min_cpu_cores = 4;
-    let min_memory_gb = 8;
-    let min_storage_gb = 128;
+    let requirements = MinimumHardwareRequirements::default();
 
-    capabilities.cpu_cores >= min_cpu_cores &&
-    capabilities.memory_gb >= min_memory_gb &&
-    capabilities.storage_gb >= min_storage_gb
+    capabilities.cpu_cores >= requirements.min_cpu_cores as usize &&
+    capabilities.memory_gb >= requirements.min_ram_mb as usize / 1024 &&
+    capabilities.storage_gb >= requirements.min_storage_gb as usize
 }
 
 pub fn run_benchmarks(node_id: &NodeId) -> BenchmarkResult {

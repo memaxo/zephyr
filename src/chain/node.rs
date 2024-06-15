@@ -20,8 +20,8 @@ pub struct NodeConfig {
     pub node_id: NodeId,
     pub has_local_entropy_source: bool,
     pub certificate_validity_period: Validity,
-    hardware_capabilities: Option<HardwareCapabilities>,
-    benchmark_results: Option<BenchmarkResults>,
+    pub hardware_capabilities: Option<HardwareCapabilities>,
+    pub benchmark_results: Option<BenchmarkResults>,
 impl Node {
     pub fn prioritize_nodes(nodes: Vec<Node>) -> Vec<Node> {
         let mut nodes = nodes;
@@ -74,9 +74,6 @@ impl Node {
             Arc::new(RwLock::new(None))
         };
 
-        let hardware_capabilities = Self::retrieve_hardware_capabilities();
-        let benchmark_results = None; // Default value, will be set after assessment
-
         let mut node = Self {
             id: config.node_id,
             quantum_entropy_source,
@@ -85,15 +82,8 @@ impl Node {
             message_handler,
             certificate_authority,
             connection_manager,
-            hardware_capabilities,
-            benchmark_results,
-            id: config.node_id,
-            quantum_entropy_source,
-            post_quantum_keypair,
-            post_quantum_certificate: Arc::new(RwLock::new(None)),
-            message_handler,
-            certificate_authority,
-            connection_manager,
+            hardware_capabilities: None,
+            benchmark_results: None,
         };
 
         node.assess_hardware().await?;
