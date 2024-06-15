@@ -167,6 +167,15 @@ impl TransactionCommon for Transaction {
             .unwrap_or_else(|| state_lock.create_account(&self.common.receiver));
         receiver_account.balance += self.common.amount;
 
+        // Execute smart contract if applicable
+        if let Some(contract_code) = &self.common.contract_code {
+            // Execute contract code and update state
+            // ...
+        }
+
+        // Update state root hash
+        state_lock.update_root_hash();
+
         Ok(())
     }
 
@@ -202,6 +211,12 @@ impl TransactionCommon for Transaction {
 
         // Verify the zero-knowledge proof
         self.verify_zkp()?;
+
+        // Validate smart contract code and arguments if applicable
+        if let Some(contract_code) = &self.common.contract_code {
+            // Validate contract code and arguments
+            // ...
+        }
 
         Ok(())
     }
