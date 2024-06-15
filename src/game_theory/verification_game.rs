@@ -19,18 +19,30 @@ impl VerificationGame {
             challenges: HashMap::new(),
         }
     pub fn submit_evidence(&self, challenge_id: &ChallengeId, evidence: String) {
-        // Store the evidence for the challenge
-        // (Assuming a function `store_evidence` exists)
-        store_evidence(challenge_id, evidence);
+        // Define a standardized format for evidence submission
+        let timestamp = chrono::Utc::now().to_rfc3339();
+        let evidence_format = format!("{{\"evidence\": \"{}\", \"timestamp\": \"{}\", \"signature\": \"{}\"}}", evidence, timestamp, self.sign_evidence(&evidence));
+
+        // Store the evidence in a secure and tamper-proof manner
+        // (Assuming a function `store_evidence` exists that uses a decentralized storage system like IPFS or stores a hash on the blockchain)
+        store_evidence(challenge_id, evidence_format);
     pub fn handle_multiple_challenges(&mut self, task_id: &str, state: &mut QUPState) {
-        // Handle multiple challenges for the same task
-        let challenges: Vec<ChallengeId> = self.challenges.iter()
+        // Queue multiple challenges for the same task
+        let mut challenge_queue: Vec<ChallengeId> = self.challenges.iter()
             .filter(|(_, challenge)| challenge.task_id == task_id)
             .map(|(id, _)| id.clone())
             .collect();
 
-        for challenge_id in challenges {
-            self.resolve_dispute(&challenge_id, state);
+        // Optionally aggregate similar challenges into a single dispute
+        if challenge_queue.len() > 1 {
+            log::info!("Aggregating multiple challenges for task: {}", task_id);
+            // (Assuming a function `aggregate_challenges` exists)
+            let aggregated_challenge = aggregate_challenges(&challenge_queue);
+            self.resolve_dispute(&aggregated_challenge, state);
+        } else {
+            for challenge_id in challenge_queue {
+                self.resolve_dispute(&challenge_id, state);
+            }
         }
     }
 
@@ -45,8 +57,15 @@ impl VerificationGame {
 
     pub fn resolve_dispute(&self, challenge_id: &ChallengeId, state: &mut QUPState) {
         // Implement dispute resolution mechanism
-        // (Assuming a function `resolve_dispute_via_vote` exists)
-        let result = resolve_dispute_via_vote(challenge_id);
+        let result = if let Some(vote_result) = resolve_dispute_via_vote(challenge_id) {
+            vote_result
+        } else if let Some(reputation_result) = resolve_dispute_via_reputation(challenge_id, state) {
+            reputation_result
+        } else {
+            // Fallback to external arbitration
+            resolve_dispute_via_arbitration(challenge_id)
+        };
+
         self.resolve_challenge(challenge_id.clone(), result, state);
     }
 
@@ -112,3 +131,8 @@ impl VerificationGame {
         *agent_balance += amount;
     }
 }
+    fn sign_evidence(&self, evidence: &str) -> String {
+        // Implement a method to sign the evidence
+        // (Assuming a function `sign` exists that signs the evidence with the agent's private key)
+        sign(evidence)
+    }
