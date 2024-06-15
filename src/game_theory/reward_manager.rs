@@ -87,12 +87,11 @@ impl RewardManager {
 
     fn calculate_block_reward(&self, height: BlockHeight) -> RewardAmount {
         // Implement the logic to calculate the block reward based on the block height
-        // This can be a fixed amount or a dynamic formula
-        // Example dynamic block reward calculation
-        let initial_reward = 1000.0;
-        let halving_interval = 100000; // Example halving interval
-        let halvings = height / halving_interval;
-        initial_reward / 2.0_f64.powi(halvings as i32)
+        // Using exponential decay formula
+        let initial_block_reward = 1000.0;
+        let decay_rate = 0.001;
+        let block_reward = initial_block_reward * (1.0 - decay_rate).powf(height as f64);
+        block_reward as RewardAmount
     }
 
     pub fn slash(&self, node_id: &NodeId, amount: PenaltyAmount, state: &mut QUPState) {
