@@ -10,7 +10,30 @@ pub struct Task {
     pub deadline: DateTime<Utc>,
     pub creator: String,
     pub version: u64,
+    pub weights: Option<HashMap<String, f64>>,
 }
+
+impl Task {
+    pub fn new(
+        id: u64,
+        description: String,
+        resources: Vec<String>,
+        reward: u64,
+        deadline: DateTime<Utc>,
+        creator: String,
+        weights: Option<HashMap<String, f64>>,
+    ) -> Self {
+        Task {
+            id,
+            description,
+            resources,
+            reward,
+            deadline,
+            creator,
+            version: 0,
+            weights,
+        }
+    }
 
 impl Task {
     pub fn new(

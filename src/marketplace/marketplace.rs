@@ -40,7 +40,8 @@ impl Marketplace {
     pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP) -> Result<(), String> {
         let bids = self.bids.lock().unwrap();
         if let Some(bids) = bids.get(&task_id) {
-            if let Some(best_bid) = self.select_best_bid(bids) {
+            let task = self.tasks.lock().unwrap().get(&task_id).ok_or("Task not found")?.clone();
+            if let Some(best_bid) = self.select_best_bid(&task, bids) {
                 let task = self.tasks.get(&task_id).ok_or("Task not found")?;
                 let sc_task = SCTask {
                     id: task.id,
@@ -75,18 +76,30 @@ impl Marketplace {
         }
     }
 
-    fn select_best_bid(&self, bids: &[Bid]) -> Option<Bid> {
+    fn select_best_bid(&self, task: &Task, bids: &[Bid]) -> Option<Bid> {
         // Calculate a score for each bid based on a weighted combination of factors
         let mut best_bid: Option<Bid> = None;
         let mut highest_score = f64::MIN;
 
+        let default_weights = HashMap::from([
+            ("reputation".to_string(), 0.4),
+            ("capability".to_string(), 0.3),
+            ("time".to_string(), 0.2),
+            ("reward".to_string(), 0.1),
+        ]);
+
+        let weights = task.weights.as_ref().unwrap_or(&default_weights);
+
         for bid in bids {
             let reputation_score = self.get_reputation_score(&bid.node_id);
             let capability_score = self.get_capability_score(&bid.proof_of_capability);
-            let time_score = self.get_time_score(&bid.proposed_time, &self.tasks[&bid.task_id].deadline);
+            let time_score = self.get_time_score(&bid.proposed_time, &task.deadline);
+            let reward_score = 1.0 / bid.proposed_reward as f64; // Lower reward is better
 
-            // Adjust weights as needed
-            let score = 0.5 * reputation_score + 0.3 * capability_score + 0.2 * time_score;
+            let score = weights["reputation"] * reputation_score
+                + weights["capability"] * capability_score
+                + weights["time"] * time_score
+                + weights["reward"] * reward_score;
 
             if score > highest_score {
                 highest_score = score;
