@@ -6,10 +6,26 @@ use crate::did::did::{DID, DIDDocument, DIDError};
 use crate::did::did_resolver::DIDResolver;
 use serde::{Serialize, Deserialize};
 use sha2::{Sha256, Digest};
+use homomorphic_encryption::prelude::*;
 
 pub struct QUPCrypto {
     key_management: KeyManagement,
 impl QUPCrypto {
+    pub fn encrypt_homomorphic(&self, data: &[u8], public_key: &HomomorphicPublicKey) -> Vec<u8> {
+        public_key.encrypt(data)
+    }
+
+    pub fn decrypt_homomorphic(&self, ciphertext: &[u8], secret_key: &HomomorphicSecretKey) -> Vec<u8> {
+        secret_key.decrypt(ciphertext)
+    }
+
+    pub fn add_encrypted_values(&self, ciphertext1: &[u8], ciphertext2: &[u8], public_key: &HomomorphicPublicKey) -> Vec<u8> {
+        public_key.add(ciphertext1, ciphertext2)
+    }
+
+    pub fn multiply_encrypted_values(&self, ciphertext1: &[u8], ciphertext2: &[u8], public_key: &HomomorphicPublicKey) -> Vec<u8> {
+        public_key.multiply(ciphertext1, ciphertext2)
+    }
     pub fn verify_did(&self, did: &DID, did_resolver: &dyn DIDResolver) -> Result<DIDDocument, DIDError> {
         did_resolver.resolve(did)
     }
