@@ -465,6 +465,20 @@ impl QUPConsensus {
     
         Ok(is_valid)
     }
+
+    fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
+        // Validate the block using existing validation logic
+        let is_valid = self.validate_block_common(block)?;
+
+        // Validate the useful work problem's signature and content
+        if let Some(problem_proposal) = &block.problem_proposal {
+            if !QUPCrypto::verify(&problem_proposal.problem, &problem_proposal.signature, &problem_proposal.proposer) {
+                return Err(ConsensusError::InvalidProblemProposal);
+            }
+        }
+
+        Ok(is_valid)
+    }
     
     fn validate_block(&self, block: &QUPBlock) -> Result<bool, ConsensusError> {
         // Validate the block using existing validation logic
