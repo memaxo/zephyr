@@ -349,8 +349,6 @@ impl Marketplace {
         } else {
             Err("Task not found".to_string())
         }
-        reputation: Mutex::new(HashMap::new()),
-    }
 
     fn select_best_bid(&self, task: &Task, bids: &[Bid]) -> Option<Bid> {
         // Calculate a score for each bid based on a weighted combination of factors
