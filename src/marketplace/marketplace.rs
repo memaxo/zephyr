@@ -23,7 +23,8 @@ pub struct Marketplace {
     fn send_with_retry(&self, qup: &QUP, notification: &TaskAssignmentNotification) -> Result<(), String> {
         let mut attempts = 0;
         let max_attempts = 5;
-        let mut delay = Duration::from_secs(1);
+        let base_delay = Duration::from_secs(1);
+        let max_delay = Duration::from_secs(32);
 
         while attempts < max_attempts {
             match qup.send_task_assignment_notification(&notification) {
@@ -32,15 +33,27 @@ pub struct Marketplace {
                     return Ok(());
                 }
                 Err(e) => {
-                    error!("Failed to send task assignment notification: {}. Retrying in {:?}...", e, delay);
-                    thread::sleep(delay);
-                    delay *= 2; // Exponential backoff
-                    attempts += 1;
+                    if is_transient_error(&e) {
+                        let jitter: u64 = rand::thread_rng().gen_range(0..1000);
+                        let delay = (base_delay * 2u32.pow(attempts)).min(max_delay) + Duration::from_millis(jitter);
+                        error!("Transient error: {}. Retrying in {:?}...", e, delay);
+                        thread::sleep(delay);
+                        attempts += 1;
+                    } else {
+                        error!("Permanent error: {}. Not retrying.", e);
+                        return Err(format!("Permanent error: {}", e));
+                    }
                 }
             }
         }
 
         Err("Max retry attempts reached".to_string())
+    }
+
+    fn is_transient_error(error: &str) -> bool {
+        // Placeholder for actual transient error detection logic
+        // For now, assume all errors are transient
+        true
     }
 
 impl Marketplace {
