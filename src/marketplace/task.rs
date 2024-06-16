@@ -36,19 +36,60 @@ impl Task {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        // Check if description is empty
         if self.description.is_empty() {
             return Err("Description cannot be empty".to_string());
         }
+
+        // Check if resources are empty
         if self.resources.is_empty() {
             return Err("Resources cannot be empty".to_string());
         }
+
+        // Check if reward is greater than zero
         if self.reward == 0 {
             return Err("Reward must be greater than zero".to_string());
         }
+
+        // Check if deadline is in the future
         if self.deadline <= Utc::now() {
             return Err("Deadline must be in the future".to_string());
         }
+
+        // Check if the task is feasible based on resource requirements
+        if !self.is_feasible() {
+            return Err("Task is not feasible with the given resources".to_string());
+        }
+
+        // Check if the reward structure is realistic
+        if !self.is_reward_realistic() {
+            return Err("Reward structure is unrealistic".to_string());
+        }
+
+        // Flag suspicious or unrealistic tasks
+        if self.is_suspicious() {
+            return Err("Task is flagged as suspicious".to_string());
+        }
+
         Ok(())
+    }
+
+    fn is_feasible(&self) -> bool {
+        // Placeholder for actual feasibility check logic
+        // For now, return true
+        true
+    }
+
+    fn is_reward_realistic(&self) -> bool {
+        // Placeholder for actual reward realism check logic
+        // For now, return true
+        true
+    }
+
+    fn is_suspicious(&self) -> bool {
+        // Placeholder for actual suspicious task detection logic
+        // For now, return false
+        false
     }
 
     pub fn increment_version(&mut self) {
