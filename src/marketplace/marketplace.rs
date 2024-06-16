@@ -36,13 +36,35 @@ pub struct Marketplace {
     }
 
 impl Marketplace {
-    pub fn assign_task(&self, task_id: u64) -> Result<(), String> {
+    pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP) -> Result<(), String> {
         let bids = self.bids.lock().unwrap();
         if let Some(bids) = bids.get(&task_id) {
             if let Some(best_bid) = self.select_best_bid(bids) {
                 let task = self.tasks.get(&task_id).ok_or("Task not found")?;
-                SmartContract::assign_task(task, &best_bid)?;
+                let sc_task = SCTask {
+                    id: task.id,
+                    description: task.description.clone(),
+                    resources: task.resources.clone(),
+                    reward: task.reward,
+                    deadline: task.deadline,
+                    creator: task.creator.clone(),
+                };
+                let sc_bid = SCBid {
+                    node_id: best_bid.node_id.clone(),
+                    proposed_time: best_bid.proposed_time,
+                    proposed_reward: best_bid.proposed_reward,
+                    proof_of_capability: best_bid.proof_of_capability.clone(),
+                };
+                SmartContract::assign_task(&sc_task, &sc_bid)?;
+
+                // Record the task assignment on the blockchain
+                blockchain.record_task_assignment(task.id, &best_bid.node_id)?;
+
+                // Update reputation
+                let mut reputation = SCReputation::new();
+                reputation.update_reputation(&best_bid.node_id, 1.0);
                 self.bids.remove(&task_id); // Remove bids after assignment
+                qup.send_task_assignment_notification(&task.creator, &best_bid.node_id)?;
                 Ok(())
             } else {
                 Err("No valid bids found".to_string())
@@ -88,13 +110,14 @@ impl Marketplace {
         }
     }
 
-    pub fn add_task(&self, task: Task) -> Result<(), String> {
+    pub fn add_task(&self, task: Task, blockchain: &Blockchain) -> Result<(), String> {
         task.validate()?;
         let mut tasks = self.tasks.lock().unwrap();
         if tasks.contains_key(&task.id) {
             return Err("Task ID already exists".to_string());
         }
         tasks.insert(task.id, task);
+        blockchain.record_task_submission(&task)?;
         Ok(())
     }
 
@@ -103,7 +126,7 @@ impl Marketplace {
         tasks.get(&task_id)
     }
 
-    pub fn add_bid(&self, task_id: u64, bid: Bid) -> Result<(), String> {
+    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain) -> Result<(), String> {
         let tasks = self.tasks.lock().unwrap();
         let mut bids = self.bids.lock().unwrap();
         if let Some(task) = tasks.get(&task_id) {
@@ -120,6 +143,7 @@ impl Marketplace {
             }
             task.increment_version();
             bids.entry(task_id).or_insert_with(Vec::new).push(bid);
+            blockchain.record_bid_submission(task_id, &bid)?;
             Ok(())
         } else {
             Err("Task not found".to_string())
