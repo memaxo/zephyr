@@ -19,33 +19,49 @@ impl QUPCrypto {
     }
 
     pub fn encrypt_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((public_key, _)) = self.key_management.get_kyber_keys(key_id) {
+        self.key_management.get_kyber_keys(key_id).map(|(public_key, _)| {
             let (ciphertext, shared_secret) = encapsulate(public_key);
             let encrypted_message = self.aes_encrypt(message, &shared_secret);
-            Some([ciphertext.as_bytes(), &encrypted_message].concat())
-        } else {
-            None
-        }
+            [ciphertext.as_bytes(), &encrypted_message].concat()
+        })
     }
 
     pub fn decrypt_message(&self, encrypted_message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((_, secret_key)) = self.key_management.get_kyber_keys(key_id) {
+        self.key_management.get_kyber_keys(key_id).and_then(|(_, secret_key)| {
             let (ciphertext, encrypted_message) = encrypted_message.split_at(KyberCiphertext::BYTES);
             let shared_secret = decapsulate(&KyberCiphertext::from_bytes(ciphertext), secret_key).ok()?;
             self.aes_decrypt(encrypted_message, &shared_secret)
-        } else {
-            None
-        }
+        })
     }
 
     fn aes_encrypt(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
         // Implement AES encryption using the shared secret
-        data.to_vec() // Placeholder
+        use aes_gcm::aead::{Aead, KeyInit, OsRng};
+        use aes_gcm::{Aes256Gcm, Nonce}; // Or `Aes128Gcm`
+        use aes_gcm::aead::generic_array::GenericArray;
+
+        let key = GenericArray::from_slice(key);
+        let cipher = Aes256Gcm::new(key);
+
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
+        let ciphertext = cipher.encrypt(&nonce, data).expect("encryption failure!");
+
+        [nonce.as_slice(), ciphertext.as_slice()].concat()
     }
 
     fn aes_decrypt(&self, data: &[u8], key: &[u8]) -> Option<Vec<u8>> {
         // Implement AES decryption using the shared secret
-        Some(data.to_vec()) // Placeholder
+        use aes_gcm::aead::{Aead, KeyInit};
+        use aes_gcm::{Aes256Gcm, Nonce}; // Or `Aes128Gcm`
+        use aes_gcm::aead::generic_array::GenericArray;
+
+        let key = GenericArray::from_slice(key);
+        let cipher = Aes256Gcm::new(key);
+
+        let (nonce, ciphertext) = data.split_at(12); // 96-bits nonce
+        let nonce = Nonce::from_slice(nonce);
+
+        cipher.decrypt(nonce, ciphertext).ok()
     }
 
     pub fn sign_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
@@ -116,37 +132,6 @@ fn decrypt_quantum_data(data: &[u8], key: &KyberSecretKey) -> Result<Vec<u8>, Cr
     }
 }
 
-impl QUPCrypto {
-    pub fn encrypt_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((public_key, _)) = self.key_management.get_kyber_keys(key_id) {
-            let (ciphertext, shared_secret) = encapsulate(public_key);
-            let encrypted_message = self.aes_encrypt(message, &shared_secret);
-            Some([ciphertext.as_bytes(), &encrypted_message].concat())
-        } else {
-            None
-        }
-    }
-
-    pub fn decrypt_message(&self, encrypted_message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((_, secret_key)) = self.key_management.get_kyber_keys(key_id) {
-            let (ciphertext, encrypted_message) = encrypted_message.split_at(KyberCiphertext::BYTES);
-            let shared_secret = decapsulate(&KyberCiphertext::from_bytes(ciphertext), secret_key).ok()?;
-            self.aes_decrypt(encrypted_message, &shared_secret)
-        } else {
-            None
-        }
-    }
-
-    fn aes_encrypt(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
-        // Implement AES encryption using the shared secret
-        data.to_vec() // Placeholder
-    }
-
-    fn aes_decrypt(&self, data: &[u8], key: &[u8]) -> Option<Vec<u8>> {
-        // Implement AES decryption using the shared secret
-        Some(data.to_vec()) // Placeholder
-    }
-}
 
 impl QUPCrypto {
     pub fn sign_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
