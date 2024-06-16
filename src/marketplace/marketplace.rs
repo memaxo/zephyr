@@ -14,6 +14,7 @@ impl Marketplace {
             if let Some(best_bid) = self.select_best_bid(bids) {
                 let task = self.tasks.get(&task_id).ok_or("Task not found")?;
                 SmartContract::assign_task(task, &best_bid)?;
+                self.bids.remove(&task_id); // Remove bids after assignment
                 Ok(())
             } else {
                 Err("No valid bids found".to_string())
@@ -40,6 +41,9 @@ impl Marketplace {
 
     pub fn add_task(&mut self, task: Task) -> Result<(), String> {
         task.validate()?;
+        if self.tasks.contains_key(&task.id) {
+            return Err("Task ID already exists".to_string());
+        }
         self.tasks.insert(task.id, task);
         Ok(())
     }
@@ -52,6 +56,9 @@ impl Marketplace {
         if let Some(task) = self.tasks.get(&task_id) {
             if bid.proposed_time > task.deadline {
                 return Err("Bid proposed time is past the task deadline".to_string());
+            }
+            if bid.proposed_reward > task.reward {
+                return Err("Bid proposed reward exceeds task reward".to_string());
             }
             self.bids.entry(task_id).or_insert_with(Vec::new).push(bid);
             Ok(())

@@ -13,7 +13,7 @@ impl Reputation {
 
     pub fn update_reputation(&mut self, node_id: &str, delta: f64) {
         let score = self.scores.entry(node_id.to_string()).or_insert(0.0);
-        *score += delta;
+        *score = (*score + delta).max(0.0); // Ensure reputation score is non-negative
     }
 
     pub fn get_reputation(&self, node_id: &str) -> f64 {
