@@ -37,6 +37,8 @@ pub struct ScientificSimulationProblem {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UsefulWorkProblem {
+    proposer: String,
+    signature: Vec<u8>,
     // Optimization problems
     Knapsack(KnapsackProblem),
     VertexCover(VertexCoverProblem),
@@ -264,6 +266,8 @@ pub struct KnapsackProblem {
     pub capacity: u64,
     pub weights: Vec<u64>,
     pub values: Vec<u64>,
+    proposer: String,
+    signature: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
