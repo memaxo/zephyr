@@ -28,18 +28,3 @@ impl Bid {
     }
 }
 
-impl Bid {
-    pub fn new(
-        node_id: String,
-        proposed_time: DateTime<Utc>,
-        proposed_reward: u64,
-        proof_of_capability: String,
-    ) -> Self {
-        Bid {
-            node_id,
-            proposed_time,
-            proposed_reward,
-            proof_of_capability,
-        }
-    }
-}

@@ -23,49 +23,6 @@ impl Task {
         deadline: DateTime<Utc>,
         creator: String,
         weights: Option<HashMap<String, f64>>,
-        weights: Option<HashMap<String, f64>>,
-    ) -> Self {
-        Task {
-            id,
-            description,
-            resources,
-            reward,
-            deadline,
-            creator,
-            version: 0,
-            weights,
-        }
-    }
-}
-
-impl Task {
-    pub fn new(
-        id: u64,
-        description: String,
-        resources: Vec<String>,
-        reward: u64,
-        deadline: DateTime<Utc>,
-        creator: String,
-        Task {
-            id,
-            description,
-            resources,
-            reward,
-            deadline,
-            creator,
-            version: 0,
-            weights,
-        }
-    }
-
-impl Task {
-    pub fn new(
-        id: u64,
-        description: String,
-        resources: Vec<String>,
-        reward: u64,
-        deadline: DateTime<Utc>,
-        creator: String,
     ) -> Self {
         Task {
             id,

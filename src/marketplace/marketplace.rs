@@ -359,9 +359,8 @@ impl Marketplace {
             ("reputation".to_string(), 0.3),
             ("capability".to_string(), 0.2),
             ("time".to_string(), 0.1),
-            ("reward".to_string(), 0.1),
             ("geographical".to_string(), 0.1),
-            ("price_performance".to_string(), 0.2),
+            ("price_performance".to_string(), 0.3),
         ]);
 
         let weights = task.weights.as_ref().unwrap_or(&default_weights);

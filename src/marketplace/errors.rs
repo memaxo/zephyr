@@ -28,6 +28,7 @@ impl fmt::Display for MarketplaceError {
             MarketplaceError::InvalidBidError(msg) => write!(f, "Invalid Bid: {}", msg),
             MarketplaceError::TaskAssignmentError(msg) => write!(f, "Task Assignment Error: {}", msg),
             MarketplaceError::RewardDistributionError(msg) => write!(f, "Reward Distribution Error: {}", msg),
+            MarketplaceError::NetworkError(msg) => write!(f, "Network Error: {}", msg),
         }
     }
 }
