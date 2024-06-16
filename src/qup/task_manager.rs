@@ -4,6 +4,40 @@ use crate::qup::types::{UsefulWorkProblem, ModelTrainingProblem};
 use std::collections::{VecDeque, BinaryHeap};
 use std::cmp::Reverse;
 
+#[derive(Clone)]
+pub struct Node {
+    pub id: String,
+    pub cpu_type: String,
+    pub gpu_model: String,
+    pub memory_speed: u64,
+    pub hardware: HardwareAssessment,
+    nodes: Vec<Node>,
+pub trait TaskProfile {
+    fn resource_requirements(&self) -> Resource;
+}
+
+impl TaskProfile for UsefulWorkProblem {
+    fn resource_requirements(&self) -> Resource {
+        // Implement logic to estimate resource requirements for useful work tasks
+        Resource {
+            cpu: 1,
+            gpu: 1,
+            memory: 1,
+        }
+    }
+}
+
+impl TaskProfile for ModelTrainingProblem {
+    fn resource_requirements(&self) -> Resource {
+        // Implement logic to estimate resource requirements for model training tasks
+        Resource {
+            cpu: 1,
+            gpu: 1,
+            memory: 1,
+        }
+    }
+}
+
 pub struct TaskManager {
     config: QUPConfig,
     useful_work_queue: VecDeque<UsefulWorkProblem>,
@@ -27,30 +61,51 @@ impl TaskManager {
         self.model_training_queue.push_back(problem);
     }
 
-    pub fn assign_useful_work(&mut self, node_id: &str, hardware: &HardwareAssessment, stake: u64, network_load: f64) -> Option<UsefulWorkProblem> {
-        if let Some(problem) = self.useful_work_queue.pop_front() {
-            // Adjust difficulty based on node capabilities, stake, and network load
-            let adjusted_difficulty = self.adjust_useful_work_difficulty(&problem, hardware, stake, network_load);
-            Some(UsefulWorkProblem { 
+    pub fn assign_useful_work(&mut self, task: &UsefulWorkProblem) -> Option<(String, UsefulWorkProblem)> {
+        let suitable_node = self.nodes.iter()
+            .filter(|node| self.is_suitable_for_useful_work(node, task))
+            .max_by_key(|node| self.calculate_node_score(node, task));
+
+        if let Some(node) = suitable_node {
+            let adjusted_difficulty = self.adjust_useful_work_difficulty(task, &node.hardware, 0, 0.0);
+            Some((node.id.clone(), UsefulWorkProblem { 
                 difficulty: adjusted_difficulty,
-                ..problem
-            })
+                ..task.clone()
+            }))
         } else {
             None
         }
     }
 
-    pub fn assign_model_training(&mut self, node_id: &str, hardware: &HardwareAssessment, stake: u64, network_load: f64) -> Option<ModelTrainingProblem> {
-        if let Some(problem) = self.model_training_queue.pop_front() {
-            // Adjust difficulty based on node capabilities, stake, and network load  
-            let adjusted_difficulty = self.adjust_model_training_difficulty(&problem, hardware, stake, network_load);
-            Some(ModelTrainingProblem {
+    pub fn assign_model_training(&mut self, task: &ModelTrainingProblem) -> Option<(String, ModelTrainingProblem)> {
+        let suitable_node = self.nodes.iter()
+            .filter(|node| self.is_suitable_for_model_training(node, task))
+            .max_by_key(|node| self.calculate_node_score(node, task));
+
+        if let Some(node) = suitable_node {
+            let adjusted_difficulty = self.adjust_model_training_difficulty(task, &node.hardware, 0, 0.0);
+            Some((node.id.clone(), ModelTrainingProblem {
                 difficulty: adjusted_difficulty, 
-                ..problem
-            })
+                ..task.clone()
+            }))
         } else {
             None
         }
+    }
+
+    fn is_suitable_for_useful_work(&self, node: &Node, task: &UsefulWorkProblem) -> bool {
+        // Implement logic to check if the node is suitable for the useful work task
+        true
+    }
+
+    fn is_suitable_for_model_training(&self, node: &Node, task: &ModelTrainingProblem) -> bool {
+        // Implement logic to check if the node is suitable for the model training task
+        true
+    }
+
+    fn calculate_node_score(&self, node: &Node, task: &impl TaskProfile) -> u64 {
+        // Implement logic to calculate a score for the node based on its hardware capabilities and the task requirements
+        0
     }
 
     fn adjust_useful_work_difficulty(&self, problem: &UsefulWorkProblem, hardware: &HardwareAssessment, stake: u64, network_load: f64) -> u64 {
