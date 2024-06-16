@@ -331,7 +331,7 @@ impl Marketplace {
     }
 
 impl Marketplace {
-    pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
+    pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let task = self.tasks.read().unwrap().get(&task_id).ok_or("Task not found")?.clone();
         let current_block = blockchain.get_current_block_number()?;
         let bids = self.bids.read().unwrap();
@@ -353,7 +353,7 @@ impl Marketplace {
                             details: format!("Task {} assigned to node {}", task.id, best_bid.node_id),
                         };
 
-                        if let Err(e) = self.send_with_retry(&qup, &notification) {
+                        if let Err(e) = self.send_with_retry(&self.qup, &notification) {
                             error!("Failed to send task assignment notification: {}", e);
                             // Optionally notify the user or system administrator
                         }
