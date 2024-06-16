@@ -30,7 +30,14 @@ impl Bid {
             return Err("Proof of capability is not authentic".to_string());
         }
 
+        self.verify_did(&DID::from_str(&self.node_id).map_err(|e| format!("Invalid DID: {}", e))?)?;
         Ok(())
+    }
+
+    fn verify_did(&self, did: &DID) -> Result<DIDDocument, DIDError> {
+        // Placeholder for actual DID verification logic
+        // For now, return Ok with a dummy DIDDocument
+        Ok(DIDDocument::new(did.clone(), None, None, None, None, None, None, None))
     }
 
     fn verify_proof_of_capability(&self) -> bool {

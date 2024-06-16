@@ -2,12 +2,17 @@ use pqcrypto_dilithium::dilithium5::{sign, verify, PublicKey as DilithiumPublicK
 use pqcrypto_kyber::kyber1024::{encapsulate, decapsulate, PublicKey as KyberPublicKey, SecretKey as KyberSecretKey, Ciphertext as KyberCiphertext, SharedSecret as KyberSharedSecret};
 use crate::qup::crypto_common::{Decrypt, Encrypt, Sign, Verify};
 use crate::qup::key_management::KeyManagement;
+use crate::did::did::{DID, DIDDocument, DIDError};
+use crate::did::did_resolver::DIDResolver;
 use serde::{Serialize, Deserialize};
 use sha2::{Sha256, Digest};
 
 pub struct QUPCrypto {
     key_management: KeyManagement,
 impl QUPCrypto {
+    pub fn verify_did(&self, did: &DID, did_resolver: &dyn DIDResolver) -> Result<DIDDocument, DIDError> {
+        did_resolver.resolve(did)
+    }
     pub fn new() -> Self {
         QUPCrypto {
             key_management: KeyManagement::new(),

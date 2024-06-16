@@ -3,6 +3,7 @@ use crate::marketplace::bid::Bid;
 use crate::smart_contract::types::{SmartContract, Task as SCTask, Bid as SCBid, Reputation as SCReputation, Blockchain};
 use crate::chain::blockchain::Blockchain;
 use crate::qup::QUP;
+use crate::qup::crypto::QUPCrypto;
 use crate::marketplace::message_format::TaskAssignmentNotification;
 use crate::did::did::{DID, DIDDocument, DIDError};
 use crate::did::did_resolver::DIDResolver;
@@ -26,7 +27,7 @@ impl Marketplace {
         let old_reputation = *reputation.get(node_id).unwrap_or(&0.0);
         let new_reputation = old_reputation * decay_factor + (weight * score_change);
         reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
-    pub fn new(qup: Arc<QUP>, did_resolver: Arc<dyn DIDResolver>) -> Self {
+    pub fn new(qup: Arc<QUP>, did_resolver: Arc<dyn DIDResolver>, qup_crypto: Arc<QUPCrypto>) -> Self {
         let did_documents = RwLock::new(HashMap::new());
         Self {
             tasks: RwLock::new(HashMap::new()),
@@ -36,7 +37,12 @@ impl Marketplace {
             did_documents: RwLock::new(HashMap::new()),
             qup,
             did_resolver,
+            qup_crypto,
         }
+    }
+
+    pub fn verify_did(&self, did: &DID) -> Result<DIDDocument, DIDError> {
+        self.qup_crypto.verify_did(did, &*self.did_resolver)
     }
 
     fn remove_expired_bids(&self, current_block: u64, bid_expiration_blocks: u64) {
