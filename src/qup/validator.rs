@@ -19,7 +19,19 @@ pub struct QUPValidator {
     reputation: Reputation,
 }
 
+use crate::qup::types::{UsefulWorkProblem, ProblemProposal};
+use crate::qup::crypto::QUPCrypto;
+
 impl QUPValidator {
+    pub fn propose_useful_work_problem(&self, problem: UsefulWorkProblem) -> ProblemProposal {
+        let proposer = self.config.node_id.clone();
+        let signature = QUPCrypto::sign(&problem, &self.key_pair.private_key);
+        ProblemProposal {
+            problem,
+            proposer,
+            signature,
+        }
+    }
     pub fn new(config: Arc<QUPConfig>, state: Arc<QUPState>, hdc_models: QUPHDCModels) -> Self {
         QUPValidator {
             config,
@@ -49,7 +61,17 @@ impl QUPValidator {
     }
 
     pub fn validate_block(&mut self, block: &QUPBlock) -> Result<(), Error> {
-        crate::qup::block_validation::validate_block(block, self)
+        // Validate the block structure and transactions
+        crate::qup::block_validation::validate_block(block, self)?;
+
+        // Validate the useful work problem's signature and content
+        if let Some(problem_proposal) = &block.problem_proposal {
+            if !QUPCrypto::verify(&problem_proposal.problem, &problem_proposal.signature, &problem_proposal.proposer) {
+                return Err(Error::InvalidProblemProposal);
+            }
+        }
+
+        Ok(())
     }
 
     pub fn vote_on_block(&self, block: &QUPBlock) -> Vote {

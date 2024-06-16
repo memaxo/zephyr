@@ -355,6 +355,7 @@ pub struct QUPBlock {
     pub history_proof: Vec<Hash>,
     pub sampled_model_outputs: Vec<(Vec<f64>, Vec<f64>)>, // (input, output) pairs
     pub utility_points: u64,
+    pub problem_proposal: Option<ProblemProposal>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
