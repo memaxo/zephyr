@@ -25,8 +25,7 @@ impl Marketplace {
         let old_reputation = *reputation.get(node_id).unwrap_or(&0.0);
         let new_reputation = old_reputation * decay_factor + (weight * score_change);
         reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
-        did_resolver: Arc<dyn DIDResolver>,
-    ) -> Self {
+    pub fn new(qup: Arc<QUP>, did_resolver: Arc<dyn DIDResolver>) -> Self {
         Self {
             tasks: RwLock::new(HashMap::new()),
             bids: RwLock::new(HashMap::new()),
