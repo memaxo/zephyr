@@ -6,25 +6,40 @@ use crate::did::did::{DID, DIDDocument, DIDError};
 use crate::did::did_resolver::DIDResolver;
 use serde::{Serialize, Deserialize};
 use sha2::{Sha256, Digest};
-use homomorphic_encryption::prelude::*;
+use tfhe::prelude::*;
+use tfhe::shortint::prelude::*;
 
 pub struct QUPCrypto {
     key_management: KeyManagement,
+    tfhe_params: ShortintParameters,
+    tfhe_keys: (ClientKey, ServerKey),
+}
+
 impl QUPCrypto {
-    pub fn encrypt_homomorphic(&self, data: &[u8], public_key: &HomomorphicPublicKey) -> Vec<u8> {
-        public_key.encrypt(data)
+    pub fn new() -> Self {
+        let tfhe_params = ShortintParameters::default();
+        let (client_key, server_key) = gen_keys(tfhe_params);
+        QUPCrypto {
+            key_management: KeyManagement::new(),
+            tfhe_params,
+            tfhe_keys: (client_key, server_key),
+        }
     }
 
-    pub fn decrypt_homomorphic(&self, ciphertext: &[u8], secret_key: &HomomorphicSecretKey) -> Vec<u8> {
-        secret_key.decrypt(ciphertext)
+    pub fn encrypt_homomorphic(&self, data: u64) -> Ciphertext {
+        self.tfhe_keys.0.encrypt(data)
     }
 
-    pub fn add_encrypted_values(&self, ciphertext1: &[u8], ciphertext2: &[u8], public_key: &HomomorphicPublicKey) -> Vec<u8> {
-        public_key.add(ciphertext1, ciphertext2)
+    pub fn decrypt_homomorphic(&self, ciphertext: &Ciphertext) -> u64 {
+        self.tfhe_keys.0.decrypt(ciphertext)
     }
 
-    pub fn multiply_encrypted_values(&self, ciphertext1: &[u8], ciphertext2: &[u8], public_key: &HomomorphicPublicKey) -> Vec<u8> {
-        public_key.multiply(ciphertext1, ciphertext2)
+    pub fn add_encrypted_values(&self, ciphertext1: &Ciphertext, ciphertext2: &Ciphertext) -> Ciphertext {
+        self.tfhe_keys.1.add(ciphertext1, ciphertext2)
+    }
+
+    pub fn multiply_encrypted_values(&self, ciphertext1: &Ciphertext, ciphertext2: &Ciphertext) -> Ciphertext {
+        self.tfhe_keys.1.mul(ciphertext1, ciphertext2)
     }
     pub fn verify_did(&self, did: &DID, did_resolver: &dyn DIDResolver) -> Result<DIDDocument, DIDError> {
         did_resolver.resolve(did)
