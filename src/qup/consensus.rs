@@ -6,7 +6,7 @@ use crate::consensus::ConsensusMessage;
 use crate::error::ConsensusError;
 use crate::hdcmodels::HDCModel;
 use crate::network::NetworkMessage;
-use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution, UsefulWorkProblemTrait, UsefulWorkSolutionTrait};
+use crate::qup::types::{QUPBlock, QUPVote, UsefulWorkProblem, UsefulWorkSolution, KnapsackSolution, VertexCoverSolution, UsefulWorkProblemTrait, UsefulWorkSolutionTrait, ProblemProposal};
 use crate::qup::communication::{CommunicationProtocol, NodeType};
 use crate::qup::config::QUPConfig;
 use crate::qup::crypto::{QUPKeyPair, QUPCrypto};
@@ -52,6 +52,9 @@ impl QUPConsensus {
                 marketplace.add_bid(bid.task_id, bid.clone())?;
             }
         }
+            ConsensusMessage::ProblemProposal(proposal) => {
+                self.process_problem_proposal(proposal)
+            }
 
         for task in marketplace.tasks.values() {
             if let Ok(_) = marketplace.assign_task(task.id) {
@@ -208,6 +211,21 @@ impl QUPConsensus {
         Ok(())
     }
 
+    fn process_problem_proposal(&self, proposal: ProblemProposal) -> Result<(), ConsensusError> {
+        if self.validate_problem_proposal(&proposal)? {
+            self.state.add_problem_proposal(proposal);
+        } else {
+            return Err(ConsensusError::InvalidProblemProposal);
+        }
+        Ok(())
+    }
+
+    fn validate_problem_proposal(&self, proposal: &ProblemProposal) -> Result<bool, ConsensusError> {
+        // Implement validation logic for problem proposals
+        // Check for feasibility and relevance
+        Ok(true)
+    }
+
     fn process_propose(&mut self, shard_id: u64, block: QUPBlock, committee_members: &[u64]) -> Result<(), ConsensusError> {
         self.calculate_utility_points(&mut block);
         // Validate the block within the shard
@@ -340,6 +358,11 @@ impl QUPConsensus {
     }
 
     fn process_vote(&mut self, shard_id: u64, vote: QUPVote) -> Result<(), ConsensusError> {
+        if let Some(proposal) = self.state.get_problem_proposal(&vote.block_hash) {
+            if self.state.has_supermajority(&vote.block_hash)? {
+                self.state.accept_problem_proposal(proposal);
+            }
+        }
         // Verify the vote signature
         if !self.verify_vote_signature(&vote)? {
             return Err(ConsensusError::InvalidSignature);
@@ -391,6 +414,11 @@ impl QUPConsensus {
 
         // Distribute rewards based on utility points
         self.distribute_rewards_up(&block)?;
+
+        // Add accepted problems to storage
+        for proposal in &self.state.problem_proposals {
+            self.block_storage.save_problem_proposal(proposal)?;
+        }
 
         // Save the block to storage
         self.block_storage.save_block(&block)?;
@@ -720,11 +748,6 @@ impl QUPConsensus {
         Ok(())
     }
     
-    fn generate_useful_work_problem(&self) -> UsefulWorkProblem {
-        let block_hash = self.blockchain.get_latest_block().hash();
-        let difficulty = self.config.vdf_difficulty;
-        UsefulWorkProblem::new(block_hash, difficulty)
-    }
     
     fn solve_useful_work_problem(&self, problem: &UsefulWorkProblem) -> UsefulWorkSolution {
         let vdf_output = self.vdf.solve(&problem.challenge, problem.difficulty);
