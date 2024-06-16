@@ -355,10 +355,34 @@ impl DistributedTrainer {
     fn assign_tasks_by_consensus(&self, node_capabilities: Vec<NodeCapabilities>) -> Vec<(NodeId, Task)> {
         let mut task_assignments = vec![];
 
-        // Implement consensus algorithm to assign tasks based on node capabilities, stake, and network load
-        // ...
+        // Implement modified Proof of Useful Work (PoUW) consensus algorithm
+        let mut candidate_nodes: Vec<_> = node_capabilities.iter().collect();
+        let total_stake: u64 = candidate_nodes.iter().map(|node| node.stake).sum();
+
+        while !candidate_nodes.is_empty() {
+            let mut weighted_nodes = vec![];
+            for node in &candidate_nodes {
+                let weight = node.stake as f64 / total_stake as f64;
+                weighted_nodes.push((node, weight));
+            }
+
+            let mut rng = rand::thread_rng();
+            let selected_node = weighted_nodes.choose_weighted(&mut rng, |item| item.1).unwrap().0;
+
+            // Assign task to the selected node
+            let task = self.get_next_task();
+            task_assignments.push((selected_node.node_id.clone(), task));
+
+            // Remove the selected node from the candidate list
+            candidate_nodes.retain(|node| node.node_id != selected_node.node_id);
+        }
 
         task_assignments
+    }
+
+    fn get_next_task(&self) -> Task {
+        // Logic to retrieve the next task from the task queue
+        // ...
     }
 
     fn get_available_resources(&self, node_id: &NodeId) -> Vec<Resource> {
