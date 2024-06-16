@@ -104,13 +104,17 @@ impl TaskManager {
     }
 
     fn is_suitable_for_useful_work(&self, node: &Node, task: &UsefulWorkProblem) -> bool {
-        // Implement logic to check if the node is suitable for the useful work task
-        true
+        // Check if the node's hardware capabilities meet the task's requirements
+        node.hardware.cpu_score >= task.min_cpu_score &&
+        node.hardware.gpu_score >= task.min_gpu_score &&
+        node.hardware.memory_speed >= task.min_memory_speed
     }
 
     fn is_suitable_for_model_training(&self, node: &Node, task: &ModelTrainingProblem) -> bool {
-        // Implement logic to check if the node is suitable for the model training task
-        true
+        // Check if the node's hardware capabilities meet the task's requirements
+        node.hardware.cpu_score >= task.min_cpu_score &&
+        node.hardware.gpu_score >= task.min_gpu_score &&
+        node.hardware.memory_speed >= task.min_memory_speed
     }
 
     fn calculate_node_score(&self, node: &Node, task: &impl TaskProfile) -> u64 {
