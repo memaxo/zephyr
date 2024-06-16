@@ -4,55 +4,54 @@ use crate::smart_contract::types::{SmartContract, Task as SCTask, Bid as SCBid, 
 use crate::chain::blockchain::Blockchain;
 use crate::qup::QUP;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, atomic::{AtomicUsize, Ordering}};
 use std::thread;
 use std::time::Duration;
 
 pub struct Marketplace {
     tasks: Mutex<HashMap<u64, Task>>,
     bids: Mutex<HashMap<u64, Vec<Bid>>>,
+    round_robin_counter: AtomicUsize,
+}
+
+impl Marketplace {
     fn get_reputation_score(&self, node_id: &str) -> f64 {
-        // Placeholder for actual reputation score retrieval logic
-        // For now, return a dummy value
         1.0
     }
 
     fn get_capability_score(&self, proof_of_capability: &str) -> f64 {
-        // Placeholder for actual capability score calculation logic
-        // For now, return a dummy value
         1.0
     }
 
     fn get_time_score(&self, proposed_time: &DateTime<Utc>, deadline: &DateTime<Utc>) -> f64 {
-        // Calculate time score based on how close the proposed time is to the deadline
         let duration = *deadline - *proposed_time;
         let total_duration = *deadline - Utc::now();
         (total_duration.num_seconds() - duration.num_seconds()) as f64 / total_duration.num_seconds() as f64
     }
 
+    fn get_geographical_score(&self, node_id: &str) -> f64 {
+        // Placeholder for actual geographical score calculation logic
+        1.0
+    }
+
+    fn get_price_performance_score(&self, proposed_reward: u64, performance_score: f64) -> f64 {
+        performance_score / proposed_reward as f64
+    }
+
     fn break_tie(&self, bid1: &Bid, bid2: &Bid) -> bool {
-        // Placeholder for tie-breaking logic
-        // For now, use random selection
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        rng.gen_bool(0.5)
+        let counter = self.round_robin_counter.fetch_add(1, Ordering::SeqCst);
+        counter % 2 == 0
     }
 
     fn get_historical_performance_score(&self, node_id: &str) -> f64 {
-        // Placeholder for actual historical performance score retrieval logic
-        // For now, return a dummy value
         1.0
     }
 
     fn get_node_stake(&self, node_id: &str) -> f64 {
-        // Placeholder for actual node stake retrieval logic
-        // For now, return a dummy value
         1.0
     }
 
     fn get_custom_metric_score(&self, custom_metric: &str) -> f64 {
-        // Placeholder for actual custom metric score calculation logic
-        // For now, return a dummy value
         1.0
     }
         // Placeholder for actual reputation score retrieval logic
@@ -139,10 +138,12 @@ impl Marketplace {
         let mut highest_score = f64::MIN;
 
         let default_weights = HashMap::from([
-            ("reputation".to_string(), 0.4),
-            ("capability".to_string(), 0.3),
-            ("time".to_string(), 0.2),
+            ("reputation".to_string(), 0.3),
+            ("capability".to_string(), 0.2),
+            ("time".to_string(), 0.1),
             ("reward".to_string(), 0.1),
+            ("geographical".to_string(), 0.1),
+            ("price_performance".to_string(), 0.2),
         ]);
 
         let weights = task.weights.as_ref().unwrap_or(&default_weights);
@@ -152,17 +153,15 @@ impl Marketplace {
             let capability_score = self.get_capability_score(&bid.proof_of_capability);
             let time_score = self.get_time_score(&bid.proposed_time, &task.deadline);
             let reward_score = 1.0 / bid.proposed_reward as f64; // Lower reward is better
-            let historical_performance_score = self.get_historical_performance_score(&bid.node_id);
-            let node_stake = self.get_node_stake(&bid.node_id);
-            let custom_metric_score = self.get_custom_metric_score("custom_metric_placeholder");
+            let geographical_score = self.get_geographical_score(&bid.node_id);
+            let price_performance_score = self.get_price_performance_score(bid.proposed_reward, capability_score);
 
             let score = weights["reputation"] * reputation_score
                 + weights["capability"] * capability_score
                 + weights["time"] * time_score
                 + weights["reward"] * reward_score
-                + weights.get("historical_performance").unwrap_or(&0.1) * historical_performance_score
-                + weights.get("node_stake").unwrap_or(&0.1) * node_stake
-                + weights.get("custom_metric").unwrap_or(&0.1) * custom_metric_score;
+                + weights["geographical"] * geographical_score
+                + weights["price_performance"] * price_performance_score;
 
             if score > highest_score {
                 highest_score = score;
@@ -175,27 +174,6 @@ impl Marketplace {
             }
         }
 
-        for bid in bids {
-            let reputation_score = self.get_reputation_score(&bid.node_id);
-            let capability_score = self.get_capability_score(&bid.proof_of_capability);
-            let time_score = self.get_time_score(&bid.proposed_time, &task.deadline);
-            let reward_score = 1.0 / bid.proposed_reward as f64; // Lower reward is better
-
-            let score = weights["reputation"] * reputation_score
-                + weights["capability"] * capability_score
-                + weights["time"] * time_score
-                + weights["reward"] * reward_score;
-
-            if score > highest_score {
-                highest_score = score;
-                best_bid = Some(bid.clone());
-            } else if (score - highest_score).abs() < f64::EPSILON {
-                // Tie-breaking mechanism
-                if self.break_tie(&bid, &best_bid.as_ref().unwrap()) {
-                    best_bid = Some(bid.clone());
-                }
-            }
-        }
 
         best_bid
     }
@@ -203,9 +181,10 @@ impl Marketplace {
 
 impl Marketplace {
     pub fn new() -> Self {
-        Marketplace {
-            tasks: HashMap::new(),
-            bids: HashMap::new(),
+        Self {
+            tasks: Mutex::new(HashMap::new()),
+            bids: Mutex::new(HashMap::new()),
+            round_robin_counter: AtomicUsize::new(0),
         }
     }
 
