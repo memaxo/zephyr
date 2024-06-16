@@ -45,6 +45,28 @@ pub struct Marketplace {
 
 impl Marketplace {
     fn get_reputation_score(&self, node_id: &str) -> f64 {
+        let historical_performance = self.get_historical_performance_score(node_id);
+        let recent_performance = self.get_recent_performance_score(node_id);
+        let feedback = self.get_feedback_score(node_id);
+
+        0.4 * historical_performance + 0.5 * recent_performance + 0.1 * feedback
+    }
+
+    fn get_historical_performance_score(&self, node_id: &str) -> f64 {
+        // Placeholder for actual historical performance score calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_recent_performance_score(&self, node_id: &str) -> f64 {
+        // Placeholder for actual recent performance score calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_feedback_score(&self, node_id: &str) -> f64 {
+        // Placeholder for actual feedback score calculation logic
+        // For now, return a dummy value
         1.0
     }
 
