@@ -25,6 +25,16 @@ impl Marketplace {
         let old_reputation = *reputation.get(node_id).unwrap_or(&0.0);
         let new_reputation = old_reputation * decay_factor + (weight * score_change);
         reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
+        did_resolver: Arc<dyn DIDResolver>,
+    ) -> Self {
+        Self {
+            tasks: RwLock::new(HashMap::new()),
+            bids: RwLock::new(HashMap::new()),
+            round_robin_counter: AtomicUsize::new(0),
+            reputation: Mutex::new(HashMap::new()),
+            qup,
+            did_resolver,
+        }
     }
 
     fn remove_expired_bids(&self, current_block: u64, bid_expiration_blocks: u64) {
