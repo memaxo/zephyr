@@ -336,3 +336,71 @@ impl FaultTolerantDistributedTrainingNode {
         self.restart_training(&node_id).await;
     }
 }
+use crate::qup::distributed_training::{Task, TrainingResult};
+use crate::qup::resource_management::ResourceManager;
+use crate::utils::node_id::NodeId;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
+use std::thread;
+
+pub struct Checkpoint {
+    pub task_id: String,
+    pub progress: f64,
+    pub timestamp: SystemTime,
+}
+
+pub struct FaultTolerance {
+    pub checkpoints: Arc<Mutex<HashMap<String, Checkpoint>>>,
+    pub task_replicas: Arc<Mutex<HashMap<String, Vec<NodeId>>>>,
+    pub resource_manager: ResourceManager,
+}
+
+impl FaultTolerance {
+    pub fn new(resource_manager: ResourceManager) -> Self {
+        FaultTolerance {
+            checkpoints: Arc::new(Mutex::new(HashMap::new())),
+            task_replicas: Arc::new(Mutex::new(HashMap::new())),
+            resource_manager,
+        }
+    }
+
+    pub fn save_checkpoint(&self, task_id: &str, progress: f64) {
+        let mut checkpoints = self.checkpoints.lock().unwrap();
+        checkpoints.insert(task_id.to_string(), Checkpoint {
+            task_id: task_id.to_string(),
+            progress,
+            timestamp: SystemTime::now(),
+        });
+    }
+
+    pub fn get_checkpoint(&self, task_id: &str) -> Option<Checkpoint> {
+        let checkpoints = self.checkpoints.lock().unwrap();
+        checkpoints.get(task_id).cloned()
+    }
+
+    pub fn replicate_task(&self, task: &Task, nodes: Vec<NodeId>) {
+        let mut task_replicas = self.task_replicas.lock().unwrap();
+        task_replicas.insert(task.node_id.to_string(), nodes);
+    }
+
+    pub fn handle_node_failure(&self, failed_node: &NodeId) {
+        let task_replicas = self.task_replicas.lock().unwrap();
+        for (task_id, nodes) in task_replicas.iter() {
+            if nodes.contains(failed_node) {
+                if let Some(checkpoint) = self.get_checkpoint(task_id) {
+                    let remaining_nodes: Vec<NodeId> = nodes.iter().filter(|&&node| node != *failed_node).cloned().collect();
+                    if !remaining_nodes.is_empty() {
+                        // Resume task on another node
+                        let new_node = remaining_nodes[0].clone();
+                        self.resource_manager.allocate_resources(Resource { cpu: 1, gpu: 1, memory: 1 }, 1.0);
+                        // Logic to resume task from checkpoint on new_node
+                    } else {
+                        // All nodes failed, need to reassign task
+                        // Logic to reassign task
+                    }
+                }
+            }
+        }
+    }
+}
