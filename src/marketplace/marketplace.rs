@@ -53,7 +53,35 @@ impl Marketplace {
     }
 
     fn get_historical_performance_score(&self, node_id: &str) -> f64 {
-        // Placeholder for actual historical performance score calculation logic
+        let completion_rate = self.get_completion_rate(node_id);
+        let timeliness = self.get_timeliness(node_id);
+        let quality = self.get_quality(node_id);
+
+        // Apply decay function (exponential decay)
+        let decay_factor = 0.9;
+        let recent_weight = 0.5;
+        let historical_weight = 0.5;
+
+        let recent_performance = recent_weight * (completion_rate + timeliness + quality) / 3.0;
+        let historical_performance = historical_weight * (completion_rate + timeliness + quality) / 3.0 * decay_factor;
+
+        recent_performance + historical_performance
+    }
+
+    fn get_completion_rate(&self, node_id: &str) -> f64 {
+        // Placeholder for actual completion rate calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_timeliness(&self, node_id: &str) -> f64 {
+        // Placeholder for actual timeliness calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_quality(&self, node_id: &str) -> f64 {
+        // Placeholder for actual quality calculation logic
         // For now, return a dummy value
         1.0
     }
