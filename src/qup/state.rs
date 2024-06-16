@@ -497,3 +497,16 @@ impl QUPState {
         UtilityPoints(*self.validator_utility_points.get(node_id).unwrap_or(&0))
     }
 }
+impl QUPState {
+    pub fn add_problem_proposal(&mut self, proposal: ProblemProposal) {
+        self.problem_proposals.push(proposal);
+    }
+
+    pub fn get_problem_proposal(&self, hash: &Hash) -> Option<&ProblemProposal> {
+        self.problem_proposals.iter().find(|p| p.hash() == hash)
+    }
+
+    pub fn accept_problem_proposal(&mut self, proposal: ProblemProposal) {
+        // Implement logic to accept the problem proposal
+    }
+}
