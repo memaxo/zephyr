@@ -203,7 +203,7 @@ impl ResourceScheduler {
             if resource.cpu >= required.cpu && resource.gpu >= required.gpu && resource.memory >= required.memory {
                 if let Some(metrics) = node_metrics.get(node_id) {
                     let latency = network_latency.latencies.get(&(current_node, *node_id)).cloned().unwrap_or(f64::MAX);
-                    let score = self.calculate_score(metrics, task_priority, latency);
+                    let score = self.calculate_weighted_score(metrics, task_priority, latency);
                     heap.push(Reverse((score, *node_id)));
                 }
             }
@@ -212,10 +212,22 @@ impl ResourceScheduler {
         heap.pop().map(|Reverse((_, node_id))| node_id)
     }
 
-    fn calculate_score(&self, metrics: &NodeMetrics, task_priority: f64, latency: f64) -> f64 {
-        // Placeholder for a more sophisticated scoring function
-        // This could be replaced with a machine learning model
-        metrics.load * 0.5 + metrics.latency * 0.3 + metrics.reliability * 0.2 + task_priority - latency
+    fn calculate_weighted_score(&self, metrics: &NodeMetrics, task_priority: f64, latency: f64) -> f64 {
+        let cpu_weight = 0.3;
+        let gpu_weight = 0.3;
+        let memory_weight = 0.2;
+        let latency_weight = 0.2;
+
+        let cpu_score = 1.0 - metrics.load;
+        let gpu_score = 1.0 - metrics.gpu_utilization;
+        let memory_score = 1.0 - metrics.memory_utilization;
+        let latency_score = 1.0 / (1.0 + latency);
+
+        cpu_weight * cpu_score +
+        gpu_weight * gpu_score +
+        memory_weight * memory_score +
+        latency_weight * latency_score +
+        task_priority
     }
 
     pub fn update_historical_data(&mut self, node_id: usize, metrics: NodeMetrics) {
