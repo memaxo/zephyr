@@ -31,10 +31,44 @@ use crate::zkp::prover::Prover;
 use crate::zkp::zk_starks::ZkStarksProof;
 use crate::zkp::crypto::verify_quantum_merkle_proof;
 
+use crate::marketplace::marketplace::Marketplace;
+use crate::marketplace::reputation::Reputation;
+
 pub enum ConsensusAlgorithm {
     QUP,
     BFT,
     HDC,
+}
+
+impl QUPConsensus {
+    fn assign_tasks_and_distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
+        let mut marketplace = Marketplace::new();
+        let mut reputation = Reputation::new();
+
+        for transaction in &block.transactions {
+            if let TransactionType::TaskSubmission(task) = &transaction.tx_type {
+                marketplace.add_task(task.clone())?;
+            } else if let TransactionType::BidSubmission(bid) = &transaction.tx_type {
+                marketplace.add_bid(bid.task_id, bid.clone())?;
+            }
+        }
+
+        for task in marketplace.tasks.values() {
+            if let Ok(_) = marketplace.assign_task(task.id) {
+                let best_bid = marketplace.get_bids(task.id).unwrap().iter().max_by_key(|bid| bid.proposed_reward).unwrap();
+                reputation.update_reputation(&best_bid.node_id, 1.0);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn select_validator(&self) -> Result<String, ConsensusError> {
+        let mut reputation = Reputation::new();
+        let validators: Vec<String> = self.staking.keys().cloned().collect();
+        let best_validator = validators.iter().max_by_key(|validator| reputation.get_reputation(validator)).unwrap();
+        Ok(best_validator.clone())
+    }
 }
 
 impl ConsensusAlgorithm {
