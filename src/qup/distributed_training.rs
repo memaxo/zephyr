@@ -282,105 +282,98 @@ impl DistributedTrainer {
     }
 }
 
-pub struct Scheduler<T: Storage> {
-    pub raft_node: RawNode<T>,
-    pub task_queue: Arc<Mutex<Vec<Task>>>,
-    pub result_sender: mpsc::Sender<TrainingResult>,
-    pub result_receiver: mpsc::Receiver<TrainingResult>,
+pub struct NodeCapabilities {
+    pub node_id: NodeId,
+    pub available_resources: Vec<Resource>,
+    pub stake: u64,
 }
 
-impl<T: Storage> Scheduler<T> {
-    pub fn new(raft_node: RawNode<T>) -> Self {
-        let (result_sender, result_receiver) = mpsc::channel();
-        Scheduler { 
-            raft_node,
-            task_queue: Arc::new(Mutex::new(Vec::new())),
-            result_sender,
-            result_receiver,
+impl DistributedTrainer {
+    // ...
+
+    fn train(&self) -> TrainingResult {
+        let mut models = vec![];
+
+        // Broadcast node capabilities and availability
+        let node_capabilities = self.broadcast_node_capabilities();
+
+        // Assign tasks based on consensus
+        let task_assignments = self.assign_tasks_by_consensus(node_capabilities);
+
+        for (node_id, task) in task_assignments {
+            let dataset_shard = task.dataset_shard;
+            let handle = std::thread::spawn(move || {
+                let model = HDCModel::new();
+                let mut trained_model = model.train(&dataset_shard);
+                trained_model.quantize(8); // Quantize model parameters to 8 bits
+                (node_id, trained_model)
+            });
+            handles.push(handle);
         }
-    }
 
-    pub fn add_task(&self, task: Task) {
-        let mut task_queue = self.task_queue.lock().unwrap();
-        task_queue.push(task);
-    }
-
-    pub fn run(&mut self, nodes: Vec<NodeId>) {
-        // Raft consensus logic to agree on task assignments
-        self.raft_node.tick();
-        if let Some(msgs) = self.raft_node.ready().messages() {
-            for msg in msgs {
-                // Send messages to other nodes
+        let mut models = vec![];
+        for handle in handles {
+            match handle.join() {
+                Ok((node_id, model)) => {
+                    models.push((node_id, model));
+                },
+                Err(_) => handle_node_failure(),
             }
         }
-        let task_queue = Arc::clone(&self.task_queue);
-        let result_sender = self.result_sender.clone();
 
-        for node in nodes {
-            let task_queue = Arc::clone(&task_queue);
-            let result_sender = result_sender.clone();
+        let aggregated_model = self.aggregate_models(models);
+        let metrics = evaluate_model(&aggregated_model);
 
-            thread::spawn(move || {
-                loop {
-                    let task = if let Some(task) = self.propose_task() {
-                        task
-                    } else {
-                        let mut task_queue = task_queue.lock().unwrap();
-                        if task_queue.is_empty() {
-                            break;
-                        }
-                        task_queue.remove(0)
-                    };
-
-                    let model = HDCModel::new();
-                    let trained_model = model.train(&task.dataset_shard);
-                    let metrics = evaluate_model(&trained_model);
-
-                    let result = TrainingResult {
-                        model: trained_model,
-                        metrics,
-                    };
-
-                    result_sender.send(result).unwrap();
-                }
-            });
+        TrainingResult {
+            model: aggregated_model,
+            metrics,
         }
     }
 
-    pub fn propose_task(&mut self) -> Option<Task> {
-        // Propose a new task to the Raft cluster
-        let task = Task {
-            node_id: NodeId::new(),
-            dataset_shard: vec![],
-        };
-        let data = serde_json::to_vec(&task).unwrap();
-        self.raft_node.propose(vec![], data).unwrap();
-        Some(task)
-    }
+    fn broadcast_node_capabilities(&self) -> Vec<NodeCapabilities> {
+        let mut node_capabilities = vec![];
 
-    pub fn vote_on_task(&mut self, task: &Task) -> bool {
-        // Vote on the proposed task
-        let data = serde_json::to_vec(task).unwrap();
-        self.raft_node.propose(vec![], data).unwrap();
-        true
-    }
-        // Propose a new task to the Raft cluster
-        let task = Task {
-            node_id: NodeId::new(),
-            dataset_shard: vec![],
-        };
-        let data = serde_json::to_vec(&task).unwrap();
-        self.raft_node.propose(vec![], data).unwrap();
-        Some(task)
-    }
+        for node_id in &self.nodes {
+            let available_resources = self.get_available_resources(node_id);
+            let stake = self.get_node_stake(node_id);
 
-    pub fn get_results(&self) -> Vec<TrainingResult> {
-        let mut results = Vec::new();
-        while let Ok(result) = self.result_receiver.try_recv() {
-            results.push(result);
+            let capabilities = NodeCapabilities {
+                node_id: node_id.clone(),
+                available_resources,
+                stake,
+            };
+
+            node_capabilities.push(capabilities);
         }
-        results
+
+        // Broadcast node capabilities to the network
+        // ...
+
+        node_capabilities
     }
+
+    fn assign_tasks_by_consensus(&self, node_capabilities: Vec<NodeCapabilities>) -> Vec<(NodeId, Task)> {
+        let mut task_assignments = vec![];
+
+        // Implement consensus algorithm to assign tasks based on node capabilities, stake, and network load
+        // ...
+
+        task_assignments
+    }
+
+    fn get_available_resources(&self, node_id: &NodeId) -> Vec<Resource> {
+        // Query the node for its available resources
+        // ...
+        vec![]
+    }
+
+    fn get_node_stake(&self, node_id: &NodeId) -> u64 {
+        // Query the node's stake from the blockchain or a staking contract
+        // ...
+        0
+    }
+
+    // ...
 }
 
 pub struct PartitionedDataset {
