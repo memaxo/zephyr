@@ -1,7 +1,7 @@
 use crate::qup::config::QUPConfig;
 use crate::qup::hardware_assessment::HardwareAssessment;
 use crate::qup::types::{UsefulWorkProblem, ModelTrainingProblem};
-use std::collections::{VecDeque, BinaryHeap};
+use std::collections::BinaryHeap;
 use std::cmp::Reverse;
 
 #[derive(Clone)]
@@ -40,54 +40,64 @@ impl TaskProfile for ModelTrainingProblem {
 
 pub struct TaskManager {
     config: QUPConfig,
-    useful_work_queue: VecDeque<UsefulWorkProblem>,
-    model_training_queue: VecDeque<ModelTrainingProblem>,
+    useful_work_queue: BinaryHeap<UsefulWorkProblem>,
+    model_training_queue: BinaryHeap<ModelTrainingProblem>,
 }
 
 impl TaskManager {
     pub fn new(config: QUPConfig) -> Self {
         TaskManager {
             config,
-            useful_work_queue: VecDeque::new(),
-            model_training_queue: VecDeque::new(),
+            useful_work_queue: BinaryHeap::new(),
+            model_training_queue: BinaryHeap::new(),
         }
     }
 
     pub fn enqueue_useful_work(&mut self, problem: UsefulWorkProblem) {
-        self.useful_work_queue.push_back(problem);
+        self.useful_work_queue.push(problem);
     }
 
     pub fn enqueue_model_training(&mut self, problem: ModelTrainingProblem) {
-        self.model_training_queue.push_back(problem);
+        self.model_training_queue.push(problem);
     }
 
-    pub fn assign_useful_work(&mut self, task: &UsefulWorkProblem) -> Option<(String, UsefulWorkProblem)> {
-        let suitable_node = self.nodes.iter()
-            .filter(|node| self.is_suitable_for_useful_work(node, task))
-            .max_by_key(|node| self.calculate_node_score(node, task));
+    pub fn assign_useful_work(&mut self) -> Option<(String, UsefulWorkProblem)> {
+        if let Some(task) = self.useful_work_queue.pop() {
+            let suitable_node = self.nodes.iter()
+                .filter(|node| self.is_suitable_for_useful_work(node, &task))
+                .max_by_key(|node| self.calculate_node_score(node, &task));
 
-        if let Some(node) = suitable_node {
-            let adjusted_difficulty = self.adjust_useful_work_difficulty(task, &node.hardware, 0, 0.0);
-            Some((node.id.clone(), UsefulWorkProblem { 
-                difficulty: adjusted_difficulty,
-                ..task.clone()
-            }))
+            if let Some(node) = suitable_node {
+                let adjusted_difficulty = self.adjust_useful_work_difficulty(&task, &node.hardware, 0, 0.0);
+                Some((node.id.clone(), UsefulWorkProblem { 
+                    difficulty: adjusted_difficulty,
+                    ..task
+                }))
+            } else {
+                self.useful_work_queue.push(task);
+                None
+            }
         } else {
             None
         }
     }
 
-    pub fn assign_model_training(&mut self, task: &ModelTrainingProblem) -> Option<(String, ModelTrainingProblem)> {
-        let suitable_node = self.nodes.iter()
-            .filter(|node| self.is_suitable_for_model_training(node, task))
-            .max_by_key(|node| self.calculate_node_score(node, task));
+    pub fn assign_model_training(&mut self) -> Option<(String, ModelTrainingProblem)> {
+        if let Some(task) = self.model_training_queue.pop() {
+            let suitable_node = self.nodes.iter()
+                .filter(|node| self.is_suitable_for_model_training(node, &task))
+                .max_by_key(|node| self.calculate_node_score(node, &task));
 
-        if let Some(node) = suitable_node {
-            let adjusted_difficulty = self.adjust_model_training_difficulty(task, &node.hardware, 0, 0.0);
-            Some((node.id.clone(), ModelTrainingProblem {
-                difficulty: adjusted_difficulty, 
-                ..task.clone()
-            }))
+            if let Some(node) = suitable_node {
+                let adjusted_difficulty = self.adjust_model_training_difficulty(&task, &node.hardware, 0, 0.0);
+                Some((node.id.clone(), ModelTrainingProblem {
+                    difficulty: adjusted_difficulty, 
+                    ..task
+                }))
+            } else {
+                self.model_training_queue.push(task);
+                None
+            }
         } else {
             None
         }
