@@ -19,19 +19,30 @@ pub struct NodeMetrics {
     pub reliability: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkLatency {
+    pub latencies: HashMap<(usize, usize), f64>,
+}
+
 pub struct ResourceManager {
     pub node_metrics: Arc<Mutex<HashMap<usize, NodeMetrics>>>,
     resources: Arc<Mutex<HashMap<usize, Resource>>>,
     scheduler: ResourceScheduler,
     etcd_client: Client,
     node_id: String,
+    network_latency: Arc<Mutex<NetworkLatency>>,
 }
 
 impl ResourceManager {
     pub async fn new(etcd_endpoints: Vec<String>, node_id: String) -> Self {
         let etcd_client = Client::connect(etcd_endpoints, None).await.unwrap();
         let node_metrics = Arc::new(Mutex::new(HashMap::new()));
+        let network_latency = Arc::new(Mutex::new(NetworkLatency {
+            latencies: HashMap::new(),
+        }));
+
         ResourceManager {
+            network_latency,
             node_metrics,
             resources: Arc::new(Mutex::new(HashMap::new())),
             scheduler: ResourceScheduler::new(),
@@ -55,10 +66,11 @@ impl ResourceManager {
         self.etcd_client.delete(node_id.to_string(), None).await.unwrap();
     }
 
-    pub async fn allocate_resources(&self, required: Resource, task_priority: f64) -> Option<usize> {
+    pub async fn allocate_resources(&self, required: Resource, task_priority: f64, current_node: usize) -> Option<usize> {
         let resources = self.resources.lock().unwrap();
         let node_metrics = self.node_metrics.lock().unwrap();
-        self.scheduler.allocate(resources.clone(), node_metrics.clone(), required, task_priority)
+        let network_latency = self.network_latency.lock().unwrap();
+        self.scheduler.allocate(resources.clone(), node_metrics.clone(), required, task_priority, current_node, &network_latency)
     }
 
     pub async fn update_resource(&self, node_id: usize, resource: Resource) {
@@ -120,13 +132,14 @@ impl ResourceScheduler {
         }
     }
 
-    pub fn allocate(&self, resources: HashMap<usize, Resource>, node_metrics: HashMap<usize, NodeMetrics>, required: Resource, task_priority: f64) -> Option<usize> {
+    pub fn allocate(&self, resources: HashMap<usize, Resource>, node_metrics: HashMap<usize, NodeMetrics>, required: Resource, task_priority: f64, current_node: usize, network_latency: &NetworkLatency) -> Option<usize> {
         let mut heap = BinaryHeap::new();
 
         for (node_id, resource) in resources.iter() {
             if resource.cpu >= required.cpu && resource.gpu >= required.gpu && resource.memory >= required.memory {
                 if let Some(metrics) = node_metrics.get(node_id) {
-                    let score = self.calculate_score(metrics, task_priority);
+                    let latency = network_latency.latencies.get(&(current_node, *node_id)).cloned().unwrap_or(f64::MAX);
+                    let score = self.calculate_score(metrics, task_priority, latency);
                     heap.push(Reverse((score, *node_id)));
                 }
             }
@@ -135,7 +148,10 @@ impl ResourceScheduler {
         heap.pop().map(|Reverse((_, node_id))| node_id)
     }
 
-    fn calculate_score(&self, metrics: &NodeMetrics, task_priority: f64) -> f64 {
+    fn calculate_score(&self, metrics: &NodeMetrics, task_priority: f64, latency: f64) -> f64 {
+        // Placeholder for a more sophisticated scoring function
+        // This could be replaced with a machine learning model
+        metrics.load * 0.5 + metrics.latency * 0.3 + metrics.reliability * 0.2 + task_priority - latency
         // Placeholder for a more sophisticated scoring function
         // This could be replaced with a machine learning model
         metrics.load * 0.5 + metrics.latency * 0.3 + metrics.reliability * 0.2 + task_priority
