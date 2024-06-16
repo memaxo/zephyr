@@ -5,6 +5,8 @@ use crate::chain::blockchain::Blockchain;
 use crate::qup::QUP;
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 
 pub struct Marketplace {
     tasks: Mutex<HashMap<u64, Task>>,
@@ -36,44 +38,98 @@ pub struct Marketplace {
         rng.gen_bool(0.5)
     }
 
+    fn get_historical_performance_score(&self, node_id: &str) -> f64 {
+        // Placeholder for actual historical performance score retrieval logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_node_stake(&self, node_id: &str) -> f64 {
+        // Placeholder for actual node stake retrieval logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_custom_metric_score(&self, custom_metric: &str) -> f64 {
+        // Placeholder for actual custom metric score calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+        // Placeholder for actual reputation score retrieval logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_capability_score(&self, proof_of_capability: &str) -> f64 {
+        // Placeholder for actual capability score calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_time_score(&self, proposed_time: &DateTime<Utc>, deadline: &DateTime<Utc>) -> f64 {
+        // Calculate time score based on how close the proposed time is to the deadline
+        let duration = *deadline - *proposed_time;
+        let total_duration = *deadline - Utc::now();
+        (total_duration.num_seconds() - duration.num_seconds()) as f64 / total_duration.num_seconds() as f64
+    }
+
+    fn break_tie(&self, bid1: &Bid, bid2: &Bid) -> bool {
+        // Placeholder for tie-breaking logic
+        // For now, use random selection
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        rng.gen_bool(0.5)
+    }
+
 impl Marketplace {
     pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
-        let bids = self.bids.lock().unwrap();
-        if let Some(bids) = bids.get(&task_id) {
-            let task = self.tasks.lock().unwrap().get(&task_id).ok_or("Task not found")?.clone();
-            let valid_bids: Vec<Bid> = bids.iter().filter(|bid| current_block <= bid_expiration_blocks).cloned().collect();
-            if let Some(best_bid) = self.select_best_bid(&task, &valid_bids) {
-                let task = self.tasks.get(&task_id).ok_or("Task not found")?;
-                let sc_task = SCTask {
-                    id: task.id,
-                    description: task.description.clone(),
-                    resources: task.resources.clone(),
-                    reward: task.reward,
-                    deadline: task.deadline,
-                    creator: task.creator.clone(),
-                };
-                let sc_bid = SCBid {
-                    node_id: best_bid.node_id.clone(),
-                    proposed_time: best_bid.proposed_time,
-                    proposed_reward: best_bid.proposed_reward,
-                    proof_of_capability: best_bid.proof_of_capability.clone(),
-                };
-                SmartContract::assign_task(&sc_task, &sc_bid)?;
+        let mut retries = 0;
+        let max_retries = 5;
+        let mut delay = Duration::from_secs(1);
 
-                // Record the task assignment on the blockchain
-                blockchain.record_task_assignment(task.id, &best_bid.node_id)?;
+        loop {
+            let bids = self.bids.lock().unwrap();
+            if let Some(bids) = bids.get(&task_id) {
+                let task = self.tasks.lock().unwrap().get(&task_id).ok_or("Task not found")?.clone();
+                let valid_bids: Vec<Bid> = bids.iter().filter(|bid| current_block <= bid_expiration_blocks).cloned().collect();
+                if let Some(best_bid) = self.select_best_bid(&task, &valid_bids) {
+                    let task = self.tasks.get(&task_id).ok_or("Task not found")?;
+                    let sc_task = SCTask {
+                        id: task.id,
+                        description: task.description.clone(),
+                        resources: task.resources.clone(),
+                        reward: task.reward,
+                        deadline: task.deadline,
+                        creator: task.creator.clone(),
+                    };
+                    let sc_bid = SCBid {
+                        node_id: best_bid.node_id.clone(),
+                        proposed_time: best_bid.proposed_time,
+                        proposed_reward: best_bid.proposed_reward,
+                        proof_of_capability: best_bid.proof_of_capability.clone(),
+                    };
+                    SmartContract::assign_task(&sc_task, &sc_bid)?;
 
-                // Update reputation
-                let mut reputation = SCReputation::new();
-                reputation.update_reputation(&best_bid.node_id, 1.0);
-                self.bids.remove(&task_id); // Remove bids after assignment
-                qup.send_task_assignment_notification(&task.creator, &best_bid.node_id)?;
-                Ok(())
+                    // Record the task assignment on the blockchain
+                    blockchain.record_task_assignment(task.id, &best_bid.node_id)?;
+
+                    // Update reputation
+                    let mut reputation = SCReputation::new();
+                    reputation.update_reputation(&best_bid.node_id, 1.0);
+                    self.bids.remove(&task_id); // Remove bids after assignment
+                    qup.send_task_assignment_notification(&task.creator, &best_bid.node_id)?;
+                    return Ok(());
+                } else {
+                    if retries >= max_retries {
+                        return Err("No valid bids found after maximum retries".to_string());
+                    }
+                    retries += 1;
+                    thread::sleep(delay);
+                    delay *= 2; // Exponential backoff
+                }
             } else {
-                Err("No valid bids found".to_string())
+                return Err("Task not found".to_string());
             }
-        } else {
-            Err("Task not found".to_string())
         }
     }
 
@@ -90,6 +146,34 @@ impl Marketplace {
         ]);
 
         let weights = task.weights.as_ref().unwrap_or(&default_weights);
+
+        for bid in bids {
+            let reputation_score = self.get_reputation_score(&bid.node_id);
+            let capability_score = self.get_capability_score(&bid.proof_of_capability);
+            let time_score = self.get_time_score(&bid.proposed_time, &task.deadline);
+            let reward_score = 1.0 / bid.proposed_reward as f64; // Lower reward is better
+            let historical_performance_score = self.get_historical_performance_score(&bid.node_id);
+            let node_stake = self.get_node_stake(&bid.node_id);
+            let custom_metric_score = self.get_custom_metric_score("custom_metric_placeholder");
+
+            let score = weights["reputation"] * reputation_score
+                + weights["capability"] * capability_score
+                + weights["time"] * time_score
+                + weights["reward"] * reward_score
+                + weights.get("historical_performance").unwrap_or(&0.1) * historical_performance_score
+                + weights.get("node_stake").unwrap_or(&0.1) * node_stake
+                + weights.get("custom_metric").unwrap_or(&0.1) * custom_metric_score;
+
+            if score > highest_score {
+                highest_score = score;
+                best_bid = Some(bid.clone());
+            } else if (score - highest_score).abs() < f64::EPSILON {
+                // Tie-breaking mechanism
+                if self.break_tie(&bid, &best_bid.as_ref().unwrap()) {
+                    best_bid = Some(bid.clone());
+                }
+            }
+        }
 
         for bid in bids {
             let reputation_score = self.get_reputation_score(&bid.node_id);
