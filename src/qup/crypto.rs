@@ -133,32 +133,6 @@ fn decrypt_quantum_data(data: &[u8], key: &KyberSecretKey) -> Result<Vec<u8>, Cr
 }
 
 
-impl QUPCrypto {
-    pub fn sign_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((_, secret_key)) = self.key_management.get_dilithium_keys(key_id) {
-            Some(sign_detached(message, secret_key).to_vec())
-        } else {
-            None
-        }
-    }
-
-    pub fn verify_message(&self, message: &[u8], signature: &[u8], key_id: &str) -> Option<bool> {
-        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
-            Some(verify_detached(signature, message, public_key).is_ok())
-        } else {
-            None
-        }
-    }
-
-impl QUPCrypto {
-    pub fn validate_model_update(&self, model_update: &[u8], signature: &[u8], key_id: &str) -> bool {
-        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
-            verify(model_update, signature, public_key).is_ok()
-        } else {
-            false
-        }
-    }
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct EncryptedMessage {
