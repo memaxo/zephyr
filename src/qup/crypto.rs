@@ -6,41 +6,89 @@ use crate::did::did::{DID, DIDDocument, DIDError};
 use crate::did::did_resolver::DIDResolver;
 use serde::{Serialize, Deserialize};
 use sha2::{Sha256, Digest};
-use tfhe::prelude::*;
-use tfhe::shortint::prelude::*;
 
 pub struct QUPCrypto {
     key_management: KeyManagement,
-    tfhe_params: ShortintParameters,
-    tfhe_keys: (ClientKey, ServerKey),
 }
 
 impl QUPCrypto {
     pub fn new() -> Self {
-        let tfhe_params = ShortintParameters::default();
-        let (client_key, server_key) = gen_keys(tfhe_params);
         QUPCrypto {
             key_management: KeyManagement::new(),
-            tfhe_params,
-            tfhe_keys: (client_key, server_key),
         }
     }
 
-    pub fn encrypt_homomorphic(&self, data: u64) -> Ciphertext {
-        self.tfhe_keys.0.encrypt(data)
+    pub fn encrypt_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
+        if let Some((public_key, _)) = self.key_management.get_kyber_keys(key_id) {
+            let (ciphertext, shared_secret) = encapsulate(public_key);
+            let encrypted_message = self.aes_encrypt(message, &shared_secret);
+            Some([ciphertext.as_bytes(), &encrypted_message].concat())
+        } else {
+            None
+        }
     }
 
-    pub fn decrypt_homomorphic(&self, ciphertext: &Ciphertext) -> u64 {
-        self.tfhe_keys.0.decrypt(ciphertext)
+    pub fn decrypt_message(&self, encrypted_message: &[u8], key_id: &str) -> Option<Vec<u8>> {
+        if let Some((_, secret_key)) = self.key_management.get_kyber_keys(key_id) {
+            let (ciphertext, encrypted_message) = encrypted_message.split_at(KyberCiphertext::BYTES);
+            let shared_secret = decapsulate(&KyberCiphertext::from_bytes(ciphertext), secret_key).ok()?;
+            self.aes_decrypt(encrypted_message, &shared_secret)
+        } else {
+            None
+        }
     }
 
-    pub fn add_encrypted_values(&self, ciphertext1: &Ciphertext, ciphertext2: &Ciphertext) -> Ciphertext {
-        self.tfhe_keys.1.add(ciphertext1, ciphertext2)
+    fn aes_encrypt(&self, data: &[u8], key: &[u8]) -> Vec<u8> {
+        // Implement AES encryption using the shared secret
+        data.to_vec() // Placeholder
     }
 
-    pub fn multiply_encrypted_values(&self, ciphertext1: &Ciphertext, ciphertext2: &Ciphertext) -> Ciphertext {
-        self.tfhe_keys.1.mul(ciphertext1, ciphertext2)
+    fn aes_decrypt(&self, data: &[u8], key: &[u8]) -> Option<Vec<u8>> {
+        // Implement AES decryption using the shared secret
+        Some(data.to_vec()) // Placeholder
     }
+
+    pub fn sign_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
+        if let Some((_, secret_key)) = self.key_management.get_dilithium_keys(key_id) {
+            Some(sign_detached(message, secret_key).to_vec())
+        } else {
+            None
+        }
+    }
+
+    pub fn verify_message(&self, message: &[u8], signature: &[u8], key_id: &str) -> Option<bool> {
+        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
+            Some(verify_detached(signature, message, public_key).is_ok())
+        } else {
+            None
+        }
+    }
+
+    pub fn validate_model_update(&self, model_update: &[u8], signature: &[u8], key_id: &str) -> bool {
+        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
+            verify(model_update, signature, public_key).is_ok()
+        } else {
+            false
+        }
+    }
+}
+
+pub fn sign_quantum_data(data: &[u8], key: &DilithiumSecretKey) -> Vec<u8> {
+    sign(data, key).to_vec()
+}
+
+pub fn verify_quantum_signature(data: &[u8], signature: &[u8], key: &DilithiumPublicKey) -> bool {
+    verify(data, signature, key).is_ok()
+}
+
+fn decrypt_quantum_data(data: &[u8], key: &KyberSecretKey) -> Result<Vec<u8>, CryptoError> {
+    // Implement quantum-resistant decryption using Kyber
+    let ciphertext = KyberCiphertext::from_bytes(data)?;
+    let shared_secret = decapsulate(&ciphertext, key)?;
+    // Use the shared secret to decrypt the data
+    // ...
+    Ok(vec![]) // Placeholder
+}
     pub fn verify_did(&self, did: &DID, did_resolver: &dyn DIDResolver) -> Result<DIDDocument, DIDError> {
         did_resolver.resolve(did)
     }
