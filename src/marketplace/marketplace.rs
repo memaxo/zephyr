@@ -37,11 +37,12 @@ pub struct Marketplace {
     }
 
 impl Marketplace {
-    pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP) -> Result<(), String> {
+    pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let bids = self.bids.lock().unwrap();
         if let Some(bids) = bids.get(&task_id) {
             let task = self.tasks.lock().unwrap().get(&task_id).ok_or("Task not found")?.clone();
-            if let Some(best_bid) = self.select_best_bid(&task, bids) {
+            let valid_bids: Vec<Bid> = bids.iter().filter(|bid| current_block <= bid_expiration_blocks).cloned().collect();
+            if let Some(best_bid) = self.select_best_bid(&task, &valid_bids) {
                 let task = self.tasks.get(&task_id).ok_or("Task not found")?;
                 let sc_task = SCTask {
                     id: task.id,
@@ -140,7 +141,7 @@ impl Marketplace {
         tasks.get(&task_id)
     }
 
-    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain) -> Result<(), String> {
+    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, minimum_stake: u64, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let tasks = self.tasks.lock().unwrap();
         let mut bids = self.bids.lock().unwrap();
         if let Some(task) = tasks.get(&task_id) {
@@ -149,6 +150,15 @@ impl Marketplace {
             }
             if bid.proposed_reward > task.reward {
                 return Err("Bid proposed reward exceeds task reward".to_string());
+            }
+            if bid.proposed_reward < minimum_stake {
+                return Err("Bid proposed reward is below the minimum stake".to_string());
+            }
+            if bids.get(&task_id).map_or(false, |bids| bids.iter().any(|b| b.node_id == bid.node_id)) {
+                return Err("Duplicate bid from the same node".to_string());
+            }
+            if current_block > bid_expiration_blocks {
+                return Err("Bid has expired".to_string());
             }
             let task_version = task.version;
             let task = tasks.get_mut(&task_id).unwrap();
