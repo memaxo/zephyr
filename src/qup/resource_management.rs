@@ -1,4 +1,5 @@
 use std::collections::{HashMap, BinaryHeap, VecDeque};
+use crate::utils::latency::{ping_nodes, Latency};
 use std::sync::{Arc, Mutex};
 use std::cmp::Reverse;
 use etcd_client::{Client, GetOptions, PutOptions};
@@ -52,6 +53,13 @@ impl ResourceManager {
             for (node_id, metrics) in node_metrics.iter() {
                 self.etcd_client.put(format!("metrics/{}", node_id), serde_json::to_string(metrics).unwrap(), None).await.unwrap();
             }
+    }
+
+    pub async fn measure_network_latency(&self, nodes: Vec<NodeId>) -> HashMap<NodeId, Duration> {
+        let latencies = ping_nodes(nodes);
+        latencies.into_iter().map(|latency| {
+            (NodeId::from(latency.node_id), latency.latency)
+        }).collect()
     }
 
     pub async fn add_node(&self, node_id: usize, resource: Resource) {
