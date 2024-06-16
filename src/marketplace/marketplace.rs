@@ -20,6 +20,16 @@ pub struct Marketplace {
         reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
     }
 
+    fn remove_expired_bids(&self, current_block: u64, bid_expiration_blocks: u64) {
+        let mut bids = self.bids.write().unwrap();
+        for (_, bid_list) in bids.iter_mut() {
+            bid_list.retain(|bid| {
+                let bid_age = current_block - bid.submission_time.timestamp() as u64;
+                bid_age <= bid_expiration_blocks
+            });
+        }
+    }
+
     fn send_with_retry(&self, qup: &QUP, notification: &TaskAssignmentNotification) -> Result<(), String> {
         let mut attempts = 0;
         let max_attempts = 5;
@@ -256,11 +266,11 @@ impl Marketplace {
         let task = self.tasks.read().unwrap().get(&task_id).ok_or("Task not found")?.clone();
         let current_block = blockchain.get_current_block_number()?;
         let bids = self.bids.read().unwrap();
-        if current_block > bid_expiration_blocks {
-            return None;
-        }
         if let Some(bids) = bids.get(&task_id) {
-            let valid_bids: Vec<Bid> = bids.iter().filter(|bid| current_block <= bid_expiration_blocks).cloned().collect();
+            let valid_bids: Vec<Bid> = bids.iter().filter(|bid| {
+                let bid_age = current_block - bid.submission_time.timestamp() as u64;
+                bid_age <= bid_expiration_blocks
+            }).cloned().collect();
             if let Some(best_bid) = self.select_best_bid(&task, &valid_bids) {
                 let sc_task = SCTask {
                     id: task.id,
@@ -381,7 +391,7 @@ impl Marketplace {
         tasks.get(&task_id)
     }
 
-    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, minimum_stake: u64, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
+    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, minimum_stake: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let tasks = self.tasks.read().unwrap();
         let current_block = blockchain.get_current_block_number()?;
         if current_block > bid_expiration_blocks {
@@ -390,6 +400,10 @@ impl Marketplace {
 
         let mut bids = self.bids.write().unwrap();
         if let Some(task) = tasks.get(&task_id) {
+            let current_block = blockchain.get_current_block_number()?;
+            if current_block > bid_expiration_blocks {
+                return Err("Bid has expired".to_string());
+            }
             if bid.proposed_time > task.deadline {
                 return Err("Bid proposed time is past the task deadline".to_string());
             }
