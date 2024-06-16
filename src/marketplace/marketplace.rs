@@ -3,10 +3,8 @@ use crate::marketplace::bid::Bid;
 use crate::smart_contract::types::{SmartContract, Task as SCTask, Bid as SCBid, Reputation as SCReputation, Blockchain};
 use crate::chain::blockchain::Blockchain;
 use crate::qup::QUP;
-use std::collections::HashMap;
-use std::sync::{RwLock, Mutex, atomic::{AtomicUsize, Ordering}};
-use std::thread;
-use std::time::Duration;
+use crate::marketplace::message_format::TaskAssignmentNotification;
+use log::{error, info};
 
 pub struct Marketplace {
     tasks: RwLock<HashMap<u64, Task>>,
@@ -20,6 +18,29 @@ pub struct Marketplace {
         let old_reputation = *reputation.get(node_id).unwrap_or(&0.0);
         let new_reputation = old_reputation * decay_factor + (weight * score_change);
         reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
+    }
+
+    fn send_with_retry(&self, qup: &QUP, notification: &TaskAssignmentNotification) -> Result<(), String> {
+        let mut attempts = 0;
+        let max_attempts = 5;
+        let mut delay = Duration::from_secs(1);
+
+        while attempts < max_attempts {
+            match qup.send_task_assignment_notification(&notification) {
+                Ok(_) => {
+                    info!("Task assignment notification sent successfully");
+                    return Ok(());
+                }
+                Err(e) => {
+                    error!("Failed to send task assignment notification: {}. Retrying in {:?}...", e, delay);
+                    thread::sleep(delay);
+                    delay *= 2; // Exponential backoff
+                    attempts += 1;
+                }
+            }
+        }
+
+        Err("Max retry attempts reached".to_string())
     }
 
 impl Marketplace {
@@ -121,7 +142,16 @@ impl Marketplace {
                 // Update reputation for successful task completion
                 self.update_reputation(&best_bid.node_id, task.reward as f64, true);
                 self.bids.write().unwrap().remove(&task_id); // Remove bids after assignment
-                qup.send_task_assignment_notification(&task.creator, &best_bid.node_id)?;
+                let notification = TaskAssignmentNotification {
+                    task_id: task.id,
+                    assigned_node_id: best_bid.node_id.clone(),
+                    details: format!("Task {} assigned to node {}", task.id, best_bid.node_id),
+                };
+
+                if let Err(e) = self.send_with_retry(&qup, &notification) {
+                    error!("Failed to send task assignment notification: {}", e);
+                    // Optionally notify the user or system administrator
+                }
                 Ok(())
             } else {
                 Err("No valid bids found".to_string())
