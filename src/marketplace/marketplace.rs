@@ -1,8 +1,9 @@
 use crate::marketplace::task::Task;
 use crate::marketplace::bid::Bid;
+use crate::smart_contract::types::{SmartContract, Task as SCTask, Bid as SCBid, Reputation as SCReputation};
+use crate::chain::blockchain::Blockchain;
+use crate::qup::QUP;
 use std::collections::HashMap;
-use crate::smart_contract::SmartContract;
-
 use std::sync::Mutex;
 
 pub struct Marketplace {
