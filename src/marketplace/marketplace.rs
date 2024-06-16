@@ -12,7 +12,15 @@ pub struct Marketplace {
     tasks: Mutex<HashMap<u64, Task>>,
     bids: Mutex<HashMap<u64, Vec<Bid>>>,
     round_robin_counter: AtomicUsize,
-}
+    reputation: Mutex<HashMap<String, f64>>,
+    fn update_reputation(&self, node_id: &str, score_change: f64, success: bool) {
+        let mut reputation = self.reputation.lock().unwrap();
+        let decay_factor = 0.9;
+        let weight = if success { 1.0 } else { -2.0 };
+        let old_reputation = *reputation.get(node_id).unwrap_or(&0.0);
+        let new_reputation = old_reputation * decay_factor + (weight * score_change);
+        reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
+    }
 
 impl Marketplace {
     fn get_reputation_score(&self, node_id: &str) -> f64 {
@@ -83,6 +91,7 @@ impl Marketplace {
 impl Marketplace {
     pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let mut retries = 0;
+        let task = self.tasks.lock().unwrap().get(&task_id).ok_or("Task not found")?.clone();
         let max_retries = 5;
         let mut delay = Duration::from_secs(1);
 
@@ -112,14 +121,15 @@ impl Marketplace {
                     // Record the task assignment on the blockchain
                     blockchain.record_task_assignment(task.id, &best_bid.node_id)?;
 
-                    // Update reputation
-                    let mut reputation = SCReputation::new();
-                    reputation.update_reputation(&best_bid.node_id, 1.0);
+                    // Update reputation for successful task completion
+                    self.update_reputation(&best_bid.node_id, task.reward as f64, true);
                     self.bids.remove(&task_id); // Remove bids after assignment
                     qup.send_task_assignment_notification(&task.creator, &best_bid.node_id)?;
                     return Ok(());
                 } else {
                     if retries >= max_retries {
+                        // Update reputation for task failure
+                        self.update_reputation(&task.creator, task.reward as f64, false);
                         return Err("No valid bids found after maximum retries".to_string());
                     }
                     retries += 1;
@@ -129,7 +139,8 @@ impl Marketplace {
             } else {
                 return Err("Task not found".to_string());
             }
-        }
+        },
+        reputation: Mutex::new(HashMap::new()),
     }
 
     fn select_best_bid(&self, task: &Task, bids: &[Bid]) -> Option<Bid> {
