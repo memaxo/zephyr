@@ -216,9 +216,6 @@ impl ResourceScheduler {
         // Placeholder for a more sophisticated scoring function
         // This could be replaced with a machine learning model
         metrics.load * 0.5 + metrics.latency * 0.3 + metrics.reliability * 0.2 + task_priority - latency
-        // Placeholder for a more sophisticated scoring function
-        // This could be replaced with a machine learning model
-        metrics.load * 0.5 + metrics.latency * 0.3 + metrics.reliability * 0.2 + task_priority
     }
 
     pub fn update_historical_data(&mut self, node_id: usize, metrics: NodeMetrics) {
