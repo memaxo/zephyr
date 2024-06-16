@@ -27,8 +27,7 @@ impl Marketplace {
         let old_reputation = *reputation.get(node_id).unwrap_or(&0.0);
         let new_reputation = old_reputation * decay_factor + (weight * score_change);
         reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
-    pub fn new(qup: Arc<QUP>, did_resolver: Arc<dyn DIDResolver>, qup_crypto: Arc<QUPCrypto>) -> Self {
-        let did_documents = RwLock::new(HashMap::new());
+    pub fn new(qup: Arc<QUP>, did_resolver: Arc<dyn DIDResolver>) -> Self {
         Self {
             tasks: RwLock::new(HashMap::new()),
             bids: RwLock::new(HashMap::new()),
@@ -37,7 +36,6 @@ impl Marketplace {
             did_documents: RwLock::new(HashMap::new()),
             qup,
             did_resolver,
-            qup_crypto,
         }
     }
 
@@ -489,11 +487,12 @@ impl Marketplace {
         tasks.get(&task_id)
     }
 
-    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, qup: &QUP, minimum_stake: u64, bid_expiration_blocks: u64) -> Result<(), String> {
+    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, minimum_stake: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         // Verify the DID of the node submitting the bid
         let did = DID::from_str(&bid.node_id).map_err(|e| format!("Invalid DID: {}", e))?;
         let did_document = self.did_resolver.resolve(&did).map_err(|e| format!("Failed to resolve DID: {}", e))?;
         self.did_documents.write().unwrap().insert(bid.node_id.clone(), did_document);
+
         let tasks = self.tasks.read().unwrap();
         let current_block = blockchain.get_current_block_number()?;
         if current_block > bid_expiration_blocks {
@@ -502,10 +501,6 @@ impl Marketplace {
 
         let mut bids = self.bids.write().unwrap();
         if let Some(task) = tasks.get(&task_id) {
-            let current_block = blockchain.get_current_block_number()?;
-            if current_block > bid_expiration_blocks {
-                return Err("Bid has expired".to_string());
-            }
             if bid.proposed_time > task.deadline {
                 return Err("Bid proposed time is past the task deadline".to_string());
             }
@@ -526,8 +521,8 @@ impl Marketplace {
             task.increment_version();
             bids.entry(task_id).or_insert_with(Vec::new).push(bid.clone());
             if let Some(problem_proposal) = &task.problem_proposal {
-                let proposal = qup.validator.propose_useful_work_problem(problem_proposal.problem.clone());
-                qup.state.add_problem_proposal(proposal);
+                let proposal = self.qup.validator.propose_useful_work_problem(problem_proposal.problem.clone());
+                self.qup.state.add_problem_proposal(proposal);
             }
             blockchain.record_bid_submission(task_id, &bid)?;
             Ok(())
