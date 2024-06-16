@@ -3,9 +3,11 @@ use crate::marketplace::bid::Bid;
 use std::collections::HashMap;
 use crate::smart_contract::SmartContract;
 
+use std::sync::Mutex;
+
 pub struct Marketplace {
-    tasks: HashMap<u64, Task>,
-    bids: HashMap<u64, Vec<Bid>>,
+    tasks: Mutex<HashMap<u64, Task>>,
+    bids: Mutex<HashMap<u64, Vec<Bid>>>,
     fn get_reputation_score(&self, node_id: &str) -> f64 {
         // Placeholder for actual reputation score retrieval logic
         // For now, return a dummy value
@@ -34,8 +36,9 @@ pub struct Marketplace {
     }
 
 impl Marketplace {
-    pub fn assign_task(&mut self, task_id: u64) -> Result<(), String> {
-        if let Some(bids) = self.bids.get(&task_id) {
+    pub fn assign_task(&self, task_id: u64) -> Result<(), String> {
+        let bids = self.bids.lock().unwrap();
+        if let Some(bids) = bids.get(&task_id) {
             if let Some(best_bid) = self.select_best_bid(bids) {
                 let task = self.tasks.get(&task_id).ok_or("Task not found")?;
                 SmartContract::assign_task(task, &best_bid)?;
@@ -85,28 +88,38 @@ impl Marketplace {
         }
     }
 
-    pub fn add_task(&mut self, task: Task) -> Result<(), String> {
+    pub fn add_task(&self, task: Task) -> Result<(), String> {
         task.validate()?;
-        if self.tasks.contains_key(&task.id) {
+        let mut tasks = self.tasks.lock().unwrap();
+        if tasks.contains_key(&task.id) {
             return Err("Task ID already exists".to_string());
         }
-        self.tasks.insert(task.id, task);
+        tasks.insert(task.id, task);
         Ok(())
     }
 
     pub fn get_task(&self, task_id: u64) -> Option<&Task> {
-        self.tasks.get(&task_id)
+        let tasks = self.tasks.lock().unwrap();
+        tasks.get(&task_id)
     }
 
-    pub fn add_bid(&mut self, task_id: u64, bid: Bid) -> Result<(), String> {
-        if let Some(task) = self.tasks.get(&task_id) {
+    pub fn add_bid(&self, task_id: u64, bid: Bid) -> Result<(), String> {
+        let tasks = self.tasks.lock().unwrap();
+        let mut bids = self.bids.lock().unwrap();
+        if let Some(task) = tasks.get(&task_id) {
             if bid.proposed_time > task.deadline {
                 return Err("Bid proposed time is past the task deadline".to_string());
             }
             if bid.proposed_reward > task.reward {
                 return Err("Bid proposed reward exceeds task reward".to_string());
             }
-            self.bids.entry(task_id).or_insert_with(Vec::new).push(bid);
+            let task_version = task.version;
+            let task = tasks.get_mut(&task_id).unwrap();
+            if task.version != task_version {
+                return Err("Task has been modified, please retry".to_string());
+            }
+            task.increment_version();
+            bids.entry(task_id).or_insert_with(Vec::new).push(bid);
             Ok(())
         } else {
             Err("Task not found".to_string())
@@ -114,6 +127,7 @@ impl Marketplace {
     }
 
     pub fn get_bids(&self, task_id: u64) -> Option<&Vec<Bid>> {
-        self.bids.get(&task_id)
+        let bids = self.bids.lock().unwrap();
+        bids.get(&task_id)
     }
 }
