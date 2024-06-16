@@ -169,17 +169,45 @@ impl FaultTolerantDistributedTrainingNode {
                 if let Some(checkpoint) = self.get_checkpoint(task_id) {
                     let remaining_nodes: Vec<NodeId> = nodes.iter().filter(|&&node| node != *failed_node).cloned().collect();
                     if !remaining_nodes.is_empty() {
-                        // Resume task on another node
+                        // Resume task on another node from the last checkpoint
                         let new_node = remaining_nodes[0].clone();
                         self.resource_manager.allocate_resources(Resource { cpu: 1, gpu: 1, memory: 1 }, 1.0);
-                        // Logic to resume task from checkpoint on new_node
+                        self.resume_task_from_checkpoint(task_id, &new_node, &checkpoint);
                     } else {
-                        // All nodes failed, need to reassign task
-                        // Logic to reassign task
+                        // All replica nodes failed, reassign the task to new nodes
+                        let new_nodes = self.select_replica_nodes(task_id);
+                        self.replicate_task_to_nodes(task_id, new_nodes);
+                        self.resume_task_from_checkpoint(task_id, &new_nodes[0], &checkpoint);
                     }
+                } else {
+                    // No checkpoint available, restart the task from the beginning
+                    let new_nodes = self.select_replica_nodes(task_id);
+                    self.replicate_task_to_nodes(task_id, new_nodes);
+                    self.restart_task(task_id, &new_nodes[0]);
                 }
             }
         }
+    }
+
+    fn resume_task_from_checkpoint(&self, task_id: &str, node: &NodeId, checkpoint: &Checkpoint) {
+        // Logic to resume the task from the checkpoint on the specified node
+        // ...
+    }
+
+    fn select_replica_nodes(&self, task_id: &str) -> Vec<NodeId> {
+        // Logic to select new replica nodes for the task
+        // ...
+        vec![]
+    }
+
+    fn replicate_task_to_nodes(&self, task_id: &str, nodes: Vec<NodeId>) {
+        // Logic to replicate the task to the specified nodes
+        // ...
+    }
+
+    fn restart_task(&self, task_id: &str, node: &NodeId) {
+        // Logic to restart the task from the beginning on the specified node
+        // ...
     }
 
     pub async fn monitor_training_progress(&mut self) {
