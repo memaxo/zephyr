@@ -26,18 +26,44 @@ impl FaultTolerance {
         let mut results = HashMap::new();
         let mut tasks_assigned = HashSet::new();
 
+        let mut vote_weights = HashMap::new();
+        let mut total_weight = 0;
+
         for (id, node) in nodes.iter() {
             if tasks_assigned.contains(id) {
                 continue;
             }
             tasks_assigned.insert(*id);
             let result = self.execute_task_on_node(*id, task.clone()).await;
+            let weight = self.get_node_reputation(*id);
+            vote_weights.entry(result.clone()).or_insert(0) += weight;
+            total_weight += weight;
             results.entry(result).or_insert_with(Vec::new).push(*id);
         }
 
-        // Voting mechanism to determine the correct output
-        let (correct_result, _) = results.into_iter().max_by_key(|(_, v)| v.len()).unwrap();
-        correct_result
+        // Weighted voting mechanism with supermajority requirement
+        let supermajority_threshold = (total_weight as f64 * 2.0 / 3.0).ceil() as u64;
+        let mut max_weight = 0;
+        let mut correct_result = None;
+
+        for (result, weight) in vote_weights {
+            if weight > max_weight {
+                max_weight = weight;
+                correct_result = Some(result);
+            }
+        }
+
+        if let Some(result) = correct_result {
+            if max_weight >= supermajority_threshold {
+                // Perform outlier detection and challenge-response checks
+                if !self.is_outlier(&result, &results) && !self.has_challenges(&result) {
+                    return result;
+                }
+            }
+        }
+
+        // If no supermajority or challenges exist, return an error
+        return Err(VotingError::InsufficientConsensus);
     }
 }
 
@@ -479,3 +505,17 @@ impl FaultTolerance {
         }
     }
 }
+    fn get_node_reputation(&self, node_id: usize) -> u64 {
+        // Placeholder implementation, replace with actual reputation system
+        1
+    }
+
+    fn is_outlier(&self, result: &Vec<u8>, results: &HashMap<Vec<u8>, Vec<usize>>) -> bool {
+        // Placeholder implementation, replace with actual outlier detection
+        false
+    }
+
+    fn has_challenges(&self, result: &Vec<u8>) -> bool {
+        // Placeholder implementation, replace with actual challenge-response mechanism
+        false
+    }
