@@ -199,6 +199,18 @@ impl Marketplace {
         1.0
     }
 
+    fn get_node_uptime(&self, node_id: &str) -> u64 {
+        // Placeholder for actual node uptime retrieval logic
+        // For now, return a dummy value
+        100
+    }
+
+    fn get_node_age(&self, node_id: &str) -> u64 {
+        // Placeholder for actual node age retrieval logic
+        // For now, return a dummy value
+        50
+    }
+
     fn get_node_stake(&self, node_id: &str) -> f64 {
         let staked_amount = self.get_staked_amount(node_id);
         let stake_duration = self.get_stake_duration(node_id);
@@ -254,11 +266,22 @@ impl Marketplace {
     }
 
     fn break_tie(&self, bid1: &Bid, bid2: &Bid) -> bool {
-        // Placeholder for tie-breaking logic
-        // For now, use random selection
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        rng.gen_bool(0.5)
+        // Round-robin approach for tie-breaking
+        let counter = self.round_robin_counter.fetch_add(1, Ordering::SeqCst);
+        if counter % 2 == 0 {
+            return true;
+        }
+
+        // Optional additional tie-breakers
+        let uptime1 = self.get_node_uptime(&bid1.node_id);
+        let uptime2 = self.get_node_uptime(&bid2.node_id);
+        if uptime1 != uptime2 {
+            return uptime1 > uptime2;
+        }
+
+        let age1 = self.get_node_age(&bid1.node_id);
+        let age2 = self.get_node_age(&bid2.node_id);
+        age1 > age2
     }
 
 impl Marketplace {
