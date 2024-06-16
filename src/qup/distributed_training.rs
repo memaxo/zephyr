@@ -7,6 +7,8 @@ use crate::smart_contract::smart_contract_interface::{SmartContractInterface, Tr
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
+use raft::prelude::*;
+use raft::storage::MemStorage;
 use optuna::prelude::*;
 use optuna::study::Study;
 use optuna::trial::Trial;
@@ -106,7 +108,8 @@ impl DistributedTrainer {
         pipeline_parallelism: bool,
     ) -> Self {
         let partitioned_dataset = PartitionedDataset::new(&dataset, shard_count, &nodes);
-        let scheduler = Scheduler::new();
+        let raft_node = RawNode::new(&Config::default(), MemStorage::new(), vec![]).unwrap();
+        let scheduler = Scheduler::new(raft_node);
         let study = Study::create("hyperparameter_optimization", "sqlite:///optuna.db").unwrap();
         DistributedTrainer {
             nodes,
@@ -279,16 +282,18 @@ impl DistributedTrainer {
     }
 }
 
-pub struct Scheduler {
+pub struct Scheduler<T: Storage> {
+    pub raft_node: RawNode<T>,
     pub task_queue: Arc<Mutex<Vec<Task>>>,
     pub result_sender: mpsc::Sender<TrainingResult>,
     pub result_receiver: mpsc::Receiver<TrainingResult>,
 }
 
-impl Scheduler {
-    pub fn new() -> Self {
+impl<T: Storage> Scheduler<T> {
+    pub fn new(raft_node: RawNode<T>) -> Self {
         let (result_sender, result_receiver) = mpsc::channel();
-        Scheduler {
+        Scheduler { 
+            raft_node,
             task_queue: Arc::new(Mutex::new(Vec::new())),
             result_sender,
             result_receiver,
@@ -300,7 +305,14 @@ impl Scheduler {
         task_queue.push(task);
     }
 
-    pub fn run(&self, nodes: Vec<NodeId>) {
+    pub fn run(&mut self, nodes: Vec<NodeId>) {
+        // Raft consensus logic to agree on task assignments
+        self.raft_node.tick();
+        if let Some(msgs) = self.raft_node.ready().messages() {
+            for msg in msgs {
+                // Send messages to other nodes
+            }
+        }
         let task_queue = Arc::clone(&self.task_queue);
         let result_sender = self.result_sender.clone();
 
@@ -310,7 +322,9 @@ impl Scheduler {
 
             thread::spawn(move || {
                 loop {
-                    let task = {
+                    let task = if let Some(task) = self.propose_task() {
+                        task
+                    } else {
                         let mut task_queue = task_queue.lock().unwrap();
                         if task_queue.is_empty() {
                             break;
@@ -331,6 +345,17 @@ impl Scheduler {
                 }
             });
         }
+    }
+
+    pub fn propose_task(&mut self) -> Option<Task> {
+        // Propose a new task to the Raft cluster
+        let task = Task {
+            node_id: NodeId::new(),
+            dataset_shard: vec![],
+        };
+        let data = serde_json::to_vec(&task).unwrap();
+        self.raft_node.propose(vec![], data).unwrap();
+        Some(task)
     }
 
     pub fn get_results(&self) -> Vec<TrainingResult> {
