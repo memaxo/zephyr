@@ -12,6 +12,7 @@ pub struct Node {
     pub memory_speed: u64,
     pub hardware: HardwareAssessment,
     nodes: Vec<Node>,
+    nodes: Vec<Node>,
 pub trait TaskProfile {
     fn resource_requirements(&self) -> Resource;
 }
