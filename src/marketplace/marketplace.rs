@@ -11,6 +11,7 @@ pub struct Marketplace {
     bids: RwLock<HashMap<u64, Vec<Bid>>>,
     round_robin_counter: AtomicUsize,
     reputation: Mutex<HashMap<String, f64>>,
+    qup: Arc<QUP>,
     fn update_reputation(&self, node_id: &str, score_change: f64, success: bool) {
         let mut reputation = self.reputation.lock().unwrap();
         let decay_factor = 0.9;
@@ -27,6 +28,7 @@ pub struct Marketplace {
                 let bid_age = current_block - bid.submission_time.timestamp() as u64;
                 bid_age <= bid_expiration_blocks
             });
+            qup,
         }
     }
 
@@ -310,39 +312,29 @@ impl Marketplace {
                 bid_age <= bid_expiration_blocks
             }).cloned().collect();
             if let Some(best_bid) = self.select_best_bid(&task, &valid_bids) {
-                let sc_task = SCTask {
-                    id: task.id,
-                    description: task.description.clone(),
-                    resources: task.resources.clone(),
-                    reward: task.reward,
-                    deadline: task.deadline,
-                    creator: task.creator.clone(),
-                };
-                let sc_bid = SCBid {
-                    node_id: best_bid.node_id.clone(),
-                    proposed_time: best_bid.proposed_time,
-                    proposed_reward: best_bid.proposed_reward,
-                    proof_of_capability: best_bid.proof_of_capability.clone(),
-                };
-                SmartContract::assign_task(&sc_task, &sc_bid)?;
+                if let Some(problem_proposal) = &task.problem_proposal {
+                    let solution = self.qup.solve_useful_work_problem(&problem_proposal.problem);
+                    if self.qup.validate_useful_work_solution(&solution) {
+                        self.qup.state.accept_problem_proposal(problem_proposal.clone());
+                        self.update_reputation(&best_bid.node_id, task.reward as f64, true);
+                        self.bids.write().unwrap().remove(&task_id); // Remove bids after assignment
+                        let notification = TaskAssignmentNotification {
+                            task_id: task.id,
+                            assigned_node_id: best_bid.node_id.clone(),
+                            details: format!("Task {} assigned to node {}", task.id, best_bid.node_id),
+                        };
 
-                // Record the task assignment on the blockchain
-                blockchain.record_task_assignment(task.id, &best_bid.node_id)?;
-
-                // Update reputation for successful task completion
-                self.update_reputation(&best_bid.node_id, task.reward as f64, true);
-                self.bids.write().unwrap().remove(&task_id); // Remove bids after assignment
-                let notification = TaskAssignmentNotification {
-                    task_id: task.id,
-                    assigned_node_id: best_bid.node_id.clone(),
-                    details: format!("Task {} assigned to node {}", task.id, best_bid.node_id),
-                };
-
-                if let Err(e) = self.send_with_retry(&qup, &notification) {
-                    error!("Failed to send task assignment notification: {}", e);
-                    // Optionally notify the user or system administrator
+                        if let Err(e) = self.send_with_retry(&qup, &notification) {
+                            error!("Failed to send task assignment notification: {}", e);
+                            // Optionally notify the user or system administrator
+                        }
+                        Ok(())
+                    } else {
+                        Err("Invalid useful work solution".to_string())
+                    }
+                } else {
+                    Err("No problem proposal found for the task".to_string())
                 }
-                Ok(())
             } else {
                 Err("No valid bids found".to_string())
             }
@@ -397,7 +389,7 @@ impl Marketplace {
 }
 
 impl Marketplace {
-    pub fn new() -> Self {
+    pub fn new(qup: Arc<QUP>) -> Self {
         Self {
             tasks: RwLock::new(HashMap::new()),
             bids: RwLock::new(HashMap::new()),
@@ -405,7 +397,7 @@ impl Marketplace {
         }
     }
 
-    pub fn add_task(&self, task: Task, blockchain: &Blockchain) -> Result<(), String> {
+    pub fn add_task(&self, task: Task, blockchain: &Blockchain, qup: &QUP) -> Result<(), String> {
         task.validate()?;
         let current_block = blockchain.get_current_block_number()?;
         if current_block > task.deadline {
@@ -418,6 +410,10 @@ impl Marketplace {
         }
         tasks.insert(task.id, task.clone());
         blockchain.record_task_submission(&task)?;
+        if let Some(problem_proposal) = &task.problem_proposal {
+            let proposal = qup.validator.propose_useful_work_problem(problem_proposal.problem.clone());
+            qup.state.add_problem_proposal(proposal);
+        }
         Ok(())
     }
 
@@ -426,7 +422,7 @@ impl Marketplace {
         tasks.get(&task_id)
     }
 
-    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, minimum_stake: u64, bid_expiration_blocks: u64) -> Result<(), String> {
+    pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, qup: &QUP, minimum_stake: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let tasks = self.tasks.read().unwrap();
         let current_block = blockchain.get_current_block_number()?;
         if current_block > bid_expiration_blocks {
@@ -458,6 +454,10 @@ impl Marketplace {
             }
             task.increment_version();
             bids.entry(task_id).or_insert_with(Vec::new).push(bid.clone());
+            if let Some(problem_proposal) = &task.problem_proposal {
+                let proposal = qup.validator.propose_useful_work_problem(problem_proposal.problem.clone());
+                qup.state.add_problem_proposal(proposal);
+            }
             blockchain.record_bid_submission(task_id, &bid)?;
             Ok(())
         } else {
