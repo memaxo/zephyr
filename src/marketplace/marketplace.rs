@@ -6,7 +6,32 @@ use crate::smart_contract::SmartContract;
 pub struct Marketplace {
     tasks: HashMap<u64, Task>,
     bids: HashMap<u64, Vec<Bid>>,
-}
+    fn get_reputation_score(&self, node_id: &str) -> f64 {
+        // Placeholder for actual reputation score retrieval logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_capability_score(&self, proof_of_capability: &str) -> f64 {
+        // Placeholder for actual capability score calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_time_score(&self, proposed_time: &DateTime<Utc>, deadline: &DateTime<Utc>) -> f64 {
+        // Calculate time score based on how close the proposed time is to the deadline
+        let duration = *deadline - *proposed_time;
+        let total_duration = *deadline - Utc::now();
+        (total_duration.num_seconds() - duration.num_seconds()) as f64 / total_duration.num_seconds() as f64
+    }
+
+    fn break_tie(&self, bid1: &Bid, bid2: &Bid) -> bool {
+        // Placeholder for tie-breaking logic
+        // For now, use random selection
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        rng.gen_bool(0.5)
+    }
 
 impl Marketplace {
     pub fn assign_task(&mut self, task_id: u64) -> Result<(), String> {
@@ -25,9 +50,30 @@ impl Marketplace {
     }
 
     fn select_best_bid(&self, bids: &[Bid]) -> Option<Bid> {
-        // Placeholder for the task selection algorithm
-        // Consider bid, time, reputation, capability
-        bids.iter().max_by_key(|bid| bid.proposed_reward).cloned()
+        // Calculate a score for each bid based on a weighted combination of factors
+        let mut best_bid: Option<Bid> = None;
+        let mut highest_score = f64::MIN;
+
+        for bid in bids {
+            let reputation_score = self.get_reputation_score(&bid.node_id);
+            let capability_score = self.get_capability_score(&bid.proof_of_capability);
+            let time_score = self.get_time_score(&bid.proposed_time, &self.tasks[&bid.task_id].deadline);
+
+            // Adjust weights as needed
+            let score = 0.5 * reputation_score + 0.3 * capability_score + 0.2 * time_score;
+
+            if score > highest_score {
+                highest_score = score;
+                best_bid = Some(bid.clone());
+            } else if (score - highest_score).abs() < f64::EPSILON {
+                // Tie-breaking mechanism
+                if self.break_tie(&bid, &best_bid.as_ref().unwrap()) {
+                    best_bid = Some(bid.clone());
+                }
+            }
+        }
+
+        best_bid
     }
 }
 
