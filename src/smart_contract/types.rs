@@ -5,6 +5,7 @@ use serde::{Serialize, Deserialize};
 use pqcrypto_dilithium::dilithium2::{self, PublicKey, SecretKey, sign, verify};
 use std::collections::{HashMap, HashSet};
 use std::collections::HashMap;
+use chrono::{DateTime, Utc};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ContractState {
@@ -275,7 +276,28 @@ pub trait CrossChainToken {
 }
 
 #[derive(Debug, Clone)]
-pub struct TransactionContext {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Task {
+    pub id: u64,
+    pub description: String,
+    pub resources: Vec<String>,
+    pub reward: u64,
+    pub deadline: DateTime<Utc>,
+    pub creator: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Bid {
+    pub node_id: String,
+    pub proposed_time: DateTime<Utc>,
+    pub proposed_reward: u64,
+    pub proof_of_capability: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Reputation {
+    pub scores: HashMap<String, f64>,
+}
     pub changes: HashMap<String, Value>,
 }
 pub struct IBCPacketData {
