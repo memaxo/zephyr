@@ -4,6 +4,8 @@ use crate::smart_contract::types::{SmartContract, Task as SCTask, Bid as SCBid, 
 use crate::chain::blockchain::Blockchain;
 use crate::qup::QUP;
 use crate::marketplace::message_format::TaskAssignmentNotification;
+use crate::did::did::{DID, DIDDocument};
+use crate::did::did_resolver::DIDResolver;
 use log::{error, info};
 
 pub struct Marketplace {
@@ -12,6 +14,10 @@ pub struct Marketplace {
     round_robin_counter: AtomicUsize,
     reputation: Mutex<HashMap<String, f64>>,
     qup: Arc<QUP>,
+    did_resolver: Arc<dyn DIDResolver>,
+}
+
+impl Marketplace {
     fn update_reputation(&self, node_id: &str, score_change: f64, success: bool) {
         let mut reputation = self.reputation.lock().unwrap();
         let decay_factor = 0.9;
@@ -29,6 +35,7 @@ pub struct Marketplace {
                 bid_age <= bid_expiration_blocks
             });
             qup,
+            did_resolver,
         }
     }
 
@@ -389,7 +396,7 @@ impl Marketplace {
 }
 
 impl Marketplace {
-    pub fn new(qup: Arc<QUP>) -> Self {
+    pub fn new(qup: Arc<QUP>, did_resolver: Arc<dyn DIDResolver>) -> Self {
         Self {
             tasks: RwLock::new(HashMap::new()),
             bids: RwLock::new(HashMap::new()),

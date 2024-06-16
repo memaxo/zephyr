@@ -32,7 +32,9 @@ use crate::zkp::zk_starks::ZkStarksProof;
 use crate::zkp::crypto::verify_quantum_merkle_proof;
 
 use crate::marketplace::marketplace::Marketplace;
+use crate::marketplace::marketplace::Marketplace;
 use crate::marketplace::reputation::Reputation;
+use crate::did::did_resolver::DIDResolver;
 
 pub enum ConsensusAlgorithm {
     QUP,
@@ -42,7 +44,7 @@ pub enum ConsensusAlgorithm {
 
 impl QUPConsensus {
     fn assign_tasks_and_distribute_rewards(&mut self, block: &QUPBlock) -> Result<(), ConsensusError> {
-        let mut marketplace = Marketplace::new();
+        let mut marketplace = self.marketplace.clone();
         let mut reputation = Reputation::new();
 
         for transaction in &block.transactions {
@@ -51,6 +53,8 @@ impl QUPConsensus {
             } else if let TransactionType::BidSubmission(bid) = &transaction.tx_type {
                 marketplace.add_bid(bid.task_id, bid.clone())?;
             }
+            marketplace,
+            did_resolver,
         }
             ConsensusMessage::ProblemProposal(proposal) => {
                 self.process_problem_proposal(proposal)
@@ -59,7 +63,8 @@ impl QUPConsensus {
         for task in marketplace.tasks.values() {
             if let Ok(_) = marketplace.assign_task(task.id) {
                 let best_bid = marketplace.get_bids(task.id).unwrap().iter().max_by_key(|bid| bid.proposed_reward).unwrap();
-                reputation.update_reputation(&best_bid.node_id, 1.0);
+                let did_document = self.did_resolver.resolve(&DID::from_str(&best_bid.node_id).unwrap()).unwrap();
+                reputation.update_reputation(&did_document.id.to_string(), 1.0);
             }
         }
 
@@ -140,6 +145,8 @@ pub struct QUPConsensus {
     pub committee_members: Arc<RwLock<HashSet<u64>>>,
     pub security_manager: Arc<SecurityManager>,
     pub reward_manager: Arc<RewardManager>,
+    pub marketplace: Arc<Marketplace>,
+    pub did_resolver: Arc<dyn DIDResolver>,
 }
 
 impl QUPConsensus {
@@ -165,6 +172,8 @@ impl QUPConsensus {
         shard_recovery_manager: Arc<ShardRecoveryManager>,
         security_manager: Arc<SecurityManager>,
         reward_manager: Arc<RewardManager>,
+        marketplace: Arc<Marketplace>,
+        did_resolver: Arc<dyn DIDResolver>,
     ) -> Self {
         QUPConsensus {
             config,
