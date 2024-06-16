@@ -358,6 +358,22 @@ impl<T: Storage> Scheduler<T> {
         Some(task)
     }
 
+    pub fn vote_on_task(&mut self, task: &Task) -> bool {
+        // Vote on the proposed task
+        let data = serde_json::to_vec(task).unwrap();
+        self.raft_node.propose(vec![], data).unwrap();
+        true
+    }
+        // Propose a new task to the Raft cluster
+        let task = Task {
+            node_id: NodeId::new(),
+            dataset_shard: vec![],
+        };
+        let data = serde_json::to_vec(&task).unwrap();
+        self.raft_node.propose(vec![], data).unwrap();
+        Some(task)
+    }
+
     pub fn get_results(&self) -> Vec<TrainingResult> {
         let mut results = Vec::new();
         while let Ok(result) = self.result_receiver.try_recv() {
