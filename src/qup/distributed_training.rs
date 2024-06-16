@@ -7,7 +7,9 @@ use crate::smart_contract::smart_contract_interface::{SmartContractInterface, Tr
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
+use differential_privacy::laplace_mechanism;
 use raft::prelude::*;
+use mpc::secure_aggregation;
 use raft::storage::MemStorage;
 use optuna::prelude::*;
 use optuna::study::Study;
@@ -282,12 +284,28 @@ impl DistributedTrainer {
         let mut rng = thread_rng();
         let sampled_models: Vec<&HDCModel> = models.choose_multiple(&mut rng, sample_size).collect();
 
-        // Implement model aggregation logic
-        // Combine the parameters or gradients of the sampled models
-        // based on the aggregation strategy
+        // Differential Privacy: Add noise to the model parameters
+        let mut aggregated_model = sampled_models[0].clone();
+        for model in sampled_models.iter().skip(1) {
+            for (i, row) in model.parameters.iter().enumerate() {
+                for (j, &value) in row.iter().enumerate() {
+                    aggregated_model.parameters[i][j] += value;
+                }
+            }
+        }
 
-        // Placeholder implementation
-        sampled_models[0].clone()
+        // Add Laplace noise to the aggregated model parameters
+        for row in aggregated_model.parameters.iter_mut() {
+            for value in row.iter_mut() {
+                *value += laplace_mechanism(0.0, 1.0); // Example noise addition
+            }
+        }
+
+        // Secure Multi-Party Computation (MPC): Placeholder for MPC protocols
+        // Nodes collaboratively compute model updates without revealing their individual data
+        secure_aggregation(&mut aggregated_model);
+
+        aggregated_model
     }
 }
 
