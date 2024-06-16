@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 use rayon::prelude::*;
 use smallvec::SmallVec;
-use crate::qup::types::Reputation;
+use crate::qup::types::{Reputation, UsefulWorkProblem};
 
 pub struct QUPState {
     pub state_manager: Arc<StateManager>,
@@ -28,7 +28,8 @@ pub struct QUPState {
     quantum_node: Arc<QuantumNode>,
     pub reputations: HashMap<String, Reputation>,
     pub validator_utility_points: HashMap<String, u64>,
-impl QUPState {
+pub struct QUPState {
+    pub accepted_problems: Vec<UsefulWorkProblem>,
     pub fn update_utility_points(&mut self, node_id: &str, points: UtilityPoints) {
         *self.validator_utility_points.entry(node_id.to_string()).or_insert(0) += points.0;
     }
@@ -180,6 +181,11 @@ impl QUPState {
         // Add the block to the state
         self.blocks.push(block.clone());
 
+        // Add accepted problems to the storage
+        if let Some(problem_proposal) = &block.problem_proposal {
+            self.accepted_problems.push(problem_proposal.problem.clone());
+        }
+
         Ok(())
     }
 
@@ -322,6 +328,7 @@ impl QUPState {
             network_state: Mutex::new(NetworkState::default()),
             classical_node,
             quantum_node,
+            accepted_problems: Vec::new(),
         };
 
         // Initialize quantum nodes
