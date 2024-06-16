@@ -4,13 +4,13 @@ use crate::smart_contract::types::{SmartContract, Task as SCTask, Bid as SCBid, 
 use crate::chain::blockchain::Blockchain;
 use crate::qup::QUP;
 use std::collections::HashMap;
-use std::sync::{Mutex, atomic::{AtomicUsize, Ordering}};
+use std::sync::{RwLock, Mutex, atomic::{AtomicUsize, Ordering}};
 use std::thread;
 use std::time::Duration;
 
 pub struct Marketplace {
-    tasks: Mutex<HashMap<u64, Task>>,
-    bids: Mutex<HashMap<u64, Vec<Bid>>>,
+    tasks: RwLock<HashMap<u64, Task>>,
+    bids: RwLock<HashMap<u64, Vec<Bid>>>,
     round_robin_counter: AtomicUsize,
     reputation: Mutex<HashMap<String, f64>>,
     fn update_reputation(&self, node_id: &str, score_change: f64, success: bool) {
@@ -91,14 +91,14 @@ impl Marketplace {
 impl Marketplace {
     pub fn assign_task(&self, task_id: u64, blockchain: &Blockchain, qup: &QUP, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let mut retries = 0;
-        let task = self.tasks.lock().unwrap().get(&task_id).ok_or("Task not found")?.clone();
+        let task = self.tasks.read().unwrap().get(&task_id).ok_or("Task not found")?.clone();
         let max_retries = 5;
         let mut delay = Duration::from_secs(1);
 
         loop {
-            let bids = self.bids.lock().unwrap();
+            let bids = self.bids.read().unwrap();
             if let Some(bids) = bids.get(&task_id) {
-                let task = self.tasks.lock().unwrap().get(&task_id).ok_or("Task not found")?.clone();
+                let task = self.tasks.read().unwrap().get(&task_id).ok_or("Task not found")?.clone();
                 let valid_bids: Vec<Bid> = bids.iter().filter(|bid| current_block <= bid_expiration_blocks).cloned().collect();
                 if let Some(best_bid) = self.select_best_bid(&task, &valid_bids) {
                     let task = self.tasks.get(&task_id).ok_or("Task not found")?;
@@ -123,7 +123,7 @@ impl Marketplace {
 
                     // Update reputation for successful task completion
                     self.update_reputation(&best_bid.node_id, task.reward as f64, true);
-                    self.bids.remove(&task_id); // Remove bids after assignment
+                    self.bids.write().unwrap().remove(&task_id); // Remove bids after assignment
                     qup.send_task_assignment_notification(&task.creator, &best_bid.node_id)?;
                     return Ok(());
                 } else {
@@ -193,15 +193,15 @@ impl Marketplace {
 impl Marketplace {
     pub fn new() -> Self {
         Self {
-            tasks: Mutex::new(HashMap::new()),
-            bids: Mutex::new(HashMap::new()),
+            tasks: RwLock::new(HashMap::new()),
+            bids: RwLock::new(HashMap::new()),
             round_robin_counter: AtomicUsize::new(0),
         }
     }
 
     pub fn add_task(&self, task: Task, blockchain: &Blockchain) -> Result<(), String> {
         task.validate()?;
-        let mut tasks = self.tasks.lock().unwrap();
+        let mut tasks = self.tasks.write().unwrap();
         if tasks.contains_key(&task.id) {
             return Err("Task ID already exists".to_string());
         }
@@ -211,13 +211,13 @@ impl Marketplace {
     }
 
     pub fn get_task(&self, task_id: u64) -> Option<&Task> {
-        let tasks = self.tasks.lock().unwrap();
+        let tasks = self.tasks.read().unwrap();
         tasks.get(&task_id)
     }
 
     pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, minimum_stake: u64, current_block: u64, bid_expiration_blocks: u64) -> Result<(), String> {
         let tasks = self.tasks.lock().unwrap();
-        let mut bids = self.bids.lock().unwrap();
+        let mut bids = self.bids.write().unwrap();
         if let Some(task) = tasks.get(&task_id) {
             if bid.proposed_time > task.deadline {
                 return Err("Bid proposed time is past the task deadline".to_string());
@@ -235,7 +235,7 @@ impl Marketplace {
                 return Err("Bid has expired".to_string());
             }
             let task_version = task.version;
-            let task = tasks.get_mut(&task_id).unwrap();
+            let mut task = tasks.get_mut(&task_id).unwrap();
             if task.version != task_version {
                 return Err("Task has been modified, please retry".to_string());
             }
@@ -249,7 +249,7 @@ impl Marketplace {
     }
 
     pub fn get_bids(&self, task_id: u64) -> Option<&Vec<Bid>> {
-        let bids = self.bids.lock().unwrap();
+        let bids = self.bids.read().unwrap();
         bids.get(&task_id)
     }
 }
