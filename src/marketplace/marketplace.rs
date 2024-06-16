@@ -177,6 +177,25 @@ impl Marketplace {
     }
 
     fn get_node_stake(&self, node_id: &str) -> f64 {
+        let staked_amount = self.get_staked_amount(node_id);
+        let stake_duration = self.get_stake_duration(node_id);
+
+        // Weights for staked amount and stake duration
+        let staked_amount_weight = 0.7;
+        let stake_duration_weight = 0.3;
+
+        staked_amount_weight * staked_amount + stake_duration_weight * stake_duration
+    }
+
+    fn get_staked_amount(&self, node_id: &str) -> f64 {
+        // Placeholder for actual staked amount retrieval logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_stake_duration(&self, node_id: &str) -> f64 {
+        // Placeholder for actual stake duration retrieval logic
+        // For now, return a dummy value
         1.0
     }
 
