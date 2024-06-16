@@ -118,6 +118,8 @@ impl ConsensusAlgorithm {
     }
 }
 
+use crate::qup::crypto::QUPCrypto;
+
 pub struct QUPConsensus {
     pub shard_recovery_manager: Arc<ShardRecoveryManager>,
     pub blockchain: Arc<Blockchain>,
