@@ -114,28 +114,62 @@ impl FaultTolerance {
     async fn balance_load(&self) {
         let mut nodes = self.nodes.lock().unwrap();
         let mut load_counts = HashMap::new();
+        let load_threshold = 0.8; // Example load threshold
 
         for node in nodes.values() {
-            *load_counts.entry(node.id).or_insert(0) += 1;
+            let load = self.calculate_node_load(node);
+            load_counts.insert(node.id, load);
         }
 
-        let average_load = load_counts.values().sum::<usize>() / load_counts.len();
         let mut overloaded_nodes = Vec::new();
         let mut underloaded_nodes = Vec::new();
 
         for (node_id, load) in load_counts {
-            if load > average_load {
+            if load > load_threshold {
                 overloaded_nodes.push(node_id);
-            } else if load < average_load {
+            } else {
                 underloaded_nodes.push(node_id);
             }
         }
 
         for overloaded_node in overloaded_nodes {
-            if let Some(underloaded_node) = underloaded_nodes.pop() {
-                self.reassign_tasks(overloaded_node, underloaded_node).await;
+            let mut tasks_to_move = Vec::new();
+            for task in &nodes.get(&overloaded_node).unwrap().tasks {
+                if let Some(underloaded_node) = self.find_suitable_node(task, &underloaded_nodes) {
+                    tasks_to_move.push((task.clone(), underloaded_node));
+                }
+            }
+
+            for (task, underloaded_node) in tasks_to_move {
+                self.reassign_task(overloaded_node, underloaded_node, task).await;
             }
         }
+    }
+
+    fn calculate_node_load(&self, node: &Node) -> f64 {
+        let total_resources = node.resources.cpu + node.resources.gpu + node.resources.memory;
+        let used_resources = node.tasks.iter().fold(0, |acc, task| {
+            acc + task.resource_requirements().cpu + task.resource_requirements().gpu + task.resource_requirements().memory
+        });
+        used_resources as f64 / total_resources as f64
+    }
+
+    fn find_suitable_node(&self, task: &Task, underloaded_nodes: &[usize]) -> Option<usize> {
+        let required_resources = task.resource_requirements();
+        for &node_id in underloaded_nodes {
+            let node = self.nodes.lock().unwrap().get(&node_id).unwrap();
+            if node.resources.cpu >= required_resources.cpu &&
+               node.resources.gpu >= required_resources.gpu &&
+               node.resources.memory >= required_resources.memory {
+                return Some(node_id);
+            }
+        }
+        None
+    }
+
+    async fn reassign_task(&self, from_node: usize, to_node: usize, task: Task) {
+        // Logic to reassign the task from the overloaded node to the underloaded node
+        // ...
     }
 
     async fn reassign_tasks(&self, from_node: usize, to_node: usize) {
