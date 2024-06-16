@@ -151,8 +151,15 @@ impl DistributedTrainer {
 
     pub fn train(&self) -> TrainingResult {
         let mut models = vec![];
+        let checkpoint_interval = Duration::from_secs(60); // Example checkpoint interval
+        let last_checkpoint = Instant::now();
 
         for _ in 0..self.nodes.len() {
+            if Instant::now().duration_since(last_checkpoint) >= checkpoint_interval {
+                self.checkpoint();
+                last_checkpoint = Instant::now();
+            }
+
             let round_models = self.train_models(false);
             let sampling_rate = 0.5; // Example sampling rate
             let validation_data = vec![]; // Placeholder for actual validation data
@@ -164,6 +171,8 @@ impl DistributedTrainer {
             } else {
                 println!("Verification failed. Skipping aggregation for this round.");
             }
+
+            self.handle_node_failures();
         }
 
         let aggregated_model = self.aggregate_models(models, 0.5); // Example sampling rate for aggregation
@@ -441,3 +450,17 @@ pub struct TrainingResult {
     pub model: HDCModel,
     pub metrics: HashMap<String, f64>,
 }
+    fn checkpoint(&self) {
+        // Implement logic to save the current training state
+        // This may include saving model parameters, optimizer state, etc.
+        // The checkpoint data should be saved to persistent storage
+        println!("Checkpointing training state...");
+    }
+
+    fn handle_node_failures(&self) {
+        // Implement logic to handle node failures
+        // This may include detecting unresponsive nodes and reassigning their tasks
+        // If a checkpoint is available, resume the task from the last checkpoint
+        // Otherwise, restart the task from the beginning
+        println!("Handling node failures...");
+    }
