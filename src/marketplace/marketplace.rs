@@ -191,8 +191,23 @@ impl Marketplace {
     }
 
     fn break_tie(&self, bid1: &Bid, bid2: &Bid) -> bool {
-        let counter = self.round_robin_counter.fetch_add(1, Ordering::SeqCst);
-        counter % 2 == 0
+        // Random approach for tie-breaking
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        if rng.gen_bool(0.5) {
+            return true;
+        }
+
+        // Optional additional tie-breakers
+        let uptime1 = self.get_node_uptime(&bid1.node_id);
+        let uptime2 = self.get_node_uptime(&bid2.node_id);
+        if uptime1 != uptime2 {
+            return uptime1 > uptime2;
+        }
+
+        let age1 = self.get_node_age(&bid1.node_id);
+        let age2 = self.get_node_age(&bid2.node_id);
+        age1 > age2
     }
 
     fn get_historical_performance_score(&self, node_id: &str) -> f64 {
