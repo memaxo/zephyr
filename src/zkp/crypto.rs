@@ -4,7 +4,6 @@ use rand::rngs::OsRng;
 use num_bigint::BigUint;
 use zeroize::Zeroize;
 use pqcrypto_dilithium::dilithium2::{keypair as dilithium_keypair, sign as dilithium_sign, verify as dilithium_verify, PublicKey as DilithiumPublicKey, SecretKey as DilithiumSecretKey, Signature as DilithiumSignature};
-use pqcrypto_kyber::kyber1024::{keypair as kyber_keypair, encapsulate as kyber_encapsulate, decapsulate as kyber_decapsulate, PublicKey as KyberPublicKey, SecretKey as KyberSecretKey, Ciphertext as KyberCiphertext};
 use rand::rngs::OsRng;
 use num_bigint::BigUint;
 use zeroize::Zeroize;

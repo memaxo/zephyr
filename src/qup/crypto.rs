@@ -19,18 +19,28 @@ impl QUPCrypto {
     }
 
     pub fn encrypt_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        self.key_management.get_kyber_keys(key_id).map(|(public_key, _)| {
-            let (ciphertext, shared_secret) = encapsulate(public_key);
-            let encrypted_message = self.aes_encrypt(message, &shared_secret);
-            [ciphertext.as_bytes(), &encrypted_message].concat()
+        self.key_management.get_keypair(key_id).and_then(|keypair| {
+            match keypair {
+                KeyPair::Kyber(public_key, _) => {
+                    let (ciphertext, shared_secret) = encapsulate(public_key);
+                    let encrypted_message = self.aes_encrypt(message, &shared_secret);
+                    Some([ciphertext.as_bytes(), &encrypted_message].concat())
+                }
+                _ => None,
+            }
         })
     }
 
     pub fn decrypt_message(&self, encrypted_message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        self.key_management.get_kyber_keys(key_id).and_then(|(_, secret_key)| {
-            let (ciphertext, encrypted_message) = encrypted_message.split_at(KyberCiphertext::BYTES);
-            let shared_secret = decapsulate(&KyberCiphertext::from_bytes(ciphertext), secret_key).ok()?;
-            self.aes_decrypt(encrypted_message, &shared_secret)
+        self.key_management.get_keypair(key_id).and_then(|keypair| {
+            match keypair {
+                KeyPair::Kyber(_, secret_key) => {
+                    let (ciphertext, encrypted_message) = encrypted_message.split_at(KyberCiphertext::BYTES);
+                    let shared_secret = decapsulate(&KyberCiphertext::from_bytes(ciphertext), secret_key).ok()?;
+                    self.aes_decrypt(encrypted_message, &shared_secret)
+                }
+                _ => None,
+            }
         })
     }
 
@@ -65,27 +75,30 @@ impl QUPCrypto {
     }
 
     pub fn sign_message(&self, message: &[u8], key_id: &str) -> Option<Vec<u8>> {
-        if let Some((_, secret_key)) = self.key_management.get_dilithium_keys(key_id) {
-            Some(sign_detached(message, secret_key).to_vec())
-        } else {
-            None
-        }
+        self.key_management.get_keypair(key_id).and_then(|keypair| {
+            match keypair {
+                KeyPair::Dilithium(_, secret_key) => Some(sign_detached(message, secret_key).to_vec()),
+                _ => None,
+            }
+        })
     }
 
     pub fn verify_message(&self, message: &[u8], signature: &[u8], key_id: &str) -> Option<bool> {
-        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
-            Some(verify_detached(signature, message, public_key).is_ok())
-        } else {
-            None
-        }
+        self.key_management.get_keypair(key_id).and_then(|keypair| {
+            match keypair {
+                KeyPair::Dilithium(public_key, _) => Some(verify_detached(signature, message, public_key).is_ok()),
+                _ => None,
+            }
+        })
     }
 
     pub fn validate_model_update(&self, model_update: &[u8], signature: &[u8], key_id: &str) -> bool {
-        if let Some((public_key, _)) = self.key_management.get_dilithium_keys(key_id) {
-            verify(model_update, signature, public_key).is_ok()
-        } else {
-            false
-        }
+        self.key_management.get_keypair(key_id).map_or(false, |keypair| {
+            match keypair {
+                KeyPair::Dilithium(public_key, _) => verify(model_update, signature, public_key).is_ok(),
+                _ => false,
+            }
+        })
     }
 }
 
@@ -196,14 +209,6 @@ pub fn verify_model_training(&self, solution: &ModelTrainingSolution) -> Result<
     Ok(true) // Placeholder
 }
 
-fn decrypt_quantum_data(data: &[u8], key: &KyberSecretKey) -> Result<Vec<u8>, CryptoError> {
-    // Implement quantum-resistant decryption using Kyber
-    let ciphertext = KyberCiphertext::from_bytes(data)?;
-    let shared_secret = decapsulate(&ciphertext, key)?;
-    // Use the shared secret to decrypt the data
-    // ...
-    Ok(vec![]) // Placeholder
-}
 pub fn delta_encode(data: &[u8]) -> Result<Vec<u8>, ConsensusError> {
     // Placeholder for delta encoding logic
     // Implement delta encoding to transmit only changes in model parameters

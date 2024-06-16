@@ -5,16 +5,14 @@ use std::collections::HashMap;
 
 pub struct KeyManagement {
     quantum_random: QuantumRandom,
-    kyber_keys: HashMap<String, (KyberPublicKey, KyberSecretKey)>,
-    dilithium_keys: HashMap<String, (DilithiumPublicKey, DilithiumSecretKey)>,
+    keys: HashMap<String, KeyPair>,
 }
 
 impl KeyManagement {
     pub fn new() -> Self {
         KeyManagement {
             quantum_random: QuantumRandom::new(),
-            kyber_keys: HashMap::new(),
-            dilithium_keys: HashMap::new(),
+            keys: HashMap::new(),
         }
     }
 
@@ -22,21 +20,31 @@ impl KeyManagement {
         self.quantum_random.generate_random_bytes(32).await.expect("Failed to generate authentication key")
     }
 
-    pub fn generate_kyber_keys(&mut self, key_id: &str) {
-        let (public_key, secret_key) = kyber_keypair();
-        self.kyber_keys.insert(key_id.to_string(), (public_key, secret_key));
+    pub fn generate_keypair(&mut self, key_id: &str, key_type: KeyType) {
+        let keypair = match key_type {
+            KeyType::Kyber => {
+                let (public_key, secret_key) = kyber_keypair();
+                KeyPair::Kyber(public_key, secret_key)
+            }
+            KeyType::Dilithium => {
+                let (public_key, secret_key) = dilithium_keypair();
+                KeyPair::Dilithium(public_key, secret_key)
+            }
+        };
+        self.keys.insert(key_id.to_string(), keypair);
     }
 
-    pub fn generate_dilithium_keys(&mut self, key_id: &str) {
-        let (public_key, secret_key) = dilithium_keypair();
-        self.dilithium_keys.insert(key_id.to_string(), (public_key, secret_key));
+    pub fn get_keypair(&self, key_id: &str) -> Option<&KeyPair> {
+        self.keys.get(key_id)
     }
+}
 
-    pub fn get_kyber_keys(&self, key_id: &str) -> Option<&(KyberPublicKey, KyberSecretKey)> {
-        self.kyber_keys.get(key_id)
-    }
+pub enum KeyType {
+    Kyber,
+    Dilithium,
+}
 
-    pub fn get_dilithium_keys(&self, key_id: &str) -> Option<&(DilithiumPublicKey, DilithiumSecretKey)> {
-        self.dilithium_keys.get(key_id)
-    }
+pub enum KeyPair {
+    Kyber(KyberPublicKey, KyberSecretKey),
+    Dilithium(DilithiumPublicKey, DilithiumSecretKey),
 }
