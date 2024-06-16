@@ -25,34 +25,90 @@ pub struct NetworkLatency {
     pub latencies: HashMap<(usize, usize), f64>,
 }
 
+use tokio::sync::RwLock;
+
 pub struct ResourceManager {
-    pub node_metrics: Arc<Mutex<HashMap<usize, NodeMetrics>>>,
-    resources: Arc<Mutex<HashMap<usize, Resource>>>,
+    pub node_metrics: Arc<RwLock<HashMap<usize, NodeMetrics>>>,
+    resources: Arc<RwLock<HashMap<usize, Resource>>>,
     scheduler: ResourceScheduler,
     etcd_client: Client,
     node_id: String,
-    network_latency: Arc<Mutex<NetworkLatency>>,
+    network_latency: Arc<RwLock<NetworkLatency>>,
+    is_primary: Arc<RwLock<bool>>,
 }
 
 impl ResourceManager {
     pub async fn new(etcd_endpoints: Vec<String>, node_id: String) -> Self {
         let etcd_client = Client::connect(etcd_endpoints, None).await.unwrap();
-        let node_metrics = Arc::new(Mutex::new(HashMap::new()));
-        let network_latency = Arc::new(Mutex::new(NetworkLatency {
+        let node_metrics = Arc::new(RwLock::new(HashMap::new()));
+        let network_latency = Arc::new(RwLock::new(NetworkLatency {
             latencies: HashMap::new(),
         }));
+        let is_primary = Arc::new(RwLock::new(false));
 
         ResourceManager {
             network_latency,
             node_metrics,
-            resources: Arc::new(Mutex::new(HashMap::new())),
+            resources: Arc::new(RwLock::new(HashMap::new())),
             scheduler: ResourceScheduler::new(),
             etcd_client,
             node_id,
-            let node_metrics = node_metrics.lock().unwrap();
-            for (node_id, metrics) in node_metrics.iter() {
-                self.etcd_client.put(format!("metrics/{}", node_id), serde_json::to_string(metrics).unwrap(), None).await.unwrap();
+            is_primary,
+        }
+    }
+
+    pub async fn start(&self) {
+        self.start_heartbeat().await;
+        self.monitor_primary().await;
+    }
+
+    async fn monitor_primary(&self) {
+        let mut interval = interval(Duration::from_secs(10));
+        loop {
+            interval.tick().await;
+            let primary_key = "resource_manager_primary";
+            let primary_node = self.etcd_client.get(primary_key, None).await.unwrap();
+
+            if primary_node.count() == 0 {
+                // No primary exists, initiate election
+                self.initiate_election().await;
+            } else if primary_node.kvs().next().unwrap().value_str().unwrap() != self.node_id {
+                // Another node is primary, set is_primary to false
+                let mut is_primary = self.is_primary.write().await;
+                *is_primary = false;
             }
+        }
+    }
+
+    async fn initiate_election(&self) {
+        let election_key = "resource_manager_election";
+        let lease = self.etcd_client.lease_grant(60, None).await.unwrap();
+        let mut txn = Txn::new();
+        txn.compare(CompareOp::create(), election_key, CompareTarget::version(0));
+        txn.success().put(election_key, &self.node_id, Some(PutOptions::new().with_lease(lease.id())));
+        let resp = self.etcd_client.txn(txn).await.unwrap();
+
+        if resp.succeeded() {
+            // Election won, set is_primary to true
+            let mut is_primary = self.is_primary.write().await;
+            *is_primary = true;
+            self.etcd_client.put("resource_manager_primary", &self.node_id, None).await.unwrap();
+        }
+    }
+
+    pub async fn is_primary(&self) -> bool {
+        *self.is_primary.read().await
+    }
+
+    pub async fn allocate_resources(&self, required: Resource, task_priority: f64, current_node: usize) -> Option<usize> {
+        if !self.is_primary().await {
+            return None;
+        }
+
+        let resources = self.resources.read().await;
+        let node_metrics = self.node_metrics.read().await;
+        let network_latency = self.network_latency.read().await;
+        self.scheduler.allocate(resources.clone(), node_metrics.clone(), required, task_priority, current_node, &network_latency)
     }
 
     pub async fn measure_network_latency(&self, nodes: Vec<NodeId>) -> HashMap<NodeId, Duration> {
