@@ -71,6 +71,38 @@ impl Marketplace {
     }
 
     fn get_capability_score(&self, proof_of_capability: &str) -> f64 {
+        // Placeholder for actual capability score calculation logic
+        // For now, return a dummy value
+        let hardware_spec_score = self.get_hardware_spec_score(proof_of_capability);
+        let benchmark_score = self.get_benchmark_score(proof_of_capability);
+        let past_task_score = self.get_past_task_score(proof_of_capability);
+
+        let weights = HashMap::from([
+            ("hardware_spec".to_string(), 0.4),
+            ("benchmark".to_string(), 0.3),
+            ("past_task".to_string(), 0.3),
+        ]);
+
+        weights["hardware_spec"] * hardware_spec_score
+            + weights["benchmark"] * benchmark_score
+            + weights["past_task"] * past_task_score
+    }
+
+    fn get_hardware_spec_score(&self, proof_of_capability: &str) -> f64 {
+        // Placeholder for actual hardware spec score calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_benchmark_score(&self, proof_of_capability: &str) -> f64 {
+        // Placeholder for actual benchmark score calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn get_past_task_score(&self, proof_of_capability: &str) -> f64 {
+        // Placeholder for actual past task score calculation logic
+        // For now, return a dummy value
         1.0
     }
 
