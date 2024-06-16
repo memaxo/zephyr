@@ -373,7 +373,8 @@ impl Marketplace {
 
         let weights = task.weights.as_ref().unwrap_or(&default_weights);
 
-        for bid in bids {
+        let mut rng = rand::thread_rng();
+        let mut bid_scores: Vec<(Bid, f64)> = bids.iter().map(|bid| {
             let reputation_score = self.get_reputation_score(&bid.node_id);
             let capability_score = self.get_capability_score(&bid.proof_of_capability);
             let time_score = self.get_time_score(&bid.proposed_time, &task.deadline);
@@ -388,14 +389,31 @@ impl Marketplace {
                 + weights["geographical"] * geographical_score
                 + weights["price_performance"] * price_performance_score;
 
-            if score > highest_score {
-                highest_score = score;
-                best_bid = Some(bid.clone());
-            } else if (score - highest_score).abs() < f64::EPSILON {
-                // Tie-breaking mechanism
-                if self.break_tie(&bid, &best_bid.as_ref().unwrap()) {
-                    best_bid = Some(bid.clone());
-                }
+            (bid.clone(), score)
+        }).collect();
+
+        // Collusion detection: flag identical bids from multiple nodes
+        let mut bid_patterns: HashMap<String, Vec<String>> = HashMap::new();
+        for (bid, _) in &bid_scores {
+            let key = format!("{}-{}", bid.proposed_reward, bid.proposed_time);
+            bid_patterns.entry(key).or_default().push(bid.node_id.clone());
+        }
+        for (key, nodes) in bid_patterns {
+            if nodes.len() > 1 {
+                error!("Potential collusion detected: identical bids from nodes {:?}", nodes);
+            }
+        }
+
+        // Fair task assignment: weighted random selection
+        bid_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+        let total_score: f64 = bid_scores.iter().map(|(_, score)| *score).sum();
+        let mut cumulative_score = 0.0;
+        let random_value: f64 = rng.gen_range(0.0..total_score);
+        for (bid, score) in bid_scores {
+            cumulative_score += score;
+            if cumulative_score >= random_value {
+                best_bid = Some(bid);
+                break;
             }
         }
 
@@ -435,6 +453,24 @@ impl Marketplace {
 
     pub fn get_task(&self, task_id: u64) -> Option<&Task> {
         let tasks = self.tasks.read().unwrap();
+        let reputation_score = self.get_reputation_score(&bid.node_id);
+        let min_reputation_score = 0.5; // Example threshold
+
+        if reputation_score < min_reputation_score {
+            return Err("Node reputation too low to submit bid".to_string());
+        }
+
+        // Rate limiting: allow only a certain number of bids per node per time period
+        let max_bids_per_node = 5;
+        let mut node_bid_count: HashMap<String, usize> = HashMap::new();
+        for (_, bid_list) in self.bids.read().unwrap().iter() {
+            for b in bid_list {
+                *node_bid_count.entry(b.node_id.clone()).or_default() += 1;
+            }
+        }
+        if *node_bid_count.get(&bid.node_id).unwrap_or(&0) >= max_bids_per_node {
+            return Err("Node has reached the maximum number of bids allowed".to_string());
+        }
         tasks.get(&task_id)
     }
 
