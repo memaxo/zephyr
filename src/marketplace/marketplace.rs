@@ -113,7 +113,25 @@ impl Marketplace {
     }
 
     fn get_geographical_score(&self, node_id: &str) -> f64 {
-        // Placeholder for actual geographical score calculation logic
+        let distance = self.calculate_distance(node_id);
+        let latency = self.measure_latency(node_id);
+
+        // Inverse proportionality: closer and lower latency = higher score
+        let distance_score = 1.0 / (1.0 + distance);
+        let latency_score = 1.0 / (1.0 + latency);
+
+        (distance_score + latency_score) / 2.0
+    }
+
+    fn calculate_distance(&self, node_id: &str) -> f64 {
+        // Placeholder for actual distance calculation logic
+        // For now, return a dummy value
+        1.0
+    }
+
+    fn measure_latency(&self, node_id: &str) -> f64 {
+        // Placeholder for actual latency measurement logic
+        // For now, return a dummy value
         1.0
     }
 
