@@ -4,7 +4,7 @@ use crate::smart_contract::types::{SmartContract, Task as SCTask, Bid as SCBid, 
 use crate::chain::blockchain::Blockchain;
 use crate::qup::QUP;
 use crate::marketplace::message_format::TaskAssignmentNotification;
-use crate::did::did::{DID, DIDDocument};
+use crate::did::did::{DID, DIDDocument, DIDError};
 use crate::did::did_resolver::DIDResolver;
 use log::{error, info};
 
@@ -13,6 +13,7 @@ pub struct Marketplace {
     bids: RwLock<HashMap<u64, Vec<Bid>>>,
     round_robin_counter: AtomicUsize,
     reputation: Mutex<HashMap<String, f64>>,
+    did_documents: RwLock<HashMap<String, DIDDocument>>,
     qup: Arc<QUP>,
     did_resolver: Arc<dyn DIDResolver>,
 }
@@ -26,11 +27,13 @@ impl Marketplace {
         let new_reputation = old_reputation * decay_factor + (weight * score_change);
         reputation.insert(node_id.to_string(), new_reputation.max(0.0)); // Ensure non-negative reputation
     pub fn new(qup: Arc<QUP>, did_resolver: Arc<dyn DIDResolver>) -> Self {
+        let did_documents = RwLock::new(HashMap::new());
         Self {
             tasks: RwLock::new(HashMap::new()),
             bids: RwLock::new(HashMap::new()),
             round_robin_counter: AtomicUsize::new(0),
             reputation: Mutex::new(HashMap::new()),
+            did_documents: RwLock::new(HashMap::new()),
             qup,
             did_resolver,
         }
@@ -86,6 +89,12 @@ impl Marketplace {
 
 impl Marketplace {
     fn get_reputation_score(&self, node_id: &str) -> f64 {
+        // Ensure the DID is resolved before calculating the reputation score
+        if self.did_documents.read().unwrap().get(node_id).is_none() {
+            let did = DID::from_str(node_id).unwrap();
+            let did_document = self.did_resolver.resolve(&did).unwrap();
+            self.did_documents.write().unwrap().insert(node_id.to_string(), did_document);
+        }
         let historical_performance = self.get_historical_performance_score(node_id);
         let recent_performance = self.get_recent_performance_score(node_id);
         let feedback = self.get_feedback_score(node_id);
@@ -475,6 +484,10 @@ impl Marketplace {
     }
 
     pub fn add_bid(&self, task_id: u64, bid: Bid, blockchain: &Blockchain, qup: &QUP, minimum_stake: u64, bid_expiration_blocks: u64) -> Result<(), String> {
+        // Verify the DID of the node submitting the bid
+        let did = DID::from_str(&bid.node_id).map_err(|e| format!("Invalid DID: {}", e))?;
+        let did_document = self.did_resolver.resolve(&did).map_err(|e| format!("Failed to resolve DID: {}", e))?;
+        self.did_documents.write().unwrap().insert(bid.node_id.clone(), did_document);
         let tasks = self.tasks.read().unwrap();
         let current_block = blockchain.get_current_block_number()?;
         if current_block > bid_expiration_blocks {
