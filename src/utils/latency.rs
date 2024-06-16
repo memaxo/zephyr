@@ -21,10 +21,12 @@ pub fn measure_latency(target: &str) -> Result<Duration, String> {
     }
 }
 
-pub fn ping_nodes(nodes: Vec<String>) -> Vec<Latency> {
+use crate::utils::node_id::NodeId;
+
+pub fn ping_nodes(nodes: Vec<NodeId>) -> Vec<Latency> {
     nodes.into_iter().filter_map(|node| {
-        match measure_latency(&node) {
-            Ok(latency) => Some(Latency { node_id: node, latency }),
+        match measure_latency(&node.to_string()) {
+            Ok(latency) => Some(Latency { node_id: node.to_string(), latency }),
             Err(_) => None,
         }
     }).collect()
