@@ -199,7 +199,17 @@ impl Marketplace {
         1.0
     }
 
-    fn get_custom_metric_score(&self, custom_metric: &str) -> f64 {
+    fn get_custom_metric_score(&self, custom_metric: &str, node_id: &str) -> f64 {
+        // Placeholder for actual custom metric score calculation logic
+        // For now, return a dummy value
+        let metric_value = self.verify_custom_metric(custom_metric, node_id);
+        metric_value
+    }
+
+    fn verify_custom_metric(&self, custom_metric: &str, node_id: &str) -> f64 {
+        // Placeholder for actual custom metric verification logic
+        // This could involve checking attestations or on-chain data
+        // For now, return a dummy value
         1.0
     }
         // Placeholder for actual reputation score retrieval logic
