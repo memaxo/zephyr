@@ -1,6 +1,6 @@
 use std::collections::{HashMap, BinaryHeap, VecDeque};
 use crate::utils::latency::{ping_nodes, Latency};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::cmp::Reverse;
 use etcd_client::{Client, GetOptions, PutOptions};
 use std::time::Duration;
@@ -35,6 +35,19 @@ pub struct ResourceManager {
     node_id: String,
     network_latency: Arc<RwLock<NetworkLatency>>,
     is_primary: Arc<RwLock<bool>>,
+}
+
+impl ResourceManager {
+    // ...
+
+    pub async fn measure_network_latency(&self, nodes: Vec<NodeId>) -> HashMap<NodeId, Duration> {
+        let latencies = ping_nodes(nodes);
+        latencies.into_iter().map(|latency| {
+            (NodeId::from(latency.node_id), latency.latency)
+        }).collect()
+    }
+
+    // ...
 }
 
 impl ResourceManager {
@@ -131,9 +144,9 @@ impl ResourceManager {
     }
 
     pub async fn allocate_resources(&self, required: Resource, task_priority: f64, current_node: usize) -> Option<usize> {
-        let resources = self.resources.lock().unwrap();
-        let node_metrics = self.node_metrics.lock().unwrap();
-        let network_latency = self.network_latency.lock().unwrap();
+        let resources = self.resources.read().await;
+        let node_metrics = self.node_metrics.read().await;
+        let network_latency = self.network_latency.read().await;
         self.scheduler.allocate(resources.clone(), node_metrics.clone(), required, task_priority, current_node, &network_latency)
     }
 
@@ -210,6 +223,24 @@ impl ResourceScheduler {
         }
 
         heap.pop().map(|Reverse((_, node_id))| node_id)
+    }
+
+    fn calculate_weighted_score(&self, metrics: &NodeMetrics, task_priority: f64, latency: f64) -> f64 {
+        let cpu_weight = 0.3;
+        let gpu_weight = 0.3;
+        let memory_weight = 0.2;
+        let latency_weight = 0.2;
+
+        let cpu_score = 1.0 - metrics.load;
+        let gpu_score = 1.0 - metrics.gpu_utilization;
+        let memory_score = 1.0 - metrics.memory_utilization;
+        let latency_score = 1.0 / (1.0 + latency);
+
+        cpu_weight * cpu_score +
+        gpu_weight * gpu_score +
+        memory_weight * memory_score +
+        latency_weight * latency_score +
+        task_priority
     }
 
     fn calculate_weighted_score(&self, metrics: &NodeMetrics, task_priority: f64, latency: f64) -> f64 {
