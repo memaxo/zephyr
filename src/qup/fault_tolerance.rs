@@ -16,6 +16,12 @@ struct Node {
     id: usize,
     last_heartbeat: Instant,
     shard: Vec<u8>,
+}
+
+impl FaultTolerance {
+    // ...
+
+    fn replicate_and_vote(&self, task: Vec<u8>) -> Vec<u8> {
         let mut nodes = self.nodes.lock().unwrap();
         let mut results = HashMap::new();
         let mut tasks_assigned = HashSet::new();
@@ -33,6 +39,7 @@ struct Node {
         let (correct_result, _) = results.into_iter().max_by_key(|(_, v)| v.len()).unwrap();
         correct_result
     }
+}
 
     fn select_node_for_task(&self) -> usize {
         // Placeholder for node selection logic
@@ -99,6 +106,11 @@ struct Node {
 struct Checkpoint {
     model_state: Vec<u8>,
     training_progress: usize,
+}
+
+impl FaultTolerance {
+    // ...
+
     async fn balance_load(&self) {
         let mut nodes = self.nodes.lock().unwrap();
         let mut load_counts = HashMap::new();
