@@ -209,14 +209,15 @@ impl ResourceScheduler {
         }
     }
 
-    pub fn allocate(&self, resources: HashMap<usize, Resource>, node_metrics: HashMap<usize, NodeMetrics>, required: Resource, task_priority: f64, current_node: usize, network_latency: &NetworkLatency) -> Option<usize> {
+    pub fn allocate(&self, resources: HashMap<usize, Resource>, node_metrics: HashMap<usize, NodeMetrics>, task: &impl TaskProfile, current_node: usize, network_latency: &NetworkLatency) -> Option<usize> {
         let mut heap = BinaryHeap::new();
+        let required = task.resource_requirements();
 
         for (node_id, resource) in resources.iter() {
             if resource.cpu >= required.cpu && resource.gpu >= required.gpu && resource.memory >= required.memory {
                 if let Some(metrics) = node_metrics.get(node_id) {
                     let latency = network_latency.latencies.get(&(current_node, *node_id)).cloned().unwrap_or(f64::MAX);
-                    let score = self.calculate_weighted_score(metrics, task_priority, latency);
+                    let score = self.calculate_weighted_score(metrics, task, latency);
                     heap.push(Reverse((score, *node_id)));
                 }
             }
@@ -225,11 +226,14 @@ impl ResourceScheduler {
         heap.pop().map(|Reverse((_, node_id))| node_id)
     }
 
-    fn calculate_weighted_score(&self, metrics: &NodeMetrics, task_priority: f64, latency: f64) -> f64 {
-        let cpu_weight = 0.3;
-        let gpu_weight = 0.3;
-        let memory_weight = 0.2;
-        let latency_weight = 0.2;
+    fn calculate_weighted_score(&self, metrics: &NodeMetrics, task: &impl TaskProfile, latency: f64) -> f64 {
+        let resource_requirements = task.resource_requirements();
+        let total_resources = resource_requirements.cpu + resource_requirements.gpu + resource_requirements.memory;
+
+        let cpu_weight = resource_requirements.cpu as f64 / total_resources as f64;
+        let gpu_weight = resource_requirements.gpu as f64 / total_resources as f64;
+        let memory_weight = resource_requirements.memory as f64 / total_resources as f64;
+        let latency_weight = self.adjust_latency_weight();
 
         let cpu_score = 1.0 - metrics.load;
         let gpu_score = 1.0 - metrics.gpu_utilization;
@@ -239,8 +243,13 @@ impl ResourceScheduler {
         cpu_weight * cpu_score +
         gpu_weight * gpu_score +
         memory_weight * memory_score +
-        latency_weight * latency_score +
-        task_priority
+        latency_weight * latency_score
+    }
+
+    fn adjust_latency_weight(&self) -> f64 {
+        // Placeholder implementation, replace with actual logic
+        // to adjust latency weight based on system performance
+        0.2
     }
 
     fn calculate_weighted_score(&self, metrics: &NodeMetrics, task_priority: f64, latency: f64) -> f64 {
