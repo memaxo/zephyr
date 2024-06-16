@@ -162,22 +162,23 @@ impl FaultTolerantDistributedTrainingNode {
         }
     }
 
-    async fn handle_node_failure(&mut self, node_id: usize) {
-        let mut nodes = self.nodes.lock().unwrap();
-        if let Some(failed_node) = nodes.remove(&node_id) {
-            println!("Node failure detected for node {}. Reassigning shard and restarting training.", node_id);
-
-            // Reassign the failed node's shard to another node
-            if let Some((new_node_id, new_node)) = nodes.iter_mut().next() {
-                new_node.shard = failed_node.shard.clone();
-                println!("Shard reassigned to node {}", new_node_id);
-
-                // Restart training on the reassigned shard
-                self.restart_training(new_node_id).await;
+    pub fn handle_node_failure(&self, failed_node: &NodeId) {
+        let task_replicas = self.task_replicas.lock().unwrap();
+        for (task_id, nodes) in task_replicas.iter() {
+            if nodes.contains(failed_node) {
+                if let Some(checkpoint) = self.get_checkpoint(task_id) {
+                    let remaining_nodes: Vec<NodeId> = nodes.iter().filter(|&&node| node != *failed_node).cloned().collect();
+                    if !remaining_nodes.is_empty() {
+                        // Resume task on another node
+                        let new_node = remaining_nodes[0].clone();
+                        self.resource_manager.allocate_resources(Resource { cpu: 1, gpu: 1, memory: 1 }, 1.0);
+                        // Logic to resume task from checkpoint on new_node
+                    } else {
+                        // All nodes failed, need to reassign task
+                        // Logic to reassign task
+                    }
+                }
             }
-
-            // Save checkpoint
-            self.save_checkpoint().await;
         }
     }
 
