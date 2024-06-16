@@ -1,7 +1,8 @@
 use crate::qup::config::QUPConfig;
 use crate::qup::hardware_assessment::HardwareAssessment;
 use crate::qup::types::{UsefulWorkProblem, ModelTrainingProblem};
-use std::collections::VecDeque;
+use std::collections::{VecDeque, BinaryHeap};
+use std::cmp::Reverse;
 
 pub struct TaskManager {
     config: QUPConfig,
