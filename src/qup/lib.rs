@@ -25,7 +25,9 @@ pub use reward::RewardDistributor;
 pub use state::QUPState;
 pub use types::{
     KnapsackProblem, KnapsackSolution, QUPBlockHeader, QUPTransaction, QUPVote, VertexCoverProblem,
-    VertexCoverSolution,
+    VertexCoverSolution, UsefulWorkProblem, UsefulWorkSolution, ProblemProposal, ContributionType,
+    UtilityPoints, UsefulWorkProblemTrait, UsefulWorkSolutionTrait, SecurityThreats, QUPMessage,
+    ProtocolMessage, UsefulWorkResult,
 };
 pub use utils::{
     calculate_block_hash, calculate_transaction_hash, verify_block_signature,
