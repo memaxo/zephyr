@@ -24,6 +24,10 @@ pub struct QUPConfig {
     pub confirmation_threshold: usize,
     pub confirmation_timeout: std::time::Duration,
     pub distributed_training_config: DistributedTrainingConfig,
+    pub enable_differential_privacy: bool,
+    pub enable_mpc: bool,
+    pub enable_homomorphic_encryption: bool,
+    pub privacy_protection_level: f64,
 
 /// Configuration settings for distributed training.
 pub struct DistributedTrainingConfig {
@@ -42,6 +46,10 @@ pub struct DistributedTrainingConfig {
     pub sampling_rate: f64,
     pub confidence_level: f64,
     pub max_acceptable_error: f64,
+    pub enable_differential_privacy: bool,
+    pub enable_mpc: bool,
+    pub enable_homomorphic_encryption: bool,
+    pub privacy_protection_level: f64,
 pub struct QUPConfig {
     pub consensus_config: ConsensusConfig,
     pub network_config: NetworkConfig,
@@ -83,6 +91,14 @@ impl DistributedTrainingConfig {
         sampling_rate: f64,
         confidence_level: f64,
         max_acceptable_error: f64,
+        enable_differential_privacy: bool,
+        enable_mpc: bool,
+        enable_homomorphic_encryption: bool,
+        privacy_protection_level: f64,
+        enable_differential_privacy: bool,
+        enable_mpc: bool,
+        enable_homomorphic_encryption: bool,
+        privacy_protection_level: f64,
     ) -> Self {
         DistributedTrainingConfig {
             num_nodes,
@@ -101,6 +117,14 @@ impl DistributedTrainingConfig {
             sampling_rate,
             confidence_level,
             max_acceptable_error,
+            enable_differential_privacy,
+            enable_mpc,
+            enable_homomorphic_encryption,
+            privacy_protection_level,
+            enable_differential_privacy,
+            enable_mpc,
+            enable_homomorphic_encryption,
+            privacy_protection_level,
         }
     }
 }
