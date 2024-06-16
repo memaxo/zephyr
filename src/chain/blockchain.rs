@@ -25,6 +25,7 @@ use crate::storage::block_storage::BlockchainStorageError;
 use crate::secure_storage::SecureStorageError;
 use crate::qup::reward::RewardDistributor;
 use crate::qup::crypto::Hash;
+use crate::qup::QUP;
 
 #[derive(Error, Debug)]
 pub enum BlockchainError {

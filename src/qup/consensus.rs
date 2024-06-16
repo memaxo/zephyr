@@ -32,6 +32,7 @@ use crate::zkp::zk_starks::ZkStarksProof;
 use crate::zkp::crypto::verify_quantum_merkle_proof;
 
 use crate::marketplace::marketplace::Marketplace;
+use crate::did::did_resolver::DIDResolver;
 use crate::marketplace::marketplace::Marketplace;
 use crate::marketplace::reputation::Reputation;
 use crate::did::did_resolver::DIDResolver;
@@ -54,6 +55,7 @@ impl QUPConsensus {
                 marketplace.add_bid(bid.task_id, bid.clone())?;
             }
             marketplace,
+            did_resolver,
             did_resolver,
         }
             ConsensusMessage::ProblemProposal(proposal) => {
@@ -173,6 +175,7 @@ impl QUPConsensus {
         security_manager: Arc<SecurityManager>,
         reward_manager: Arc<RewardManager>,
         marketplace: Arc<Marketplace>,
+        did_resolver: Arc<dyn DIDResolver>,
         did_resolver: Arc<dyn DIDResolver>,
     ) -> Self {
         QUPConsensus {
